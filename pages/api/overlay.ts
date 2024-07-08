@@ -8,8 +8,8 @@ export const config = {
 export default async function handler(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const text = searchParams.get('text');
-    const imageUrl = searchParams.get('imageUrl');
+    const text = searchParams.get('text') || 'Default Text';
+    const imageUrl = searchParams.get('imageUrl') || 'https://example.com/default-image.jpg';
     const fontSize = parseInt(searchParams.get('fontSize') || '40');
     const fontColor = searchParams.get('fontColor') || 'white';
     const x = parseInt(searchParams.get('x') || '10');
