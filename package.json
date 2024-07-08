@@ -1,22 +1,8 @@
 {
-  "name": "image-text-overlay",
-  "version": "0.1.0",
-  "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "vercel-build": "yum install cairo cairo-devel cairomm-devel libjpeg-turbo-devel pango pango-devel pangomm pangomm-devel giflib-devel && npm run build"
+    "vercel-build": "npm run build"
   },
   "dependencies": {
-    "canvas": "^2.11.2",
-    "next": "14.2.4",
-    "react": "^18",
-    "react-dom": "^18"
-  },
-  "devDependencies": {
-    "eslint": "^8",
-    "eslint-config-next": "14.2.4"
+    "jimp": "^0.22.12"
   }
 }
