@@ -1,0 +1,67 @@
+{
+  "version": 3,
+  "middleware": {},
+  "functions": {
+    "/api/overlay": {
+      "files": [
+        "prerender-manifest.js",
+        "server/edge-runtime-webpack.js",
+        "server/edge-chunks/456.js",
+        "server/pages/api/overlay.js"
+      ],
+      "name": "pages/api/overlay",
+      "page": "/api/overlay",
+      "matchers": [
+        {
+          "regexp": "^/api/overlay$",
+          "originalSource": "/api/overlay"
+        }
+      ],
+      "wasm": [
+        {
+          "name": "wasm_77d9faebf7af9e421806970ce10a58e9d83116d7",
+          "filePath": "server/edge-chunks/wasm_77d9faebf7af9e421806970ce10a58e9d83116d7.wasm"
+        },
+        {
+          "name": "wasm_ef4866ecae192fd87727067cf2c0c0cf9fb8b020",
+          "filePath": "server/edge-chunks/wasm_ef4866ecae192fd87727067cf2c0c0cf9fb8b020.wasm"
+        }
+      ],
+      "assets": [
+        {
+          "name": "noto-sans-v27-latin-regular.5dda3fca77107598.ttf",
+          "filePath": "server/edge-chunks/asset_noto-sans-v27-latin-regular.5dda3fca77107598.ttf"
+        }
+      ],
+      "environments": {
+        "previewModeId": "d1753d393b66d13e5a9fd19010c4af9f",
+        "previewModeSigningKey": "8cb2301dc6b010f30bb64ef424cfe315799ef3c6aca50bdd624761cdcdcfb2ba",
+        "previewModeEncryptionKey": "203ab064809b1e426c2b23089c6053fba571a1a53c11e8242e7cd5d41d652b93"
+      }
+    },
+    "/api/dimensions": {
+      "files": [
+        "prerender-manifest.js",
+        "server/edge-runtime-webpack.js",
+        "server/edge-chunks/456.js",
+        "server/pages/api/dimensions.js"
+      ],
+      "name": "pages/api/dimensions",
+      "page": "/api/dimensions",
+      "matchers": [
+        {
+          "regexp": "^/api/dimensions$",
+          "originalSource": "/api/dimensions"
+        }
+      ],
+      "wasm": [],
+      "assets": [],
+      "environments": {
+        "previewModeId": "d1753d393b66d13e5a9fd19010c4af9f",
+        "previewModeSigningKey": "8cb2301dc6b010f30bb64ef424cfe315799ef3c6aca50bdd624761cdcdcfb2ba",
+        "previewModeEncryptionKey": "203ab064809b1e426c2b23089c6053fba571a1a53c11e8242e7cd5d41d652b93"
+      }
+    }
+  },
+  "sortedMiddleware": []
+}
