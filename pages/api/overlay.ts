@@ -6,75 +6,101 @@ export const config = {
   runtime: 'edge',
 };
 
-async function getImageDimensions(url: string): Promise<{ width: number; height: number; type: string }> {
-  console.log(`Fetching dimensions for URL: ${url}`);
-  const dimensionsUrl = new URL('/api/dimensions', 'https://image-text-overlay-robjarrang-robjarrangs-projects.vercel.app');
-  dimensionsUrl.searchParams.set('url', url);
-  const response = await fetch(dimensionsUrl.toString());
-  console.log(`Dimensions API response status: ${response.status}`);
-  
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to get image dimensions');
-  }
-  
-  const data = await response.json();
-  console.log(`Received dimensions: ${JSON.stringify(data)}`);
-  return data;
-}
-
 export default async function handler(req: NextRequest) {
   console.log('Overlay API called');
   try {
     const { searchParams } = new URL(req.url);
     const text = searchParams.get('text') || 'Default Text';
     const imageUrl = searchParams.get('imageUrl');
+    const width = parseInt(searchParams.get('width') || '1200');
+    const height = parseInt(searchParams.get('height') || '630');
+    const fontSize = parseInt(searchParams.get('fontSize') || '40');
+    const fontColor = searchParams.get('fontColor') || 'white';
+    const x = parseInt(searchParams.get('x') || '10');
+    const y = parseInt(searchParams.get('y') || '50');
+    const backgroundSize = searchParams.get('backgroundSize') || 'cover';
+    const backgroundPosition = searchParams.get('backgroundPosition') || 'center';
+    const fontFamily = searchParams.get('fontFamily') || 'Arial';
 
-    console.log(`Received parameters: text=${text}, imageUrl=${imageUrl}`);
+    console.log(`Received parameters: text=${text}, imageUrl=${imageUrl}, width=${width}, height=${height}, fontSize=${fontSize}, fontColor=${fontColor}, x=${x}, y=${y}, backgroundSize=${backgroundSize}, backgroundPosition=${backgroundPosition}, fontFamily=${fontFamily}`);
 
     if (!imageUrl) {
       throw new Error('No image URL provided');
     }
 
-    const fontSize = parseInt(searchParams.get('fontSize') || '40');
-    const fontColor = searchParams.get('fontColor') || 'white';
-    const x = parseInt(searchParams.get('x') || '10');
-    const y = parseInt(searchParams.get('y') || '50');
+    console.log(`Creating image response with dimensions: ${width}x${height}`);
 
-    console.log(`Parsed parameters: fontSize=${fontSize}, fontColor=${fontColor}, x=${x}, y=${y}`);
+    // Fetch the font
+    const fontUrl = `https://fonts.googleapis.com/css2?family=${fontFamily.replace(' ', '+')}`;
+    const fontResponse = await fetch(fontUrl);
+    const fontCSS = await fontResponse.text();
 
-    let { width, height, type } = await getImageDimensions(imageUrl);
+    // Extract the actual font URL from the CSS
+    const fontFileUrl = fontCSS.match(/url\((https:\/\/[^)]+)\)/)?.[1];
 
-    console.log(`Creating image response with dimensions: ${width}x${height}, type: ${type}`);
+    if (!fontFileUrl) {
+      throw new Error('Failed to extract font URL');
+    }
 
-    const element = React.createElement(
-      'div',
-      {
-        style: {
-          fontSize,
-          color: fontColor,
-          background: `url(${imageUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'flex-start',
-          padding: `${y}px 0 0 ${x}px`,
-        },
+    // Fetch the font file
+    const fontFileResponse = await fetch(fontFileUrl);
+    const fontArrayBuffer = await fontFileResponse.arrayBuffer();
+
+    // Create the image element
+    const imgElement = React.createElement('img', {
+      src: imageUrl,
+      style: {
+        position: 'absolute' as const,
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        objectFit: backgroundSize as 'cover' | 'contain' | 'fill',
+        objectPosition: backgroundPosition,
       },
-      text
-    );
+    });
+
+    // Create the text element
+    const textElement = React.createElement('div', {
+      style: {
+        position: 'absolute' as const,
+        top: `${y}px`,
+        left: `${x}px`,
+        fontSize: `${fontSize}px`,
+        fontFamily: `'${fontFamily}', sans-serif`,
+        color: fontColor,
+        zIndex: 1,
+      },
+    }, text);
+
+    // Create the main element
+    const element = React.createElement('div', {
+      style: {
+        position: 'relative' as const,
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'flex-start',
+        overflow: 'hidden',
+      },
+    }, [imgElement, textElement]);
 
     return new ImageResponse(element, {
       width,
       height,
+      fonts: [
+        {
+          name: fontFamily,
+          data: fontArrayBuffer,
+          style: 'normal',
+        },
+      ],
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     console.error(`Error in overlay API: ${errorMessage}`);
-    
+
     const fallbackElement = React.createElement(
       'div',
       {
@@ -94,7 +120,7 @@ export default async function handler(req: NextRequest) {
       },
       React.createElement('h1', { style: { marginBottom: '20px' } }, 'Error Generating Image Overlay'),
       React.createElement('p', null, errorMessage),
-      React.createElement('p', { style: { fontSize: '16px', marginTop: '20px' } }, 'Please check the image URL and try again.')
+      React.createElement('p', { style: { fontSize: '16px', marginTop: '20px' } }, 'Please check the provided parameters and try again.')
     );
 
     return new ImageResponse(fallbackElement, {

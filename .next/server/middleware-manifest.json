@@ -6,7 +6,6 @@
       "files": [
         "prerender-manifest.js",
         "server/edge-runtime-webpack.js",
-        "server/edge-chunks/456.js",
         "server/pages/api/overlay.js"
       ],
       "name": "pages/api/overlay",
@@ -34,32 +33,9 @@
         }
       ],
       "environments": {
-        "previewModeId": "d1753d393b66d13e5a9fd19010c4af9f",
-        "previewModeSigningKey": "8cb2301dc6b010f30bb64ef424cfe315799ef3c6aca50bdd624761cdcdcfb2ba",
-        "previewModeEncryptionKey": "203ab064809b1e426c2b23089c6053fba571a1a53c11e8242e7cd5d41d652b93"
-      }
-    },
-    "/api/dimensions": {
-      "files": [
-        "prerender-manifest.js",
-        "server/edge-runtime-webpack.js",
-        "server/edge-chunks/456.js",
-        "server/pages/api/dimensions.js"
-      ],
-      "name": "pages/api/dimensions",
-      "page": "/api/dimensions",
-      "matchers": [
-        {
-          "regexp": "^/api/dimensions$",
-          "originalSource": "/api/dimensions"
-        }
-      ],
-      "wasm": [],
-      "assets": [],
-      "environments": {
-        "previewModeId": "d1753d393b66d13e5a9fd19010c4af9f",
-        "previewModeSigningKey": "8cb2301dc6b010f30bb64ef424cfe315799ef3c6aca50bdd624761cdcdcfb2ba",
-        "previewModeEncryptionKey": "203ab064809b1e426c2b23089c6053fba571a1a53c11e8242e7cd5d41d652b93"
+        "previewModeId": "dc83926f3f67892dfae88b207a421065",
+        "previewModeSigningKey": "f982e718f553948a7a7e7f3abbad4d68d7b73e9678ff1963be18af19882b4c66",
+        "previewModeEncryptionKey": "a7eb2bb226640c1e1e745c4aecad35d9a6cc1dc942fa13b3112f69e035fdd8ec"
       }
     }
   },

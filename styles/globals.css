@@ -1,22 +1,231 @@
-body {
-  font-family: Arial, sans-serif;
+:root {
+  --sf-blue: #0070D2;
+  --sf-blue-hover: #005FB2;
+  --sf-border-radius: 0.5rem;
+  --sf-gray-2: #F3F3F3;
+  --sf-gray-3: #DDDBDA;
+  --sf-gray-11: #444444;
+  --sf-green: #04844B;
+  --sf-green-hover: #036C3C;
+}
+
+/* SVG Sprite positioning */
+.svg-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+html, body {
+  min-height: 100vh;
+  background-color: var(--sf-gray-2);
   margin: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Salesforce Sans', Arial, sans-serif;
   padding: 20px;
-  background-color: #f0f0f0;
 }
 
 .container {
-  max-width: 600px;
+  max-width: 1200px;
+  display: grid;
+  grid-template-columns: 1fr auto; /* Changed from 1fr 1fr to 1fr auto */
+  gap: 30px;
+  padding: 30px;
   margin: 0 auto;
-  background-color: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  min-height: calc(100vh - 120px); /* Account for footer height */
 }
 
 h1 {
   color: #333;
   text-align: center;
+  grid-column: 1 / -1;
+}
+
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 30px; /* Increase gap between form sections */
+  background: white;
+  padding: 1.5rem;
+  border-radius: var(--sf-border-radius);
+  border: 1px solid var(--sf-gray-3);
+  max-width: 800px;
+}
+
+fieldset {
+  border: 1px solid var(--sf-gray-3);
+  border-radius: var(--sf-border-radius);
+  padding: 20px;
+  margin: 0;
+  margin-bottom: 20px; /* Add space below each fieldset */
+}
+
+legend {
+  font-weight: bold;
+  padding: 0 10px;
+  color: #333;
+  margin-bottom: 10px; /* Reduce space below each legend */
+  cursor: pointer; /* Cursor pointer for clickable legends */
+}
+
+/* Optional: Add transition for smooth collapse */
+fieldset > div {
+  transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+  overflow: hidden;
+  max-height: 1000px; /* Large enough to accommodate content */
+}
+
+fieldset > div.collapsed {
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+/* Arrow indicators for accordion */
+.arrow {
+  display: inline-block;
+  margin-left: 10px;
+  transition: transform 0.3s ease;
+  border: solid #333;
+  border-width: 0 2px 2px 0;
+  padding: 3px;
+  transform: rotate(45deg); /* Pointing right when closed */
+}
+
+fieldset legend.open .arrow {
+  transform: rotate(135deg); /* Pointing down when open */
+}
+
+/* Removed outdated arrow styling */
+/* .fieldset legend .arrow {
+  transform-origin: center;
+} */
+
+.preview-container {
+  position: sticky;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 500px;
+}
+
+.preview-section {
+  background: white;
+  padding: 20px;
+  border-radius: var(--sf-border-radius);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid var(--sf-gray-3);
+}
+
+/* Dimmed preview */
+.preview-container.dimmed {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Loading spinner styles */
+.loader {
+  border: 8px solid #f3f3f3; /* Light grey */
+  border-top: 8px solid #3498db; /* Blue */
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  animation: spin 2s linear infinite;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.preview-image {
+  width: 100%;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  max-width: 100%;
+  height: auto;
+  display: block; /* Remove any extra spacing */
+}
+
+.preview-container canvas {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background: #fff;
+  max-width: 100%;
+  height: auto;
+}
+
+.preview-container h2 {
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.generate-button {
+  background: var(--sf-blue);
+  color: white;
+  font-size: 18px;
+  padding: 15px 30px;
+  border-radius: var(--sf-border-radius);
+  transition: all 0.2s;
+  margin-top: 20px;
+}
+
+.generate-button:hover {
+  background: var(--sf-blue-hover);
+  transform: translateY(-1px);
+}
+
+.copy-button {
+  background: var(--sf-green);
+  color: white;
+  font-size: 16px;
+  padding: 10px 20px;
+  border-radius: var(--sf-border-radius);
+  transition: background 0.2s;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.copy-button:hover {
+  background: var(--sf-green-hover);
+}
+
+.position-control {
+  position: relative;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 10px;
+}
+
+.slider-group {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+input[type="range"] {
+  width: 100%;
+}
+
+input[type="color"] {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  cursor: pointer;
 }
 
 form {
@@ -30,15 +239,20 @@ form div {
   flex-direction: column;
 }
 
+form fieldset div {
+  margin-bottom: 10px; /* Reduce space between form groups */
+  margin-top: 5px; /* Reduce space above each form group */
+}
+
 label {
   margin-bottom: 5px;
   font-weight: bold;
 }
 
-input {
+input, select {
   padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid var(--sf-gray-3);
+  border-radius: var(--sf-border-radius);
 }
 
 button {
@@ -56,16 +270,298 @@ button:hover {
 }
 
 .result {
-  margin-top: 20px;
-  padding: 15px;
-  background-color: #e6f7ff;
-  border-radius: 4px;
+  background: white;
+  padding: 1.5rem;
+  border-radius: var(--sf-border-radius);
+  border: 1px solid var(--sf-gray-3);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .result h2 {
-  margin-top: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: var(--sf-gray-11);
 }
 
 .result p {
+  margin-bottom: 1rem;
   word-break: break-all;
+  font-family: monospace;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+  background: var(--sf-gray-2);
+  border-radius: var(--sf-border-radius);
+}
+
+form div.button-row {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.center-buttons-container {
+  display: flex;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.btn-secondary {
+  padding: 6px 12px;
+  background-color: #f8f9fa;
+  color: var(--sf-blue);
+  border: 1px solid var(--sf-blue);
+  border-radius: var(--sf-border-radius);
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s, color 0.2s;
+  white-space: nowrap;
+  flex: 1;  /* Make buttons take equal width */
+  max-width: calc(50% - 5px);  /* Ensure buttons don't exceed half the container width minus half the gap */
+}
+
+.btn-secondary:hover {
+  background-color: var(--sf-blue);
+  color: #fff;
+}
+
+.position-canvas-container {
+  margin-bottom: 20px;
+}
+
+.position-display {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #666;
+}
+
+.position-canvas-container {
+  margin-top: 10px;
+}
+
+canvas {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.position-display {
+  margin-top: 5px;
+  font-size: 14px;
+  color: #666;
+}
+
+/* Improve accessibility */
+input:focus, select:focus, button:focus {
+  outline: none;
+  box-shadow: 0 0 3px var(--sf-blue);
+  border-color: var(--sf-blue);
+}
+
+/* Styles for PositionSelector */
+.position-controls {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 15px;
+  background: var(--sf-gray-2);
+  padding: 1rem;
+  border-radius: var(--sf-border-radius);
+  margin-bottom: 1rem;
+}
+
+.position-controls div {
+  flex: 1;
+}
+
+.position-controls label {
+  margin-bottom: 5px;
+}
+
+.position-selector-container {
+  margin-top: 15px;
+}
+
+.font-controls {
+  gap: 15px; /* Add spacing between font controls */
+}
+
+.dimensions {
+  gap: 10px; /* Reduce gap between dimension inputs */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 1rem;
+}
+
+.dimensions div {
+  margin-bottom: 0; /* Remove bottom margin from inner divs */
+  margin-top: 0; /* Remove top margin from inner divs */
+}
+
+/* Conditionally display the "Enter a valid image URL" hint */
+#urlHint {
+  display: none; /* Hide the hint by default */
+}
+
+input[type="url"]:invalid + #urlHint {
+  display: block; /* Show the hint when the input is invalid */
+}
+
+/* Remove old details/summary styles */
+details, summary {
+  /* Remove these style blocks */
+}
+
+/* Add SLDS accordion customizations */
+.slds-accordion {
+  margin-bottom: 1rem;
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+/* Remove old accordion styles */
+.slds-accordion__section {
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--sf-gray-3);
+  border-radius: var(--sf-border-radius);
+  margin-bottom: 0.5rem;
+  border: none;
+  border-bottom: 1px solid var(--sf-gray-3);
+  border-radius: 0;
+  margin-bottom: 0;
+}
+
+.slds-accordion__section:last-child {
+  border-bottom: none;
+}
+
+.slds-accordion__summary {
+  background: white;
+  padding: 0.5rem 0;
+}
+
+.slds-accordion__summary-heading {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.slds-accordion__summary-action {
+  width: 100%;
+  padding: 0.75rem;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  position: relative;
+  padding: 0.75rem 0.5rem;
+  font-size: 1rem;
+  color: var(--sf-gray-11);
+}
+
+.slds-accordion__summary-action:hover {
+  background-color: var(--sf-gray-2);
+  background-color: transparent;
+  text-decoration: none;
+}
+
+.slds-accordion__summary-action-icon {
+  width: 1rem;
+  height: 1rem;
+  transform: rotate(-90deg);
+  transition: transform 0.2s ease;
+  margin-right: 0.5rem;
+  fill: currentColor;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.75rem;
+  fill: var(--sf-gray-11);
+}
+
+.slds-is-open .slds-accordion__summary-action-icon {
+  transform: rotate(0);
+}
+
+.slds-accordion__content {
+  background-color: white;
+  padding: 1rem;
+  border-top: 1px solid var(--sf-gray-3);
+  background-color: transparent;
+  padding: 1rem 0.5rem 1.5rem 2.5rem;
+  border-top: none;
+}
+
+/* Form field refinements */
+.slds-form-element {
+  margin-bottom: 1rem;
+}
+
+.slds-form-element__label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--sf-gray-11);
+}
+
+input:not([type="range"]), 
+select {
+  width: 100%;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--sf-gray-3);
+  border-radius: var(--sf-border-radius);
+  height: 2.5rem;
+}
+
+/* Color input specific styles */
+.slds-form-element__control input[type="color"] {
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0.25rem;
+  border: 1px solid var(--sf-gray-3);
+  border-radius: var(--sf-border-radius);
+  background: white;
+}
+
+.color-input-container {
+  width: fit-content;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .container {
+    padding: 15px;
+  }
+
+  canvas {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    grid-template-columns: 1fr;
+  }
+  
+  .preview-container {
+    position: static;
+  }
+}
+
+.footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem 0;
+  margin-top: 2rem;
+}
+
+.footer svg {
+  fill: var(--sf-gray-11);
+  width: 180px;
+  height: 48px;
 }
