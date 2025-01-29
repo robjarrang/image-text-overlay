@@ -5,6 +5,17 @@ export default function Document() {
     <Html lang="en">
       <Head>
         <link rel="stylesheet" href="https://unpkg.com/@salesforce-ux/design-system@2.17.5/assets/styles/salesforce-lightning-design-system.min.css" />
+        <style>
+          {`
+            @font-face {
+              font-family: 'HelveticaNeue-Condensed';
+              src: url('https://jarrang-font.s3.eu-west-2.amazonaws.com/milwaukee/HelveticaNeue-Condensed+Bold.ttf') format('truetype');
+              font-weight: bold;
+              font-style: normal;
+              font-display: swap;
+            }
+          `}
+        </style>
       </Head>
       <body>
         <svg xmlns="http://www.w3.org/2000/svg" className="slds-hidden svg-sprite">

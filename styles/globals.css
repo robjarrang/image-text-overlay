@@ -114,6 +114,7 @@ fieldset legend.open .arrow {
 }
 
 .preview-section {
+  position: relative;
   background: white;
   padding: 20px;
   border-radius: var(--sf-border-radius);
@@ -122,28 +123,33 @@ fieldset legend.open .arrow {
 }
 
 /* Dimmed preview */
-.preview-container.dimmed {
+.preview-section.dimmed {  /* Move from preview-container to preview-section */
   opacity: 0.5;
   pointer-events: none;
 }
 
 /* Loading spinner styles */
 .loader {
-  border: 8px solid #f3f3f3; /* Light grey */
-  border-top: 8px solid #3498db; /* Blue */
-  border-radius: 50%;
-  width: 60px;
-  height: 60px;
-  animation: spin 2s linear infinite;
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  border: 8px solid #f3f3f3; /* Light grey */
+  border-top: 8px solid #3498db; /* Blue */
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  z-index: 10;  /* Add this */
 }
 
 @keyframes spin {
-  0% { transform: translate(-50%, -50%) rotate(0deg); }
-  100% { transform: translate(-50%, -50%) rotate(360deg); }
+  0% { 
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% { 
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 .preview-image {
@@ -174,15 +180,18 @@ fieldset legend.open .arrow {
   background: var(--sf-blue);
   color: white;
   font-size: 18px;
-  padding: 15px 30px;
+  padding: 0 30px;        
   border-radius: var(--sf-border-radius);
-  transition: all 0.2s;
+  transition: background-color 0.2s;
+  flex: 2;
+  /* Remove this line:
   margin-top: 20px;
+  */
 }
 
 .generate-button:hover {
   background: var(--sf-blue-hover);
-  transform: translateY(-1px);
+  /* Remove transform: translateY(-1px); */
 }
 
 .copy-button {
@@ -302,12 +311,33 @@ form div.button-row {
 
 .center-buttons-container {
   display: flex;
-  justify-content: flex-start;
   gap: 10px;
-  margin-top: 10px;
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  margin-top: 20px;
+}
+
+.generate-button,
+.share-button {
+  height: 54px;           /* Set explicit height */
+  font-size: 18px;        /* Same font size */
+  padding: 0 30px;        /* Horizontal padding only */
+  display: flex;          /* Enable flexbox */
+  align-items: center;    /* Center content vertically */
+  justify-content: center; /* Center content horizontally */
+  border-radius: var(--sf-border-radius);
+  transition: background-color 0.2s;
+  width: calc(50% - 5px); /* Equal width minus half the gap */
+  flex: none; /* Remove flex ratio */
+}
+
+.generate-button {
+  background: var(--sf-blue);
+  color: white;
+}
+
+.share-button {
+  background: var(--sf-gray-11);
+  color: white;
+  margin-left: 0; /* Remove margin-left */
 }
 
 .btn-secondary {
@@ -516,20 +546,6 @@ select {
   height: 2.5rem;
 }
 
-/* Color input specific styles */
-.slds-form-element__control input[type="color"] {
-  width: 2.5rem;
-  height: 2.5rem;
-  padding: 0.25rem;
-  border: 1px solid var(--sf-gray-3);
-  border-radius: var(--sf-border-radius);
-  background: white;
-}
-
-.color-input-container {
-  width: fit-content;
-}
-
 /* Responsive adjustments */
 @media (max-width: 600px) {
   .container {
@@ -564,4 +580,149 @@ select {
   fill: var(--sf-gray-11);
   width: 180px;
   height: 48px;
+}
+
+/* Toast Notification */
+.toast-notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 1rem 1.5rem;
+  border-radius: var(--sf-border-radius);
+  background: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  animation: slideIn 0.3s ease-out;
+  z-index: 1000;
+  border-left: 4px solid;
+}
+
+.toast-notification.success {
+  border-color: var(--sf-green);
+}
+
+.toast-notification.error {
+  border-color: #c23934;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Button Loading State - simplify */
+.generate-button.loading {
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+/* Remove these classes as they're no longer needed */
+.button-content,
+.spinner {
+  /* Remove these blocks entirely */
+}
+
+/* Result URL Display */
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.copy-link-button {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--sf-gray-11);
+  border-radius: var(--sf-border-radius);
+}
+
+.copy-link-button:hover {
+  background: var(--sf-gray-2);
+}
+
+.copy-link-button svg {
+  fill: currentColor;
+}
+
+.url-display {
+  background: var(--sf-gray-2);
+  padding: 0.75rem;
+  border-radius: var(--sf-border-radius);
+  font-family: monospace;
+  font-size: 0.875rem;
+  word-break: break-all;
+  position: relative;
+  border: 1px solid var(--sf-gray-3);
+}
+
+/* Styles for the color boxes */
+.color-boxes {
+  display: flex;
+  flex-direction: row;  /* Add this to ensure horizontal layout */
+  gap: 10px;
+  margin-top: 5px;
+  align-items: center;  /* Add this to ensure vertical alignment */
+  justify-content: flex-start;  /* Add this to align boxes to the left */
+  flex-wrap: nowrap;  /* Add this to prevent wrapping */
+}
+
+/* Override any potential flex-direction changes from parent elements */
+.slds-form-element__control .color-boxes {
+  flex-direction: row !important;
+}
+
+/* Override any form div styles that might affect the layout */
+form div.color-boxes {
+  flex-direction: row !important;
+}
+
+.color-box {
+  flex: 0 0 40px;  /* Add this to prevent size changes */
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--sf-gray-3);
+  border-radius: var(--sf-border-radius);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.color-box.selected {
+  border-color: var(--sf-blue);
+  box-shadow: 0 0 0 2px var(--sf-blue);
+}
+
+/* Add outline for white color box to make it visible */
+.color-box[style*="background-color: #FFFFFF"] {
+  border: 2px solid #ddd;
+}
+
+.color-box[style*="background-color: #FFFFFF"].selected {
+  border-color: var(--sf-blue);
+}
+
+.share-button {
+  background: var(--sf-gray-11);
+  color: white;
+  font-size: 16px;
+  padding: 10px 20px;
+  border-radius: var(--sf-border-radius);
+  transition: background 0.2s;
+  cursor: pointer;
+  margin-left: 10px;
+  flex: 1;
+  padding: 15px 30px;  /* Match generate button padding */
+  font-size: 18px;     /* Match generate button font size */
+}
+
+.share-button:hover {
+  background: #2a2a2a;
 }

@@ -1,78 +1,100 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import CanvasGenerator from '../components/CanvasGenerator';
 
 export default function Home() {
-  const [formData, setFormData] = useState({
-    text: 'Default text',  // Set default text
-    imageUrl: 'https://picsum.photos/600/400', // Set default Image URL
+  // Move initial state to a constant
+  const defaultFormData = {
+    text: 'Default text',
+    imageUrl: `https://image.mail.milwaukeetool.eu/lib/fe2f11717564047a761c78/m/1/44172983-64b7-47c2-828e-4141121047e8.jpg`,
     width: '600',
     height: '400',
     fontSize: '40',
-    fontColor: '#FFFFFF', // Ensure it's a valid hex color
+    fontColor: '#FFFFFF',
     x: '10',
     y: '50',
     backgroundSize: 'cover',
     backgroundPosition: 'center',
-    fontFamily: 'Roboto', // Changed default from 'Arial' to 'Roboto'
-  });
+  };
+
+  const [formData, setFormData] = useState(defaultFormData);
+
+  // Add this function to generate a shareable URL
+  const generateShareableUrl = useCallback(() => {
+    const baseUrl = window.location.origin;
+    const params = new URLSearchParams();
+    Object.entries(formData).forEach(([key, value]) => {
+      params.append(key, value);
+    });
+    return `${baseUrl}/?${params.toString()}`;
+  }, [formData]);
+
+  // Add this function to load form data from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paramsData = {};
+    params.forEach((value, key) => {
+      if (key in defaultFormData) {
+        paramsData[key] = value;
+      }
+    });
+    
+    if (Object.keys(paramsData).length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        ...paramsData
+      }));
+      setIsCanvasLoading(true); // Force canvas to refresh
+    }
+  }, []); // Empty dependency array means this runs once on mount
+
+  // Add share button click handler
+  const handleShare = useCallback(async () => {
+    const shareableUrl = generateShareableUrl();
+    try {
+      await navigator.clipboard.writeText(shareableUrl);
+      showToast('Shareable URL copied to clipboard!');
+    } catch (error) {
+      showToast('Failed to copy URL', 'error');
+    }
+  }, [generateShareableUrl]);
+
   const [generatedUrl, setGeneratedUrl] = useState('');
-  const [fontList, setFontList] = useState([]);
-  const [isLoadingFonts, setIsLoadingFonts] = useState(true);
-  const [isLoadingImage, setIsLoadingImage] = useState(false); // New loading state
+  const [isCanvasLoading, setIsCanvasLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showCopySuccess, setShowCopySuccess] = useState(false);
+  const canvasRef = useRef(null);
+
   const [openSections, setOpenSections] = useState({
     textContent: true,
     imageSettings: false,
     textPosition: false
   });
 
+  const [toast, setToast] = useState({ show: false, message: '', type: '' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: '' }), 3000);
+  };
+
   const toggleSection = useCallback((e, section) => {
-    e.preventDefault(); // Prevent default button behavior
+    e.preventDefault();
     setOpenSections(prev => ({
       ...prev,
       [section]: !prev[section]
     }));
   }, []);
 
-  useEffect(() => {
-    // Fetch the list of Google Fonts
-    setIsLoadingFonts(true);
-    fetch('https://www.googleapis.com/webfonts/v1/webfonts?key=AIzaSyAWpDgsTzRw42hyJZpYiH1ii9U14Y5NkRg')
-      .then(response => response.json())
-      .then(data => {
-        setFontList(data.items.map(font => font.family));
-        setIsLoadingFonts(false);
-      })
-      .catch(error => {
-        console.error('Error fetching fonts:', error);
-        setIsLoadingFonts(false);
-      });
-  }, []);
-
-  useEffect(() => {
-    const link = document.createElement('link');
-    link.href = `https://fonts.googleapis.com/css?family=${formData.fontFamily.replace(' ', '+')}`;
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
-    return () => {
-      document.head.removeChild(link);
-    };
-  }, [formData.fontFamily]);
-
   const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     
-    console.log(`Input changed: ${name} = ${value}`); // Debug log
+    console.log(`Input changed: ${name} = ${value}`);
 
-    // Special handling for different input types
     if (name === 'fontColor') {
       const validHexColor = value.startsWith('#') ? value : `#${value}`;
       setFormData(prev => ({ ...prev, [name]: validHexColor }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
-    }
-
-    // Set loading state when form data changes
-    if (name !== 'text') { // Assuming text changes don't require image reload
-      setIsLoadingImage(true);
     }
   }, []);
 
@@ -82,52 +104,58 @@ export default function Home() {
       x: newX.toString(),
       y: newY.toString()
     }));
-    setIsLoadingImage(true); // Set loading when position changes
   }, []);
 
   const centerVertically = useCallback(() => {
     const centerY = Math.round(parseInt(formData.height) / 2);
     setFormData(prev => ({ ...prev, y: centerY.toString() }));
-    setIsLoadingImage(true);
   }, [formData.height]);
 
   const centerHorizontally = useCallback(() => {
     const centerX = Math.round(parseInt(formData.width) / 2);
     setFormData(prev => ({ ...prev, x: centerX.toString() }));
-    setIsLoadingImage(true);
   }, [formData.width]);
 
-  useEffect(() => {
-    const baseUrl = window.location.origin;
-    const queryParams = new URLSearchParams(formData).toString();
-    const url = `${baseUrl}/api/overlay?${queryParams}`;
-    setGeneratedUrl(url);
-    console.log('Form data updated:', formData); // Add this line
-  }, [formData]);
-
-  const copyToClipboard = useCallback(() => {
-    if (generatedUrl) {
-      navigator.clipboard.writeText(generatedUrl)
-        .then(() => {
-          alert('URL copied to clipboard!');
-        })
-        .catch(() => {
-          alert('Failed to copy URL.');
-        });
+  const handleGenerateImage = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      showToast('Canvas not available', 'error');
+      return;
     }
-  }, [generatedUrl]);
 
-  const getProcessedImageUrl = () => {
-    const processedData = {
-      ...formData,
-      fontColor: formData.fontColor.startsWith('#') ? formData.fontColor : `#${formData.fontColor}`
-    };
-    const queryParams = new URLSearchParams(processedData).toString();
-    return `/api/overlay?${queryParams}`;
-  };
+    try {
+      setIsGenerating(true);
+      setShowCopySuccess(false);
+      
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((b) => {
+          if (b) {
+            resolve(b);
+          } else {
+            reject(new Error('Failed to create image'));
+          }
+        }, 'image/png');
+      });
 
-  const handleImageLoad = () => {
-    setIsLoadingImage(false);
+      const response = await fetch('/api/save-image', {
+        method: 'POST',
+        body: blob
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+
+      const data = await response.json();
+      setGeneratedUrl(data.url);
+      await navigator.clipboard.writeText(data.url);
+      showToast('URL copied to clipboard!');
+    } catch (error) {
+      console.error('Error:', error);
+      showToast(error.message, 'error');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -138,7 +166,6 @@ export default function Home() {
         <div className="form-container">
           <form className="slds-form">
             <div className="slds-accordion">
-              {/* Text Content Section */}
               <section className={`slds-accordion__section ${openSections.textContent ? 'slds-is-open' : ''}`}>
                 <div className="slds-accordion__summary">
                   <h3 className="slds-accordion__summary-heading">
@@ -147,7 +174,7 @@ export default function Home() {
                       aria-expanded={openSections.textContent}
                       className="slds-button slds-button_reset slds-accordion__summary-action"
                       onClick={(e) => toggleSection(e, 'textContent')}
-                      type="button" // Add type="button" to prevent form submission
+                      type="button"
                     >
                       <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
                         <use xlinkHref="#chevrondown"></use>
@@ -180,28 +207,6 @@ export default function Home() {
                   </div>
                   
                   <div className="slds-form-element">
-                    <label className="slds-form-element__label" htmlFor="fontFamily">Font Style</label>
-                    <div className="slds-form-element__control">
-                      <select
-                        className="slds-select"
-                        id="fontFamily"
-                        name="fontFamily"
-                        value={formData.fontFamily}
-                        onChange={handleInputChange}
-                        disabled={isLoadingFonts}
-                      >
-                        {isLoadingFonts ? (
-                          <option>Loading fonts...</option>
-                        ) : (
-                          fontList.map(font => (
-                            <option key={font} value={font}>{font}</option>
-                          ))
-                        )}
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <div className="slds-form-element">
                     <label className="slds-form-element__label" htmlFor="fontSize">Font Size</label>
                     <div className="slds-form-element__control">
                       <input
@@ -220,20 +225,33 @@ export default function Home() {
                   
                   <div className="slds-form-element">
                     <label className="slds-form-element__label" htmlFor="fontColor">Font Color</label>
-                    <div className="slds-form-element__control color-input-container">
-                      <input
-                        type="color"
-                        id="fontColor"
-                        name="fontColor"
-                        value={formData.fontColor}
-                        onChange={handleInputChange}
+                    <div className="color-boxes">
+                      <button
+                        type="button"
+                        className={`color-box ${formData.fontColor === '#DB011C' ? 'selected' : ''}`}
+                        style={{ backgroundColor: '#DB011C' }}
+                        onClick={() => handleInputChange({ target: { name: 'fontColor', value: '#DB011C' }})}
+                        aria-label="Red"
+                      />
+                      <button
+                        type="button"
+                        className={`color-box ${formData.fontColor === '#000000' ? 'selected' : ''}`}
+                        style={{ backgroundColor: '#000000' }}
+                        onClick={() => handleInputChange({ target: { name: 'fontColor', value: '#000000' }})}
+                        aria-label="Black"
+                      />
+                      <button
+                        type="button"
+                        className={`color-box ${formData.fontColor === '#FFFFFF' ? 'selected' : ''}`}
+                        style={{ backgroundColor: '#FFFFFF' }}
+                        onClick={() => handleInputChange({ target: { name: 'fontColor', value: '#FFFFFF' }})}
+                        aria-label="White"
                       />
                     </div>
                   </div>
                 </div>
               </section>
 
-              {/* Image Settings Section */}
               <section className={`slds-accordion__section ${openSections.imageSettings ? 'slds-is-open' : ''}`}>
                 <div className="slds-accordion__summary">
                   <h3 className="slds-accordion__summary-heading">
@@ -242,7 +260,7 @@ export default function Home() {
                       aria-expanded={openSections.imageSettings}
                       className="slds-button slds-button_reset slds-accordion__summary-action"
                       onClick={(e) => toggleSection(e, 'imageSettings')}
-                      type="button" // Add type="button" to prevent form submission
+                      type="button"
                     >
                       <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
                         <use xlinkHref="#chevrondown"></use>
@@ -342,7 +360,6 @@ export default function Home() {
                 </div>
               </section>
 
-              {/* Text Position Section */}
               <section className={`slds-accordion__section ${openSections.textPosition ? 'slds-is-open' : ''}`}>
                 <div className="slds-accordion__summary">
                   <h3 className="slds-accordion__summary-heading">
@@ -351,7 +368,7 @@ export default function Home() {
                       aria-expanded={openSections.textPosition}
                       className="slds-button slds-button_reset slds-accordion__summary-action"
                       onClick={(e) => toggleSection(e, 'textPosition')}
-                      type="button" // Add type="button" to prevent form submission
+                      type="button"
                     >
                       <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
                         <use xlinkHref="#chevrondown"></use>
@@ -425,24 +442,61 @@ export default function Home() {
         </div>
 
         <div className="preview-container">
-          {isLoadingImage && <div className="loader"></div>}
-          <div className={`preview-section ${isLoadingImage ? 'dimmed' : ''}`}>
-            <img
-              src={getProcessedImageUrl()}
-              alt="Processed Overlay"
-              className="preview-image"
-              onLoad={handleImageLoad}
-              onError={handleImageLoad}
+          <div className={`preview-section ${isCanvasLoading || isGenerating ? 'dimmed' : ''}`}>
+            {(isCanvasLoading || isGenerating) && <div className="loader"></div>}
+            <CanvasGenerator
+              {...formData}
+              width={Number(formData.width)}
+              height={Number(formData.height)}
+              fontSize={Number(formData.fontSize)}
+              x={Number(formData.x)}
+              y={Number(formData.y)}
+              onLoad={() => setIsCanvasLoading(false)}
+              ref={canvasRef}
             />
+          </div>
+
+          <div className="center-buttons-container">
+            <button
+              onClick={handleGenerateImage}
+              className={`generate-button ${isGenerating ? 'loading' : ''}`}
+              disabled={isCanvasLoading || isGenerating}
+            >
+              {isGenerating ? 'Generating...' : 'Generate URL'}
+            </button>
+            <button
+              onClick={handleShare}
+              className="share-button"
+              title="Share these settings"
+            >
+              Share Settings
+            </button>
           </div>
 
           {generatedUrl && (
             <div className="result" role="alert">
-              <h2>Generated URL:</h2>
-              <p>{generatedUrl}</p>
-              <button onClick={copyToClipboard} className="copy-button">
-                Copy URL
-              </button>
+              <div className="result-header">
+                <h2>Generated URL</h2>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedUrl);
+                    showToast('URL copied again!');
+                  }}
+                  className="copy-link-button"
+                  title="Copy URL"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16">
+                    <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                  </svg>
+                </button>
+              </div>
+              <p className="url-display">{generatedUrl}</p>
+            </div>
+          )}
+
+          {toast.show && (
+            <div className={`toast-notification ${toast.type}`}>
+              {toast.message}
             </div>
           )}
         </div>

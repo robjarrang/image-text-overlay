@@ -1,131 +1,80 @@
-import { ImageResponse } from '@vercel/og';
-import { NextRequest } from 'next/server';
-import React from 'react';
+import { NextApiRequest, NextApiResponse } from 'next';
+import { put, head } from '@vercel/blob';
 
-export const config = {
-  runtime: 'edge',
-};
+async function fetchImage(url: string): Promise<Buffer> {
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+  }
+  
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('image/')) {
+    throw new Error('Invalid content type: not an image');
+  }
+  
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
 
-export default async function handler(req: NextRequest) {
-  console.log('Overlay API called');
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
-    const { searchParams } = new URL(req.url);
-    const text = searchParams.get('text') || 'Default Text';
-    const imageUrl = searchParams.get('imageUrl');
-    const width = parseInt(searchParams.get('width') || '1200');
-    const height = parseInt(searchParams.get('height') || '630');
-    const fontSize = parseInt(searchParams.get('fontSize') || '40');
-    const fontColor = searchParams.get('fontColor') || 'white';
-    const x = parseInt(searchParams.get('x') || '10');
-    const y = parseInt(searchParams.get('y') || '50');
-    const backgroundSize = searchParams.get('backgroundSize') || 'cover';
-    const backgroundPosition = searchParams.get('backgroundPosition') || 'center';
-    const fontFamily = searchParams.get('fontFamily') || 'Arial';
-
-    console.log(`Received parameters: text=${text}, imageUrl=${imageUrl}, width=${width}, height=${height}, fontSize=${fontSize}, fontColor=${fontColor}, x=${x}, y=${y}, backgroundSize=${backgroundSize}, backgroundPosition=${backgroundPosition}, fontFamily=${fontFamily}`);
-
-    if (!imageUrl) {
-      throw new Error('No image URL provided');
+    // Add proxy endpoint for CORS-restricted images
+    if (req.query.proxy === 'true' && req.query.url) {
+      try {
+        const imageBuffer = await fetchImage(req.query.url as string);
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cache-Control', 'public, max-age=31536000');
+        return res.send(imageBuffer);
+      } catch (error: any) {
+        console.error('Proxy error:', error);
+        return res.status(400).json({ 
+          error: 'Failed to proxy image',
+          details: error?.message || 'Unknown error'
+        });
+      }
     }
 
-    console.log(`Creating image response with dimensions: ${width}x${height}`);
-
-    // Fetch the font
-    const fontUrl = `https://fonts.googleapis.com/css2?family=${fontFamily.replace(' ', '+')}`;
-    const fontResponse = await fetch(fontUrl);
-    const fontCSS = await fontResponse.text();
-
-    // Extract the actual font URL from the CSS
-    const fontFileUrl = fontCSS.match(/url\((https:\/\/[^)]+)\)/)?.[1];
-
-    if (!fontFileUrl) {
-      throw new Error('Failed to extract font URL');
-    }
-
-    // Fetch the font file
-    const fontFileResponse = await fetch(fontFileUrl);
-    const fontArrayBuffer = await fontFileResponse.arrayBuffer();
-
-    // Create the image element
-    const imgElement = React.createElement('img', {
-      src: imageUrl,
-      style: {
-        position: 'absolute' as const,
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        objectFit: backgroundSize as 'cover' | 'contain' | 'fill',
-        objectPosition: backgroundPosition,
-      },
-    });
-
-    // Create the text element
-    const textElement = React.createElement('div', {
-      style: {
-        position: 'absolute' as const,
-        top: `${y}px`,
-        left: `${x}px`,
-        fontSize: `${fontSize}px`,
-        fontFamily: `'${fontFamily}', sans-serif`,
-        color: fontColor,
-        zIndex: 1,
-      },
-    }, text);
-
-    // Create the main element
-    const element = React.createElement('div', {
-      style: {
-        position: 'relative' as const,
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'flex-start',
-        overflow: 'hidden',
-      },
-    }, [imgElement, textElement]);
-
-    return new ImageResponse(element, {
-      width,
-      height,
-      fonts: [
-        {
-          name: fontFamily,
-          data: fontArrayBuffer,
-          style: 'normal',
-        },
-      ],
-    });
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    console.error(`Error in overlay API: ${errorMessage}`);
-
-    const fallbackElement = React.createElement(
-      'div',
-      {
-        style: {
-          fontSize: 20,
-          color: 'white',
-          background: 'black',
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          textAlign: 'center',
-          padding: '20px',
-        },
-      },
-      React.createElement('h1', { style: { marginBottom: '20px' } }, 'Error Generating Image Overlay'),
-      React.createElement('p', null, errorMessage),
-      React.createElement('p', { style: { fontSize: '16px', marginTop: '20px' } }, 'Please check the provided parameters and try again.')
+    // Create a hash of the query parameters for the filename
+    const paramsString = JSON.stringify(req.query);
+    const hash = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(paramsString)
+    ).then(buf => 
+      Array.from(new Uint8Array(buf))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
     );
+    
+    const imageName = `overlay-${hash}.png`;
 
-    return new ImageResponse(fallbackElement, {
-      width: 800,
-      height: 400,
-    });
+    // Check if image exists in blob storage
+    try {
+      const existingBlob = await head(imageName);
+      if (existingBlob) {
+        return res.redirect(existingBlob.url);
+      }
+    } catch {
+      // Image doesn't exist in blob storage
+      return res.status(404).json({ 
+        error: 'Image not found',
+        message: 'Please generate the image first using the web interface'
+      });
+    }
+  } catch (error) {
+    console.error('API error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
