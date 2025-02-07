@@ -726,3 +726,84 @@ form div.color-boxes {
 .share-button:hover {
   background: #2a2a2a;
 }
+
+.rich-text-editor {
+  margin-bottom: 10px;
+}
+
+.button-group {
+  display: flex;
+  gap: 5px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: none;
+  border: 1px solid var(--sf-gray-3);
+  border-radius: var(--sf-border-radius);
+  color: var(--sf-gray-11);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-button:hover {
+  background: var(--sf-gray-2);
+}
+
+.icon-button.active {
+  background: var(--sf-gray-2);
+  border-color: var(--sf-blue);
+  color: var(--sf-blue);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--sf-gray-3);
+  margin: 0 5px;
+}
+
+.rich-text-content {
+  border: 1px solid var(--sf-gray-3);
+  border-radius: var(--sf-border-radius);
+  padding: 10px;
+  min-height: 100px;
+  margin-top: 5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  cursor: text;
+  position: relative;
+  outline: none;
+}
+
+.rich-text-content .superscript {
+  display: inline;
+  vertical-align: super;
+  font-size: 0.7em;
+  line-height: 0;
+  position: relative;
+  top: -0.2em;
+  margin: 0;
+  padding: 0;
+}
+
+/* Ensure div elements within rich-text-content maintain proper flow */
+.rich-text-content div {
+  display: block;
+  min-height: 1em;
+}
+
+.rich-text-content[contenteditable=true] {
+  -webkit-user-modify: read-write-plaintext-only;
+  -moz-user-modify: read-write;
+  -ms-user-modify: read-write;
+  user-modify: read-write;
+  -webkit-user-select: text;
+  user-select: text;
+}

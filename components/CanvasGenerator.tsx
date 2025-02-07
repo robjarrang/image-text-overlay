@@ -1,4 +1,14 @@
-import React, { useEffect, forwardRef } from 'react';
+import React, { useEffect, forwardRef, useRef } from 'react';
+
+interface TextStyle {
+  text: string;
+  isSuperscript?: boolean;
+}
+
+interface TextLine {
+  segments: TextStyle[];
+  alignment: 'left' | 'center' | 'right';
+}
 
 interface CanvasGeneratorProps {
   text: string;
@@ -28,9 +38,58 @@ const CanvasGenerator = forwardRef<HTMLCanvasElement, CanvasGeneratorProps>(({
   onLoad
 }, ref) => {
   const canvasRef = ref as React.RefObject<HTMLCanvasElement>;
+  const initialLoadRef = useRef(true);
+
+  // Parse the text into structured format
+  const parseText = (text: string): TextLine[] => {
+    return text.split('\\n').map(line => {
+      const segments: TextStyle[] = [];
+      let currentText = '';
+      let alignment: 'left' | 'center' | 'right' = line.startsWith('[center]') ? 'center' :
+                                                   line.startsWith('[right]') ? 'right' :
+                                                   line.startsWith('[left]') ? 'left' : 'left';
+
+      // Remove any alignment markers at the start of the line
+      if (line.startsWith('[center]')) {
+        line = line.substring(8);
+      } else if (line.startsWith('[right]')) {
+        line = line.substring(7);
+      } else if (line.startsWith('[left]')) {
+        line = line.substring(6);
+      }
+
+      // Parse superscript markers
+      for (let i = 0; i < line.length; i++) {
+        if (line[i] === '^' && line[i + 1] === '{') {
+          if (currentText) {
+            segments.push({ text: currentText });
+            currentText = '';
+          }
+          let superText = '';
+          i += 2; // Skip ^{
+          while (i < line.length && line[i] !== '}') {
+            superText += line[i];
+            i++;
+          }
+          segments.push({ text: superText, isSuperscript: true });
+        } else {
+          currentText += line[i];
+        }
+      }
+      if (currentText) {
+        segments.push({ text: currentText });
+      }
+
+      return { segments, alignment };
+    });
+  };
 
   useEffect(() => {
+    let mounted = true;
+
     async function loadFontAndDraw() {
+      if (!mounted) return;
+
       const canvas = canvasRef?.current;
       if (!canvas) return;
 
@@ -47,10 +106,8 @@ const CanvasGenerator = forwardRef<HTMLCanvasElement, CanvasGeneratorProps>(({
         await font.load();
         document.fonts.add(font);
 
-        // Check if font is available
-        if (!document.fonts.check(`${fontSize}px "HelveticaNeue-Condensed"`)) {
-          console.warn('Font failed to load:', 'HelveticaNeue-Condensed');
-        }
+        // Only continue if component is still mounted
+        if (!mounted) return;
 
         // Prepare image URL with proxy if needed
         const isSFMCUrl = imageUrl.includes('mail.milwaukeetool') || 
@@ -61,7 +118,7 @@ const CanvasGenerator = forwardRef<HTMLCanvasElement, CanvasGeneratorProps>(({
           ? `/api/overlay?proxy=true&url=${encodeURIComponent(imageUrl)}`
           : imageUrl;
 
-        // Load image with prepared URL
+        // Load image
         const img = new Image();
         img.crossOrigin = 'anonymous';
         
@@ -78,7 +135,10 @@ const CanvasGenerator = forwardRef<HTMLCanvasElement, CanvasGeneratorProps>(({
         // Wait for image to load
         await imageLoadPromise;
 
-        // Clear and draw
+        // Only continue if component is still mounted
+        if (!mounted) return;
+
+        // Draw image and text
         ctx.clearRect(0, 0, width, height);
 
         // Calculate image parameters
@@ -101,27 +161,77 @@ const CanvasGenerator = forwardRef<HTMLCanvasElement, CanvasGeneratorProps>(({
           drawY = (height - drawHeight) / 2;
         }
 
-        // Adjust position
+        // Adjust position based on backgroundPosition
         if (backgroundPosition === 'top') drawY = 0;
         else if (backgroundPosition === 'bottom') drawY = height - drawHeight;
         else if (backgroundPosition === 'left') drawX = 0;
         else if (backgroundPosition === 'right') drawX = width - drawWidth;
 
-        // Draw image and text
+        // Draw image
         ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-        ctx.fillStyle = fontColor;
-        ctx.font = `${fontSize}px HelveticaNeue-Condensed`;
-        ctx.fillText(text, x, y);
 
-        onLoad?.();
+        // Parse and draw text
+        const lines = parseText(text);
+        let currentY = y;
+        const lineHeight = fontSize * 1.2;
+
+        ctx.fillStyle = fontColor;
+        lines.forEach(line => {
+          let currentX = x;
+          let lineWidth = 0;
+
+          // Calculate total width of the line first
+          line.segments.forEach(segment => {
+            const segmentFont = segment.isSuperscript
+              ? `${fontSize * 0.7}px HelveticaNeue-Condensed`
+              : `${fontSize}px HelveticaNeue-Condensed`;
+            ctx.font = segmentFont;
+            lineWidth += ctx.measureText(segment.text).width;
+          });
+
+          // Adjust starting X based on alignment
+          if (line.alignment === 'center') {
+            currentX = (width - lineWidth) / 2;
+          } else if (line.alignment === 'right') {
+            currentX = width - lineWidth - x;
+          }
+
+          // Draw each segment
+          line.segments.forEach(segment => {
+            if (segment.isSuperscript) {
+              ctx.font = `${fontSize * 0.7}px HelveticaNeue-Condensed`;
+              ctx.fillText(segment.text, currentX, currentY - fontSize * 0.3);
+            } else {
+              ctx.font = `${fontSize}px HelveticaNeue-Condensed`;
+              ctx.fillText(segment.text, currentX, currentY);
+            }
+            currentX += ctx.measureText(segment.text).width;
+          });
+
+          currentY += lineHeight;
+        });
+
+        if (mounted) {
+          onLoad?.();
+        }
       } catch (error) {
         console.error('Error in canvas rendering:', error);
-        onLoad?.();
+        if (mounted) {
+          onLoad?.();
+        }
       }
     }
 
-    loadFontAndDraw();
-  }, [text, imageUrl, width, height, fontSize, fontColor, x, y, backgroundSize, backgroundPosition, canvasRef]);
+    // If this is the initial load or we have all necessary props, render
+    if (initialLoadRef.current || (text && imageUrl && width && height)) {
+      initialLoadRef.current = false;
+      loadFontAndDraw();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [text, imageUrl, width, height, fontSize, fontColor, x, y, backgroundSize, backgroundPosition, onLoad]);
 
   return (
     <canvas

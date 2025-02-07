@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import CanvasGenerator from '../components/CanvasGenerator';
+import RichTextEditor from '../components/RichTextEditor';
 
 export default function Home() {
   // Move initial state to a constant
@@ -17,52 +18,12 @@ export default function Home() {
   };
 
   const [formData, setFormData] = useState(defaultFormData);
-
-  // Add this function to generate a shareable URL
-  const generateShareableUrl = useCallback(() => {
-    const baseUrl = window.location.origin;
-    const params = new URLSearchParams();
-    Object.entries(formData).forEach(([key, value]) => {
-      params.append(key, value);
-    });
-    return `${baseUrl}/?${params.toString()}`;
-  }, [formData]);
-
-  // Add this function to load form data from URL params
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const paramsData = {};
-    params.forEach((value, key) => {
-      if (key in defaultFormData) {
-        paramsData[key] = value;
-      }
-    });
-    
-    if (Object.keys(paramsData).length > 0) {
-      setFormData(prev => ({
-        ...prev,
-        ...paramsData
-      }));
-      setIsCanvasLoading(true); // Force canvas to refresh
-    }
-  }, []); // Empty dependency array means this runs once on mount
-
-  // Add share button click handler
-  const handleShare = useCallback(async () => {
-    const shareableUrl = generateShareableUrl();
-    try {
-      await navigator.clipboard.writeText(shareableUrl);
-      showToast('Shareable URL copied to clipboard!');
-    } catch (error) {
-      showToast('Failed to copy URL', 'error');
-    }
-  }, [generateShareableUrl]);
-
   const [generatedUrl, setGeneratedUrl] = useState('');
   const [isCanvasLoading, setIsCanvasLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showCopySuccess, setShowCopySuccess] = useState(false);
   const canvasRef = useRef(null);
+  const editorRef = useRef(null);
 
   const [openSections, setOpenSections] = useState({
     textContent: true,
@@ -158,6 +119,100 @@ export default function Home() {
     }
   };
 
+  // Add this helper function to convert text format to HTML
+  const convertToHtml = (text) => {
+    const lines = text.split('\\n');
+    return lines.map(line => {
+      let content = line;
+      let lineAlignment = 'left';
+
+      if (line.startsWith('[center]')) {
+        content = line.substring(8);
+        lineAlignment = 'center';
+      } else if (line.startsWith('[right]')) {
+        content = line.substring(7);
+        lineAlignment = 'right';
+      } else if (line.startsWith('[left]')) {
+        content = line.substring(6);
+        lineAlignment = 'left';
+      }
+
+      content = content.replace(/\^{([^}]+)}/g, '<span class="superscript">$1</span>');
+      return `<div style="text-align: ${lineAlignment}">${content}</div>`;
+    }).join('');
+  };
+
+  // Add state to track URL parameter loading
+  const [urlParamsLoaded, setUrlParamsLoaded] = useState(false);
+
+  // Add this effect to handle URL parameter loading
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paramsData = {};
+    params.forEach((value, key) => {
+      if (key in defaultFormData) {
+        paramsData[key] = value;
+      }
+    });
+    
+    if (Object.keys(paramsData).length > 0) {
+      // Set loading states
+      setIsCanvasLoading(true);
+      setUrlParamsLoaded(false);
+      
+      // Update form data state
+      setFormData(prev => ({
+        ...prev,
+        ...paramsData
+      }));
+      
+      // Wait for next render cycle then update editor
+      requestAnimationFrame(() => {
+        if (editorRef.current && paramsData.text) {
+          editorRef.current.innerHTML = convertToHtml(paramsData.text);
+          // Mark URL parameters as loaded after editor is updated
+          setUrlParamsLoaded(true);
+        }
+      });
+    } else {
+      setUrlParamsLoaded(true);
+    }
+  }, []); // Empty dependency array means this runs once on mount
+
+  // Add effect to handle canvas updates
+  useEffect(() => {
+    if (urlParamsLoaded && formData) {
+      // Force canvas to re-render with current form data
+      setIsCanvasLoading(true);
+    }
+  }, [urlParamsLoaded, formData]);
+
+  // Add this function to generate a shareable URL
+  const generateShareableUrl = useCallback(() => {
+    const baseUrl = window.location.origin;
+    const params = new URLSearchParams();
+    Object.entries(formData).forEach(([key, value]) => {
+      params.append(key, value);
+    });
+    return `${baseUrl}/?${params.toString()}`;
+  }, [formData]);
+
+  // Add share button click handler
+  const handleShare = useCallback(async () => {
+    const shareableUrl = generateShareableUrl();
+    try {
+      await navigator.clipboard.writeText(shareableUrl);
+      showToast('Shareable URL copied to clipboard!');
+    } catch (error) {
+      showToast('Failed to copy URL', 'error');
+    }
+  }, [generateShareableUrl]);
+
+  // Add a handler for when canvas finishes loading
+  const handleCanvasLoad = useCallback(() => {
+    setIsCanvasLoading(false);
+  }, []);
+
   return (
     <>
       <div className="container">
@@ -191,18 +246,15 @@ export default function Home() {
                   <div className="slds-form-element">
                     <label className="slds-form-element__label" htmlFor="text">Text Content</label>
                     <div className="slds-form-element__control">
-                      <input
-                        className="slds-input"
-                        type="text"
-                        id="text"
-                        name="text"
+                      <RichTextEditor
                         value={formData.text}
-                        onChange={handleInputChange}
-                        required
+                        onChange={(text) => {
+                          setFormData(prev => ({ ...prev, text }));
+                        }}
                       />
                     </div>
                     <div className="slds-form-element__help" id="textHint">
-                      Enter the text you want to overlay on the image
+                      Enter and format the text you want to overlay on the image
                     </div>
                   </div>
                   
@@ -451,7 +503,7 @@ export default function Home() {
               fontSize={Number(formData.fontSize)}
               x={Number(formData.x)}
               y={Number(formData.y)}
-              onLoad={() => setIsCanvasLoading(false)}
+              onLoad={handleCanvasLoad}
               ref={canvasRef}
             />
           </div>
