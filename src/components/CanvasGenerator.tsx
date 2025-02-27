@@ -376,7 +376,7 @@ export function CanvasGenerator({
   };
 
   return (
-    <div className="canvas-container">
+    <div className="canvas-container slds-p-around_medium slds-m-bottom_medium">
       <canvas
         ref={canvasRef}
         className={`slds-border_around preview-canvas ${className}`}
@@ -386,15 +386,15 @@ export function CanvasGenerator({
           aspectRatio: imageAspectRatio,
           cursor: isDragging ? 'grabbing' : 'grab',
           boxShadow: isHovering 
-            ? '0 8px 12px -2px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.1)' 
-            : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+            ? '0 8px 16px rgba(0, 0, 0, 0.1)' 
+            : '0 4px 6px rgba(0, 0, 0, 0.05)',
           transition: 'transform 0.3s ease, box-shadow 0.3s ease',
           transform: isDragging 
             ? 'scale(1.01)' 
             : isHovering 
               ? 'scale(1.005)' 
               : 'scale(1)',
-          borderRadius: '12px',
+          borderRadius: '8px',
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -407,10 +407,12 @@ export function CanvasGenerator({
       />
       {showDragHint && (
         <div className="drag-instruction">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 9L12 5L16 9M8 15L12 19L16 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span>Drag text to reposition</span>
+          <div className="drag-hint-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 9L12 5L16 9M8 15L12 19L16 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span>Drag text to reposition</span>
+          </div>
         </div>
       )}
     </div>

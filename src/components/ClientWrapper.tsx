@@ -10,8 +10,10 @@ const ClientApp = dynamic(
 
 export function ClientWrapper() {
   return (
-    <ErrorBoundary>
-      <ClientApp />
-    </ErrorBoundary>
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
+      <ErrorBoundary>
+        <ClientApp />
+      </ErrorBoundary>
+    </div>
   );
 }
