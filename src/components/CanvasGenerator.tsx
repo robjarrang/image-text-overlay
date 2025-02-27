@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Icons } from './Icons';
 
 interface CanvasGeneratorProps {
   text: string;
@@ -12,6 +13,8 @@ interface CanvasGeneratorProps {
   onLoad: () => void;
   onError: (message: string) => void;
   onImageLoad?: (dimensions: { width: number; height: number }) => void;
+  onPositionChange?: (newX: number, newY: number) => void;
+  className?: string;
 }
 
 export function CanvasGenerator({
@@ -25,12 +28,18 @@ export function CanvasGenerator({
   height,
   onLoad,
   onError,
-  onImageLoad
+  onImageLoad,
+  onPositionChange,
+  className = ''
 }: CanvasGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imageAspectRatio, setImageAspectRatio] = useState<number>(1);
   const [fontLoaded, setFontLoaded] = useState(false);
   const fontLoadingAttempted = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [showDragHint, setShowDragHint] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
 
   // Improved font loading with retry mechanism
   useEffect(() => {
@@ -213,15 +222,197 @@ export function CanvasGenerator({
     }
   }, [text, imageUrl, fontSize, fontColor, x, y, width, height, onLoad, onError, onImageLoad, fontLoaded]);
 
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!canvasRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const clickX = (e.clientX - rect.left) * scaleX;
+    const clickY = (e.clientY - rect.top) * scaleY;
+    
+    const actualX = (x / 100) * canvas.width;
+    const actualY = (y / 100) * canvas.height;
+    const scaledFontSize = (fontSize / 100) * canvas.width;
+    
+    // Simple text bounds check (can be refined based on actual text metrics)
+    const lines = text.split('\n');
+    let isWithinText = false;
+    
+    lines.forEach((line, index) => {
+      const lineY = actualY + index * (scaledFontSize * 1.2);
+      const textWidth = line.length * scaledFontSize * 0.6; // Approximate width
+      
+      if (
+        clickX >= actualX - scaledFontSize * 0.5 &&
+        clickX <= actualX + textWidth + scaledFontSize * 0.5 &&
+        clickY >= lineY - scaledFontSize * 1.2 &&
+        clickY <= lineY + scaledFontSize * 0.2
+      ) {
+        isWithinText = true;
+      }
+    });
+    
+    if (isWithinText) {
+      setIsDragging(true);
+      setDragOffset({
+        x: clickX - actualX,
+        y: clickY - actualY
+      });
+      canvas.style.cursor = 'grabbing';
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDragging || !canvasRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const mouseX = (e.clientX - rect.left) * scaleX;
+    const mouseY = (e.clientY - rect.top) * scaleY;
+    
+    const newX = Math.max(0, Math.min(100, ((mouseX - dragOffset.x) / canvas.width) * 100));
+    const newY = Math.max(0, Math.min(100, ((mouseY - dragOffset.y) / canvas.height) * 100));
+    
+    onPositionChange?.(newX, newY);
+  };
+
+  const handleMouseUp = () => {
+    if (isDragging && canvasRef.current) {
+      canvasRef.current.style.cursor = 'grab';
+      setIsDragging(false);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (isDragging && canvasRef.current) {
+      canvasRef.current.style.cursor = 'grab';
+      setIsDragging(false);
+    }
+    setShowDragHint(false);
+    setIsHovering(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!canvasRef.current || e.touches.length !== 1) return;
+    
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const touch = e.touches[0];
+    const touchX = (touch.clientX - rect.left) * scaleX;
+    const touchY = (touch.clientY - rect.top) * scaleY;
+    
+    // Reuse the same bounds checking logic
+    const actualX = (x / 100) * canvas.width;
+    const actualY = (y / 100) * canvas.height;
+    const scaledFontSize = (fontSize / 100) * canvas.width;
+    
+    const lines = text.split('\n');
+    let isWithinText = false;
+    
+    lines.forEach((line, index) => {
+      const lineY = actualY + index * (scaledFontSize * 1.2);
+      const textWidth = line.length * scaledFontSize * 0.6;
+      
+      if (
+        touchX >= actualX - scaledFontSize * 0.5 &&
+        touchX <= actualX + textWidth + scaledFontSize * 0.5 &&
+        touchY >= lineY - scaledFontSize * 1.2 &&
+        touchY <= lineY + scaledFontSize * 0.2
+      ) {
+        isWithinText = true;
+      }
+    });
+    
+    if (isWithinText) {
+      setIsDragging(true);
+      setDragOffset({
+        x: touchX - actualX,
+        y: touchY - actualY
+      });
+      e.preventDefault(); // Prevent scrolling while dragging
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDragging || !canvasRef.current || e.touches.length !== 1) return;
+    
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const touch = e.touches[0];
+    const touchX = (touch.clientX - rect.left) * scaleX;
+    const touchY = (touch.clientY - rect.top) * scaleY;
+    
+    const newX = Math.max(0, Math.min(100, ((touchX - dragOffset.x) / canvas.width) * 100));
+    const newY = Math.max(0, Math.min(100, ((touchY - dragOffset.y) / canvas.height) * 100));
+    
+    onPositionChange?.(newX, newY);
+    e.preventDefault(); // Prevent scrolling while dragging
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseEnter = () => {
+    if (text) {
+      setShowDragHint(true);
+    }
+    if (canvasRef.current) {
+      canvasRef.current.style.cursor = 'grab';
+    }
+    setIsHovering(true);
+  };
+
   return (
-    <canvas
-      ref={canvasRef}
-      className="slds-border_around"
-      style={{
-        maxWidth: '100%',
-        height: 'auto',
-        aspectRatio: imageAspectRatio
-      }}
-    />
+    <div className="canvas-container">
+      <canvas
+        ref={canvasRef}
+        className={`slds-border_around preview-canvas ${className}`}
+        style={{
+          maxWidth: '100%',
+          height: 'auto',
+          aspectRatio: imageAspectRatio,
+          cursor: isDragging ? 'grabbing' : 'grab',
+          boxShadow: isHovering 
+            ? '0 8px 12px -2px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.1)' 
+            : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+          transform: isDragging 
+            ? 'scale(1.01)' 
+            : isHovering 
+              ? 'scale(1.005)' 
+              : 'scale(1)',
+          borderRadius: '12px',
+        }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        onMouseEnter={handleMouseEnter}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      />
+      {showDragHint && (
+        <div className="drag-instruction">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 9L12 5L16 9M8 15L12 19L16 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span>Drag text to reposition</span>
+        </div>
+      )}
+    </div>
   );
 }

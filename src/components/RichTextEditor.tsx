@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react';
 import { Icons } from './Icons';
 
 interface RichTextEditorProps {
@@ -5,11 +6,20 @@ interface RichTextEditorProps {
   onChange: (value: string) => void;
 }
 
-export function RichTextEditor({ value, onChange }: RichTextEditorProps) {  
+export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [showHelp, setShowHelp] = useState<boolean>(false);
+  const [activeButton, setActiveButton] = useState<string | null>(null);
+  const [isFocused, setIsFocused] = useState<boolean>(false);
+  
+  // Function to handle text alignment
   const handleAlignmentClick = (alignment: 'left' | 'center' | 'right') => {
-    const textarea = document.querySelector('#textInput') as HTMLTextAreaElement;
-    if (!textarea) return;
+    if (!textareaRef.current) return;
     
+    setActiveButton(alignment);
+    setTimeout(() => setActiveButton(null), 300);
+    
+    const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const selectedText = value.substring(start, end);
@@ -19,19 +29,23 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
       const newValue = value.substring(0, start) + newText + value.substring(end);
       onChange(newValue);
       
-      // Restore cursor position after the inserted text
+      // Restore cursor position after the tag
       setTimeout(() => {
-        textarea.selectionStart = start + alignment.length + 2;
-        textarea.selectionEnd = start + alignment.length + 2 + selectedText.length;
         textarea.focus();
+        textarea.selectionStart = start + alignment.length + 2; // +2 for the brackets
+        textarea.selectionEnd = start + alignment.length + 2 + selectedText.length;
       }, 0);
     }
   };
 
+  // Function to handle superscript
   const handleSuperscriptClick = () => {
-    const textarea = document.querySelector('#textInput') as HTMLTextAreaElement;
-    if (!textarea) return;
+    if (!textareaRef.current) return;
     
+    setActiveButton('super');
+    setTimeout(() => setActiveButton(null), 300);
+    
+    const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const selectedText = value.substring(start, end);
@@ -41,37 +55,41 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
       const newValue = value.substring(0, start) + newText + value.substring(end);
       onChange(newValue);
       
-      // Restore cursor position after the inserted text
+      // Restore cursor position
       setTimeout(() => {
-        textarea.selectionStart = start + 2;
-        textarea.selectionEnd = start + 2 + selectedText.length;
         textarea.focus();
+        textarea.selectionStart = start + 2; // +2 for ^{
+        textarea.selectionEnd = start + 2 + selectedText.length;
       }, 0);
     }
   };
 
-  const handleRegisteredTrademarkClick = () => {
-    const textarea = document.querySelector('#textInput') as HTMLTextAreaElement;
-    if (!textarea) return;
+  // Function to insert symbol at cursor
+  const handleSymbolClick = (symbol: string, buttonId: string) => {
+    if (!textareaRef.current) return;
     
+    setActiveButton(buttonId);
+    setTimeout(() => setActiveButton(null), 300);
+    
+    const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const registeredSymbol = '®';
     
-    // Insert the symbol at cursor position
-    const newValue = value.substring(0, start) + registeredSymbol + value.substring(end);
+    // Insert the symbol
+    const newValue = value.substring(0, start) + symbol + value.substring(end);
     onChange(newValue);
     
     // Place cursor after the inserted symbol
     setTimeout(() => {
-      textarea.selectionStart = start + 1;
-      textarea.selectionEnd = start + 1;
       textarea.focus();
+      textarea.selectionStart = start + symbol.length;
+      textarea.selectionEnd = start + symbol.length;
     }, 0);
   };
 
-  // Handler for keyboard shortcuts
+  // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Arrow key navigation for toolbar buttons
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       if (document.activeElement?.getAttribute('role') === 'toolbar') {
         const buttons = Array.from(document.querySelectorAll('[role="toolbar"] button'));
@@ -90,51 +108,147 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
     }
   };
 
+  // Apply syntax highlighting to the textarea
+  useEffect(() => {
+    if (!textareaRef.current) return;
+    
+    // Update textarea display classes based on content
+    const highlightSyntax = () => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      
+      // We're adding a class to the textarea that will enable our syntax highlighting CSS
+      textarea.classList.add('syntax-highlighted');
+      
+      // Make sure textarea has the most current value
+      textarea.value = value;
+    };
+    
+    highlightSyntax();
+  }, [value]);
+
+  // Create ripple effect 
+  const createRipple = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const button = event.currentTarget;
+    
+    const circle = document.createElement('span');
+    const diameter = Math.max(button.clientWidth, button.clientHeight);
+    const radius = diameter / 2;
+    
+    const rect = button.getBoundingClientRect();
+    
+    circle.style.width = circle.style.height = `${diameter}px`;
+    circle.style.left = `${event.clientX - rect.left - radius}px`;
+    circle.style.top = `${event.clientY - rect.top - radius}px`;
+    circle.classList.add('ripple');
+    
+    // Remove existing ripples
+    const ripple = button.querySelector('.ripple');
+    if (ripple) {
+      ripple.remove();
+    }
+    
+    button.appendChild(circle);
+    
+    // Clean up the ripple element after animation completes
+    setTimeout(() => {
+      if (circle) {
+        circle.remove();
+      }
+    }, 600);
+  };
+
   return (
-    <div className="slds-form-element">
-      <div className="slds-m-bottom_small">
+    <div className="slds-form-element editor-component">
+      {/* Toolbar */}
+      <div className="slds-grid slds-grid_vertical-align-center slds-m-bottom_small">
         <div 
           className="slds-button-group" 
           role="toolbar" 
           aria-label="Text formatting controls"
           onKeyDown={handleKeyDown}
+          style={{
+            borderRadius: '8px',
+            overflow: 'hidden',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)'
+          }}
         >
           <button
-            className="slds-button slds-button_icon slds-button_icon-border-filled"
-            onClick={() => handleAlignmentClick('left')}
+            className={`slds-button slds-button_icon slds-button_icon-border-filled ${activeButton === 'left' ? 'button-flash' : ''}`}
+            onClick={(e) => { 
+              createRipple(e);
+              handleAlignmentClick('left');
+            }}
             type="button"
             aria-label="Align text left"
             title="Align Left"
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              transitionProperty: 'transform, background-color',
+              transitionDuration: '0.2s',
+              transitionTimingFunction: 'ease'
+            }}
           >
             <Icons.AlignLeft />
             <span className="slds-assistive-text">Align text left</span>
           </button>
           <button
-            className="slds-button slds-button_icon slds-button_icon-border-filled"
-            onClick={() => handleAlignmentClick('center')}
+            className={`slds-button slds-button_icon slds-button_icon-border-filled ${activeButton === 'center' ? 'button-flash' : ''}`}
+            onClick={(e) => {
+              createRipple(e);
+              handleAlignmentClick('center');
+            }}
             type="button"
             aria-label="Align text center"
             title="Center"
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              transitionProperty: 'transform, background-color',
+              transitionDuration: '0.2s',
+              transitionTimingFunction: 'ease'
+            }}
           >
             <Icons.AlignCenter />
             <span className="slds-assistive-text">Align text center</span>
           </button>
           <button
-            className="slds-button slds-button_icon slds-button_icon-border-filled"
-            onClick={() => handleAlignmentClick('right')}
+            className={`slds-button slds-button_icon slds-button_icon-border-filled ${activeButton === 'right' ? 'button-flash' : ''}`}
+            onClick={(e) => {
+              createRipple(e);
+              handleAlignmentClick('right');
+            }}
             type="button"
             aria-label="Align text right"
             title="Align Right"
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              transitionProperty: 'transform, background-color',
+              transitionDuration: '0.2s',
+              transitionTimingFunction: 'ease'
+            }}
           >
             <Icons.AlignRight />
             <span className="slds-assistive-text">Align text right</span>
           </button>
           <button
-            className="slds-button slds-button_icon slds-button_icon-border-filled superscript-button"
-            onClick={handleSuperscriptClick}
+            className={`slds-button slds-button_icon slds-button_icon-border-filled superscript-button ${activeButton === 'super' ? 'button-flash' : ''}`}
+            onClick={(e) => {
+              createRipple(e);
+              handleSuperscriptClick();
+            }}
             type="button"
             aria-label="Format text as superscript"
             title="Superscript"
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              transitionProperty: 'transform, background-color',
+              transitionDuration: '0.2s',
+              transitionTimingFunction: 'ease'
+            }}
           >
             <svg className="slds-button__icon superscript-icon" aria-hidden="true">
               <Icons.Formula />
@@ -142,29 +256,142 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
             <span className="slds-assistive-text">Format text as superscript</span>
           </button>
           <button
-            className="slds-button slds-button_icon slds-button_icon-border-filled formatting-button"
-            onClick={handleRegisteredTrademarkClick}
+            className={`slds-button slds-button_icon slds-button_icon-border-filled formatting-button ${activeButton === 'reg' ? 'button-flash' : ''}`}
+            onClick={(e) => {
+              createRipple(e);
+              handleSymbolClick('®', 'reg');
+            }}
             type="button"
             aria-label="Insert Registered Trademark symbol"
             title="Insert ®"
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              transitionProperty: 'transform, background-color',
+              transitionDuration: '0.2s',
+              transitionTimingFunction: 'ease'
+            }}
           >
             <span className="slds-icon-text-default" style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>®</span>
             <span className="slds-assistive-text">Insert Registered Trademark symbol</span>
           </button>
+          <button
+            className={`slds-button slds-button_icon slds-button_icon-border-filled formatting-button ${activeButton === 'tm' ? 'button-flash' : ''}`}
+            onClick={(e) => {
+              createRipple(e);
+              handleSymbolClick('™', 'tm');
+            }}
+            type="button"
+            aria-label="Insert Trademark symbol"
+            title="Insert ™"
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              transitionProperty: 'transform, background-color',
+              transitionDuration: '0.2s',
+              transitionTimingFunction: 'ease'
+            }}
+          >
+            <span className="slds-icon-text-default" style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>™</span>
+            <span className="slds-assistive-text">Insert Trademark symbol</span>
+          </button>
+        </div>
+        
+        {/* Help button */}
+        <div className="slds-m-left_small">
+          <button 
+            className={`slds-button slds-button_icon slds-button_icon-border-filled ${showHelp ? 'slds-is-selected' : ''}`}
+            onClick={(e) => {
+              createRipple(e);
+              setShowHelp(!showHelp);
+            }}
+            aria-label="Formatting help"
+            title="Formatting Help"
+            style={{
+              position: 'relative', 
+              overflow: 'hidden', 
+              transition: 'all 0.3s ease',
+              transform: showHelp ? 'rotate(180deg)' : 'rotate(0)'
+            }}
+          >
+            <Icons.Help />
+            <span className="slds-assistive-text">Formatting help</span>
+          </button>
         </div>
       </div>
-      <div className="slds-form-element__control">
-        <textarea
-          id="textInput"
-          className="slds-textarea"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          rows={4}
-          placeholder="Enter text here. Use the buttons above to format text."
-          aria-label="Text content"
-          aria-describedby="textInputHelp"
-        />
-        <div className="slds-form-element__help" id="textInputHelp">
+      
+      {/* Help panel */}
+      <div 
+        className={`slds-box slds-theme_shade slds-m-bottom_small formatting-help ${showHelp ? 'help-panel-visible' : 'help-panel-hidden'}`}
+        style={{
+          borderRadius: '8px',
+          overflow: 'hidden',
+          maxHeight: showHelp ? '500px' : '0',
+          opacity: showHelp ? 1 : 0,
+          transition: 'max-height 0.3s ease-in-out, opacity 0.2s ease-in-out, margin 0.2s ease-in-out',
+          margin: showHelp ? '0 0 1rem 0' : '0',
+          padding: showHelp ? '1rem' : '0 1rem'
+        }}
+      >
+        <div className="slds-text-heading_small slds-m-bottom_xx-small">Formatting Help</div>
+        <div className="slds-grid slds-wrap">
+          <div className="slds-col slds-size_1-of-2 slds-p-right_small">
+            <h3 className="slds-text-heading_small">Text Alignment</h3>
+            <ul className="slds-list_dotted">
+              <li>
+                <code className="syntax-tag alignment-tag">[left]</code> - Aligns text to the left
+              </li>
+              <li>
+                <code className="syntax-tag alignment-tag">[center]</code> - Centers the text
+              </li>
+              <li>
+                <code className="syntax-tag alignment-tag">[right]</code> - Aligns text to the right
+              </li>
+            </ul>
+          </div>
+          <div className="slds-col slds-size_1-of-2">
+            <h3 className="slds-text-heading_small">Text Formatting</h3>
+            <ul className="slds-list_dotted">
+              <li>
+                <code className="syntax-tag superscript-tag">^{'{text}'}</code> - Makes text superscript
+              </li>
+              <li>
+                <code>®</code> - Registered trademark symbol
+              </li>
+              <li>
+                <code>™</code> - Trademark symbol
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div className="slds-m-top_small">
+          <p className="slds-text-body_small">
+            <strong>Tip:</strong> Select text first, then click a formatting button to apply formatting. 
+            For symbols, position your cursor where you want the symbol, then click its button.
+          </p>
+        </div>
+      </div>
+      
+      {/* Text area with syntax highlighting - Modified structure for proper focus handling */}
+      <div className="rich-text-editor-container">
+        <div className="slds-form-element__control rich-text-editor-wrapper">
+          <textarea
+            ref={textareaRef}
+            id="textInput"
+            className="slds-textarea syntax-textarea"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            rows={4}
+            placeholder="Enter text here. Use the buttons above to format text."
+            aria-label="Text content"
+            aria-describedby="textInputHelp"
+            style={{ borderRadius: '8px', overflow: 'hidden' }}
+          />
+        </div>
+        {/* Help text moved outside the rich-text-editor-wrapper for proper focus handling */}
+        <div className="slds-form-element__help help-text-container" id="textInputHelp">
           Select text and use the formatting buttons above to apply alignment or superscript formatting
         </div>
       </div>

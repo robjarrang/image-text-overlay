@@ -168,6 +168,14 @@ export function ClientApp() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Check file size (2MB = 2 * 1024 * 1024 bytes)
+    const maxSize = 2 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setError('size_exceeded');
+      event.target.value = ''; // Clear the file input
+      return;
+    }
+
     setIsLoading(true);
     const reader = new FileReader();
     
@@ -283,6 +291,30 @@ export function ClientApp() {
     setFormState(prev => ({ ...prev, fontColor: color }));
   };
 
+  const handlePositionChange = (newX: number, newY: number) => {
+    setFormState(prev => ({
+      ...prev,
+      x: Math.round(newX),
+      y: Math.round(newY)
+    }));
+    
+    // Update slider positions visually
+    const xInput = document.getElementById('x-position') as HTMLInputElement;
+    const yInput = document.getElementById('y-position') as HTMLInputElement;
+    
+    if (xInput) {
+      xInput.value = Math.round(newX).toString();
+      const xValue = ((newX - Number(xInput.min)) / (Number(xInput.max) - Number(xInput.min))) * 100;
+      xInput.style.setProperty('--range-progress', `${xValue}%`);
+    }
+    
+    if (yInput) {
+      yInput.value = Math.round(newY).toString();
+      const yValue = ((newY - Number(yInput.min)) / (Number(yInput.max) - Number(yInput.min))) * 100;
+      yInput.style.setProperty('--range-progress', `${yValue}%`);
+    }
+  };
+
   return (
     <div className="slds-grid slds-wrap slds-gutters_large">
       <div className="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-col_padded">
@@ -380,30 +412,7 @@ export function ClientApp() {
               </div>
 
               <div className="slds-form-element slds-form-element_stacked">
-                <div className="slds-grid slds-grid_vertical-align-center" style={{ position: 'relative' }}>
-                  <label className="slds-form-element__label" htmlFor="textInput">Text Content</label>
-                  <div className="slds-form-element__icon slds-m-left_x-small slds-relative">
-                    <button className="slds-button slds-button_icon" aria-describedby="markup-help" onMouseEnter={() => {
-                      const popover = document.getElementById('markup-help');
-                      if (popover) popover.classList.remove('slds-hide');
-                    }} onMouseLeave={() => {
-                      const popover = document.getElementById('markup-help');
-                      if (popover) popover.classList.add('slds-hide');
-                    }}>
-                      <svg className="slds-button__icon slds-icon-text-default" aria-hidden="true">
-                        <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#info"></use>
-                      </svg>
-                      <span className="slds-assistive-text">Help</span>
-                    </button>
-                    <div id="markup-help" className="slds-popover slds-popover_tooltip slds-nubbin_bottom-left slds-hide" role="tooltip" style={{ position: 'absolute', bottom: '140%', left: '50%', transform: 'translateX(-1rem)', width: 'max-content', maxWidth: '20rem' }}>
-                      <div className="slds-popover__body">
-                        [center], [left], [right] for text alignment<br/>
-                        ^{'{text}'} for superscript<br/>
-                        ® for registered trademark symbol
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <label className="slds-form-element__label" htmlFor="textInput">Text Content</label>
                 <div className="slds-form-element__control">
                   <RichTextEditor
                     value={formState.text}
@@ -551,6 +560,11 @@ export function ClientApp() {
                       </div>
                     </div>
                   </div>
+                  <div className="slds-form-element__help slds-m-top_x-small">
+                    <p className="slds-text-body_small">
+                      <strong>Tip:</strong> You can also click and drag the text directly on the preview image to position it.
+                    </p>
+                  </div>
                 </div>
               </fieldset>
             </form>
@@ -618,14 +632,52 @@ export function ClientApp() {
               </div>
               <button
                 className="slds-button slds-button_brand download-button"
-                onClick={handleDownload}
+                onClick={(e) => {
+                  // Create ripple effect
+                  const button = e.currentTarget;
+                  const ripple = button.querySelector('.button-ripple-effect') as HTMLElement;
+                  if (ripple) {
+                    ripple.style.opacity = '1';
+                    ripple.style.transform = 'translate(-50%, -50%) scale(2.5)';
+                    setTimeout(() => {
+                      ripple.style.opacity = '0';
+                      ripple.style.transform = 'translate(-50%, -50%) scale(0)';
+                    }, 600);
+                  }
+                  
+                  // Process download
+                  handleDownload();
+                }}
                 disabled={isLoading}
                 aria-label="Download image with overlay"
+                style={{
+                  position: 'relative', 
+                  overflow: 'hidden',
+                  transition: 'transform 0.2s ease, background-color 0.3s ease'
+                }}
               >
                 <svg className="slds-button__icon slds-button__icon_left download-icon" aria-hidden="true">
                   <Icons.Download />
                 </svg>
-                {isLoading ? 'Generating...' : 'Download'}
+                {isLoading ? 
+                  <span className="download-text-wrapper">
+                    <span className="loading-dots">Generating</span>
+                  </span> : 
+                  'Download'
+                }
+                <span className="button-ripple-effect" style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  width: '120%',
+                  height: '120%',
+                  transform: 'translate(-50%, -50%) scale(0)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  borderRadius: '50%',
+                  opacity: '0',
+                  pointerEvents: 'none',
+                  transition: 'transform 0.5s ease-out, opacity 0.5s ease-out'
+                }} />
               </button>
             </div>
           </footer>
@@ -645,7 +697,7 @@ export function ClientApp() {
           </div>
           <div className="slds-card__body slds-p-around_medium">
             {isLoading ? (
-              <div className="slds-illustration slds-illustration_small slds-p-around_large">
+              <div className="slds-illustration slds-illustration_small slds-p-around_large animate-pulse">
                 <div className="slds-align_absolute-center">
                   <div className="slds-spinner slds-spinner_medium" role="status" aria-live="polite">
                     <span className="slds-assistive-text">Loading preview</span>
@@ -655,9 +707,34 @@ export function ClientApp() {
                 </div>
               </div>
             ) : error ? (
-              <div className="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error" role="alert" aria-live="assertive">
+              <div className="slds-notify slds-notify_alert slds-theme_error" role="alert" aria-live="assertive">
                 <span className="slds-assistive-text">Error</span>
-                <h2>{error}</h2>
+                <div className="slds-notify__content">
+                  <div className="slds-media slds-media_center">
+                    <div className="slds-media__figure">
+                      <Icons.Error size="small" />
+                    </div>
+                    <div className="slds-media__body">
+                      <p className="slds-text-heading_small slds-m-bottom_small">
+                        {error === 'size_exceeded' ? 'Image file size must be less than 2MB.' : error}
+                      </p>
+                      {error === 'size_exceeded' && (
+                        <p>
+                          Try compressing your image at{' '}
+                          <a 
+                            href="https://compressjpeg.com/" 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-white underline"
+                          >
+                            compressjpeg.com
+                          </a>
+                          {' '}and upload again.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 <div className="slds-notify__close">
                   <button 
                     className="slds-button slds-button_icon slds-button_icon-inverse" 
@@ -671,23 +748,28 @@ export function ClientApp() {
               </div>
             ) : !formState.imageUrl ? (
               <div className="slds-box slds-theme_shade slds-text-align_center slds-p-around_medium" role="status">
-                <div className="slds-m-bottom_small">
-                  <svg className="slds-icon slds-icon_large" aria-hidden="true">
-                    <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#image"></use>
+                <div className="slds-m-bottom_medium">
+                  <svg className="slds-icon slds-icon_large" aria-hidden="true" width="64" height="64" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4.86 8.86l-3 3.87L9 13.14 6 17h12l-3.86-5.14z"/>
                   </svg>
                 </div>
+                <p className="slds-text-heading_small slds-m-bottom_small">No image selected</p>
                 <p className="slds-text-body_regular slds-text-color_weak">
                   Please enter an image URL or upload an image to see a preview
                 </p>
               </div>
             ) : (
-              <div className="slds-p-around_medium">
-                <CanvasGenerator
-                  {...formState}
-                  onLoad={() => setIsLoading(false)}
-                  onError={handleError}
-                  onImageLoad={handleImageLoad}
-                />
+              <div className="slds-p-around_medium preview-container">
+                <div className="preview-canvas-wrapper">
+                  <CanvasGenerator
+                    {...formState}
+                    onLoad={() => setIsLoading(false)}
+                    onError={handleError}
+                    onImageLoad={handleImageLoad}
+                    onPositionChange={handlePositionChange}
+                    className="preview-canvas"
+                  />
+                </div>
               </div>
             )}
           </div>

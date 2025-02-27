@@ -5,7 +5,10 @@ import { base64FontData } from '../../utils/fontData';
 
 export const config = {
   api: {
-    responseLimit: '10mb',
+    bodyParser: {
+      sizeLimit: '2mb'
+    },
+    responseLimit: false
   },
 };
 
@@ -72,6 +75,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     // Use req.method to decide where to extract parameters from
     const params = req.method === 'GET' ? req.query : req.body;
+    
+    // Check payload size directly
+    if (req.method === 'POST' && Buffer.byteLength(JSON.stringify(req.body)) > 2 * 1024 * 1024) {
+      return res.status(413).json({ 
+        error: 'File size too large', 
+        details: 'size_exceeded'
+      });
+    }
+
     const { text = '', imageUrl, fontSize = '5', fontColor = '#000000', x = '10', y = '10' } = params;
     
     if (!imageUrl) {
@@ -125,28 +137,102 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         let xPos = Math.round((parseInt(x as string) / 100) * imageWidth);
         
         // Handle alignment
+        let alignmentOffset = 0;
         if (processedLine.match(/^\[(left|center|right)\]/)) {
           const align = processedLine.match(/^\[(left|center|right)\]/)![1];
           processedLine = processedLine.replace(/^\[(left|center|right)\]/, '');
           console.log('Processing aligned text:', { align, processedLine });
           
-          if (align === 'center' || align === 'right') {
-            const testPath = font.getPath(processedLine, 0, 0, actualFontSize);
-            const bbox = testPath.getBoundingBox();
-            const textWidth = bbox.x2 - bbox.x1;
-            
-            if (align === 'center') {
-              xPos = Math.round((imageWidth - textWidth) / 2);
-            } else {
-              xPos = Math.round(imageWidth - textWidth - ((100 - parseInt(x as string)) / 100 * imageWidth));
+          // Process text with superscript first to get accurate width
+          const parts: Array<{ text: string; isSuper: boolean }> = [];
+          let currentIndex = 0;
+          const superscriptRegex = /\^{([^}]+)}/g;
+          let match;
+
+          while ((match = superscriptRegex.exec(processedLine)) !== null) {
+            if (match.index > currentIndex) {
+              parts.push({
+                text: processedLine.slice(currentIndex, match.index),
+                isSuper: false
+              });
             }
-            console.log('Calculated position:', { align, xPos, textWidth });
+
+            parts.push({
+              text: match[1],
+              isSuper: true
+            });
+
+            currentIndex = match.index + match[0].length;
           }
+
+          if (currentIndex < processedLine.length) {
+            parts.push({
+              text: processedLine.slice(currentIndex),
+              isSuper: false
+            });
+          }
+
+          // Calculate total width considering both regular and superscript text
+          let totalWidth = 0;
+          for (const part of parts) {
+            const partSize = part.isSuper ? actualFontSize * 0.7 : actualFontSize;
+            const testPath = font.getPath(part.text, 0, 0, partSize);
+            const bbox = testPath.getBoundingBox();
+            totalWidth += bbox.x2 - bbox.x1;
+          }
+
+          if (align === 'center') {
+            xPos = Math.round((imageWidth - totalWidth) / 2);
+          } else if (align === 'right') {
+            xPos = Math.round(imageWidth - totalWidth - ((100 - parseInt(x as string)) / 100 * imageWidth));
+          }
+          console.log('Calculated position:', { align, xPos, totalWidth });
         }
 
+        // Reset position for first text part
+        let currentX = xPos;
         const yPos = Math.round((parseInt(y as string) / 100) * imageHeight + (index * actualFontSize * 1.2));
-        const path = font.getPath(processedLine, xPos, yPos, actualFontSize);
-        svgPaths += `<path d="${path.toPathData()}" fill="${fontColor}" />`;
+
+        // Process and render text parts
+        const parts: Array<{ text: string; isSuper: boolean }> = [];
+        let currentIndex = 0;
+        const superscriptRegex = /\^{([^}]+)}/g;
+        let match;
+
+        while ((match = superscriptRegex.exec(processedLine)) !== null) {
+          if (match.index > currentIndex) {
+            parts.push({
+              text: processedLine.slice(currentIndex, match.index),
+              isSuper: false
+            });
+          }
+
+          parts.push({
+            text: match[1],
+            isSuper: true
+          });
+
+          currentIndex = match.index + match[0].length;
+        }
+
+        if (currentIndex < processedLine.length) {
+          parts.push({
+            text: processedLine.slice(currentIndex),
+            isSuper: false
+          });
+        }
+
+        // Render each part
+        for (const part of parts) {
+          const partSize = part.isSuper ? actualFontSize * 0.7 : actualFontSize;
+          const partY = part.isSuper ? yPos - (actualFontSize * 0.3) : yPos;
+          const path = font.getPath(part.text, currentX, partY, partSize);
+          svgPaths += `<path d="${path.toPathData()}" fill="${fontColor}" />`;
+
+          // Move x position for next part
+          const bbox = path.getBoundingBox();
+          currentX += bbox.x2 - bbox.x1;
+        }
       }
 
       // Create SVG

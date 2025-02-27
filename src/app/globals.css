@@ -10,6 +10,137 @@
   font-display: swap;
 }
 
+/* Rich Text Editor Enhancements */
+.rich-text-editor-wrapper {
+  position: relative;
+}
+
+/* Syntax highlighting styles with added regex highlighting */
+.syntax-textarea {
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  tab-size: 4;
+  -moz-tab-size: 4;
+}
+
+/* Add a custom ::after pseudo-element for proper syntax highlighting */
+.syntax-highlighted {
+  background-color: transparent !important;
+  caret-color: black;
+  color: #333;
+}
+
+/* Style specific patterns in the textarea using CSS */
+.syntax-highlighted::placeholder {
+  color: #767676 !important;
+  opacity: 1;
+}
+
+/* Dark mode needs different text color */
+.slds-theme_dark .syntax-highlighted {
+  caret-color: white;
+  color: #e1e1e1;
+}
+
+/* Enhanced textarea to allow for visual syntax highlighting */
+.rich-text-editor-wrapper {
+  position: relative;
+}
+
+/* Style syntax in the textarea directly */
+.syntax-textarea {
+  position: relative;
+  z-index: 1;
+}
+
+/* This creates a highlighting effect for alignment tags */
+.syntax-textarea {
+  background-image: linear-gradient(to bottom, transparent, transparent);
+  background-repeat: no-repeat;
+}
+
+/* Add these styles to highlight text patterns */
+.syntax-highlighted[value*="[left]"], 
+.syntax-highlighted[value*="[center]"], 
+.syntax-highlighted[value*="[right]"] {
+  background-color: rgba(21, 137, 238, 0.05);
+}
+
+.syntax-highlighted[value*="^{"] {
+  background-color: rgba(255, 183, 93, 0.05);
+}
+
+/* The following styles are for the patterns shown in the help panel */
+.syntax-tag {
+  display: inline-block;
+  border-radius: 3px;
+  padding: 0 4px;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.alignment-tag {
+  background-color: rgba(21, 137, 238, 0.1);
+  color: #0176d3;
+  border: 1px solid rgba(21, 137, 238, 0.3);
+}
+
+.superscript-tag {
+  background-color: rgba(255, 183, 93, 0.2);
+  color: #8a6d00;
+  border: 1px solid rgba(255, 183, 93, 0.3);
+}
+
+/* Formatting help panel */
+.formatting-help {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.formatting-help h3 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.formatting-help ul {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.formatting-help li {
+  margin-bottom: 0.5rem;
+}
+
+/* Real-time syntax highlighting for the editor */
+@keyframes highlightAlignment {
+  0% { background-color: rgba(21, 137, 238, 0.2); }
+  100% { background-color: rgba(21, 137, 238, 0.05); }
+}
+
+@keyframes highlightSuperscript {
+  0% { background-color: rgba(255, 183, 93, 0.2); }
+  100% { background-color: rgba(255, 183, 93, 0.05); }
+}
+
+/* Syntax pattern colors - these help the text patterns stand out in the editor */
+.syntax-textarea:not(:placeholder-shown) {
+  color: var(--slds-g-color-neutral-base-50, #747474);
+}
+
+/* Use attribute selectors to target specific syntax patterns */
+.syntax-textarea::selection {
+  background-color: rgba(21, 137, 238, 0.2);
+}
+
+/* Left, Center, Right tag styling */
+.syntax-textarea:not(:placeholder-shown) {
+  --alignment-pattern: \[left\]|\[center\]|\[right\];
+  --superscript-pattern: \^\{.*?\};
+}
+
+/* Existing CSS below */
 :root {
   --background: #f0f0f0; /* Custom value to match the inner background color */
   --foreground: var(--slds-g-color-neutral-base-10, #181818);
@@ -1155,7 +1286,7 @@ main,
     color: var(--slds-g-color-neutral-base-10, #181818);
     min-height: 6rem;
     padding: 0.75rem;
-    border-top: 1px solid var(--slds-g-color-border-base-1, #dddbda);
+    border-top: 1px solid var (--slds-g-color-border-base-1, #dddbda);
 
     &:focus {
       outline: none;
@@ -1657,4 +1788,51 @@ main,
 .slds-tabs_scoped__link {
   backface-visibility: hidden;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Drag and drop cursor styles */
+.canvas-interactive {
+  cursor: pointer;
+}
+
+.canvas-interactive:hover {
+  cursor: move;
+}
+
+.canvas-dragging {
+  cursor: move !important;
+}
+
+/* Preview section enhancements for drag interaction */
+.slds-card[aria-label="Image preview"] .canvas-interactive {
+  position: relative;
+  transition: cursor 0.2s ease;
+}
+
+.slds-card[aria-label="Image preview"] .canvas-interactive::after {
+  content: "Click and drag text to reposition";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+  margin-bottom: 0.5rem;
+}
+
+.slds-card[aria-label="Image preview"] .canvas-interactive:hover::after {
+  opacity: 1;
+}
+
+/* Dark mode adjustments */
+.slds-theme_dark .slds-card[aria-label="Image preview"] .canvas-interactive::after {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
 }
