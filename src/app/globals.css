@@ -192,24 +192,44 @@ body {
   box-shadow: 0 2px 6px rgba(1, 118, 211, 0.3);
 }
 
+/* Enhanced button transitions */
+.slds-button {
+  transition: transform 0.15s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.slds-button:active {
+  transform: scale(0.98);
+}
+
 /* Button effects */
 .download-button {
   position: relative;
   overflow: hidden;
 }
 
-.button-ripple-effect {
+.download-button::after {
+  content: '';
   position: absolute;
   top: 50%;
   left: 50%;
   width: 120%;
   height: 120%;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
   transform: translate(-50%, -50%) scale(0);
-  background-color: rgba(255, 255, 255, 0.15);
-  border-radius: 50%;
   opacity: 0;
   pointer-events: none;
   transition: transform 0.5s ease-out, opacity 0.5s ease-out;
+}
+
+.download-button:active::after {
+  transform: translate(-50%, -50%) scale(2.5);
+  opacity: 1;
+  transition: 0s;
+}
+
+/* Dark mode adjustments */
+.slds-theme_dark .download-button::after {
+  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
 }
 
 /* Enhanced share button */
@@ -428,6 +448,38 @@ body {
   .form-section {
     padding-bottom: 1.25rem;
     margin-bottom: 1.25rem;
+  }
+}
+
+/* Responsive Layout Breakpoints */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .slds-large-size_7-columns {
+    width: 60%;
+  }
+  .slds-large-size_5-columns {
+    width: 40%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .slds-large-size_7-columns {
+    width: 55%;
+  }
+  .slds-large-size_5-columns {
+    width: 45%;
+  }
+}
+
+/* Additional responsive adjustments */
+@media (max-width: 767px) {
+  .slds-large-size_7-columns,
+  .slds-large-size_5-columns {
+    width: 100%;
+  }
+  
+  /* Ensure proper spacing when stacked */
+  .slds-large-size_5-columns {
+    margin-top: 1.5rem;
   }
 }
 
@@ -2116,16 +2168,20 @@ main,
   padding-bottom: 0.5rem; /* Added padding to create more space */
 }
 
-.slds-tabs_scoped__item.slds-is-active::after {
+/* Add smooth tab selection animation */
+.slds-tabs_scoped__item::after {
   content: '';
   position: absolute;
   bottom: 0;
   left: 0;
-  right: 0;
+  width: 0;
   height: 2px;
   background-color: var(--slds-g-color-brand-base-50, #0176d3);
-  transform: scaleX(1);
-  transition: transform 0.2s ease-in-out;
+  transition: width 0.2s ease-in-out;
+}
+
+.slds-tabs_scoped__item.slds-is-active::after {
+  width: 100%;
 }
 
 .slds-tabs_scoped__link {
@@ -2244,4 +2300,70 @@ main,
 .slds-theme_dark .slds-card[aria-label="Image preview"] .canvas-interactive::after {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(4px);
+}
+
+/* Empty state illustrations */
+.empty-state-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state-icon svg {
+  width: 80px;
+  height: 80px;
+  color: var(--slds-g-color-neutral-base-50, #747474);
+  transition: transform 0.3s ease;
+}
+
+.empty-state:hover .empty-state-icon svg {
+  transform: scale(1.05);
+}
+
+.slds-box.slds-theme_shade .empty-state-icon {
+  margin-bottom: 1.5rem;
+}
+
+.slds-box.slds-theme_shade .slds-text-heading_small {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--slds-g-color-neutral-base-30, #444444);
+  margin-bottom: 0.75rem;
+}
+
+.slds-box.slds-theme_shade .slds-text-body_small {
+  color: var(--slds-g-color-neutral-base-50, #747474);
+  max-width: 240px;
+  margin: 0 auto;
+}
+
+/* Enhanced empty state container */
+.slds-box.slds-theme_shade {
+  padding: 3rem 1.5rem;
+  border-radius: 0.5rem;
+  border: 1px dashed var(--slds-g-color-border-base-1, #dddbda);
+  transition: all 0.2s ease;
+}
+
+.slds-box.slds-theme_shade:hover {
+  border-color: var(--slds-g-color-brand-base-50, #0176d3);
+  background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
+}
+
+/* Dark mode adjustments for empty states */
+.slds-theme_dark .empty-state-icon svg {
+  color: var(--slds-g-color-neutral-base-70, #aeaeae);
+}
+
+.slds-theme_dark .slds-box.slds-theme_shade .slds-text-heading_small {
+  color: var(--slds-g-color-neutral-base-90, #e5e5e5);
+}
+
+.slds-theme_dark .slds-box.slds-theme_shade .slds-text-body_small {
+  color: var(--slds-g-color-neutral-base-70, #aeaeae);
+}
+
+.slds-theme_dark .slds-box.slds-theme_shade:hover {
+  background-color: var(--slds-g-color-neutral-base-15, #242424);
+  border-color: var(--slds-g-color-brand-base-50, #0176d3);
 }

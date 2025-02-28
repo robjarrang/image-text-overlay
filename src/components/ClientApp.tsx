@@ -364,17 +364,24 @@ export function ClientApp() {
                           <abbr className="slds-required" title="required">*</abbr>
                           Image URL
                         </label>
-                        <input
-                          type="url"
-                          id="imageUrl"
-                          name="imageUrl"
-                          value={originalImageUrl}
-                          onChange={handleInputChange}
-                          className="slds-input"
-                          placeholder="https://example.com/image.jpg"
-                          aria-describedby="imageUrlHelp"
-                          required={activeImageSourceTab !== 'upload'}
-                        />
+                        <div className="slds-form-element__control slds-input-has-icon slds-input-has-icon_left">
+                          <div className="slds-icon_container">
+                            <svg className="slds-icon slds-input__icon slds-icon-text-default" aria-hidden="true">
+                              <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#link"></use>
+                            </svg>
+                          </div>
+                          <input
+                            type="url"
+                            id="imageUrl"
+                            name="imageUrl"
+                            value={originalImageUrl}
+                            onChange={handleInputChange}
+                            className="slds-input"
+                            placeholder="https://example.com/image.jpg"
+                            aria-describedby="imageUrlHelp"
+                            required={activeImageSourceTab !== 'upload'}
+                          />
+                        </div>
                         <div className="slds-form-element__help" id="imageUrlHelp">
                           Enter the URL of the image you want to add text to
                         </div>
@@ -634,12 +641,7 @@ export function ClientApp() {
                 <svg className="slds-button__icon slds-button__icon_left download-icon" aria-hidden="true">
                   <Icons.Download />
                 </svg>
-                {isLoading ? 
-                  <span className="download-text-wrapper">
-                    <span className="loading-dots">Generating</span>
-                  </span> : 
-                  'Download'
-                }
+                Download
                 <span className="button-ripple-effect" style={{
                   position: 'absolute',
                   top: '50%',
