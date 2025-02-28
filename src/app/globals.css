@@ -119,18 +119,23 @@ body {
   border-bottom: none;
 }
 
-/* Section headings */
+/* Section heading enhancements */
 .section-heading {
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: 0.9rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--slds-g-color-neutral-base-30, #444444);
+  letter-spacing: 0.05em;
+  color: var(--slds-g-color-neutral-base-50, #555);
   margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--slds-g-color-border-base-1, #e5e7eb);
+  position: relative;
 }
 
+/* Dark mode section heading adjustments */
 .slds-theme_dark .section-heading {
   color: var(--slds-g-color-neutral-base-80, #c9c9c9);
+  border-bottom-color: var(--slds-g-color-neutral-base-30, #444444);
 }
 
 /* Improved preview area */
@@ -147,9 +152,9 @@ body {
 }
 
 .preview-card {
-  height: 100%;
-  position: sticky;
-  top: 1rem;
+  height: auto;
+  transition: all 0.3s ease;
+  margin-bottom: 20px;
 }
 
 .preview-canvas-wrapper {
@@ -157,12 +162,6 @@ body {
   justify-content: center;
   align-items: center;
   width: 100%;
-}
-
-.preview-canvas {
-  max-width: 100%;
-  height: auto;
-  object-fit: contain;
 }
 
 /* Enhanced button styling */
@@ -306,6 +305,99 @@ body {
 .custom-slider .slds-slider__range::-webkit-slider-thumb:hover {
   transform: scale(1.1);
   box-shadow: 0 0 0 4px rgba(1, 118, 211, 0.1);
+}
+
+/* Enhanced Slider Controls */
+.slider-control {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--slds-g-color-neutral-base-80, #e5e7eb);
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.slider-control:hover {
+  background: var(--slds-g-color-neutral-base-70, #c9c9c9);
+}
+
+.slider-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--slds-g-color-brand-base-50, #0176d3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 4px rgba(1, 118, 211, 0.1);
+}
+
+.slider-thumb:active {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 6px rgba(1, 118, 211, 0.2);
+}
+
+/* Dark mode support */
+.slds-theme_dark .slider-control {
+  background: var(--slds-g-color-neutral-base-30, #444444);
+}
+
+.slds-theme_dark .slider-control:hover {
+  background: var(--slds-g-color-neutral-base-40, #5c5c5c);
+}
+
+.slds-theme_dark .slider-thumb {
+  background: var(--slds-g-color-brand-base-50, #0176d3);
+  border-color: var(--slds-g-color-neutral-base-20, #2e2e2e);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slds-theme_dark .slider-thumb:hover {
+  box-shadow: 0 0 0 4px rgba(1, 118, 211, 0.2);
+}
+
+.slds-theme_dark .slider-thumb:active {
+  box-shadow: 0 0 0 6px rgba(1, 118, 211, 0.3);
+}
+
+/* Progress track styling */
+.slider-control::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: var(--slider-progress, 0%);
+  background: var(--slds-g-color-brand-base-50, #0176d3);
+  border-radius: 4px;
+  transition: width 0.2s ease;
+}
+
+/* Ensure smooth transitions */
+.slider-control,
+.slider-thumb {
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Focus states for accessibility */
+.slider-thumb:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--slds-g-color-brand-base-50, #0176d3),
+              0 0 0 1px #ffffff;
+}
+
+.slds-theme_dark .slider-thumb:focus-visible {
+  box-shadow: 0 0 0 3px var(--slds-g-color-brand-base-50, #0176d3),
+              0 0 0 1px var(--slds-g-color-neutral-base-20, #2e2e2e);
 }
 
 /* Color swatch enhancements */
@@ -2366,4 +2458,149 @@ main,
 .slds-theme_dark .slds-box.slds-theme_shade:hover {
   background-color: var(--slds-g-color-neutral-base-15, #242424);
   border-color: var(--slds-g-color-brand-base-50, #0176d3);
+}
+
+/* Form Focus States */
+.slds-input,
+.slds-textarea {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.slds-input:focus,
+.slds-textarea:focus {
+  outline: none;
+  border-color: var(--ui-accent-color);
+  box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2);
+}
+
+.slds-input:focus-visible,
+.slds-textarea:focus-visible {
+  outline: none;
+  border-color: var(--ui-accent-color);
+  box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.2);
+}
+
+/* Dark mode focus states */
+.slds-theme_dark .slds-input:focus,
+.slds-theme_dark .slds-textarea:focus,
+.slds-theme_dark .slds-input:focus-visible,
+.slds-theme_dark .slds-textarea:focus-visible {
+  border-color: var(--ui-accent-color);
+  box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.3);
+  background-color: var(--slds-g-color-neutral-base-15, #242424);
+}
+
+/* Disabled state improvements */
+.slds-input:disabled,
+.slds-textarea:disabled {
+  background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
+  border-color: var(--slds-g-color-border-base-1, #dddbda);
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.slds-theme_dark .slds-input:disabled,
+.slds-theme_dark .slds-textarea:disabled {
+  background-color: var(--slds-g-color-neutral-base-20, #2e2e2e);
+  border-color: var(--slds-g-color-neutral-base-30, #444444);
+}
+
+/* Enhanced hover states */
+.slds-input:hover:not(:disabled):not(:focus),
+.slds-textarea:hover:not(:disabled):not(:focus) {
+  border-color: var(--slds-g-color-neutral-base-30, #444444);
+}
+
+.slds-theme_dark .slds-input:hover:not(:disabled):not(:focus),
+.slds-theme_dark .slds-textarea:hover:not(:disabled):not(:focus) {
+  border-color: var(--slds-g-color-neutral-base-40, #5c5c5c);
+}
+
+/* Form validation states */
+.slds-has-error .slds-input,
+.slds-has-error .slds-textarea {
+  border-color: var(--slds-g-color-error-base-40, #ba0517);
+  box-shadow: 0 0 0 1px var(--slds-g-color-error-base-40, #ba0517);
+}
+
+.slds-has-error .slds-input:focus,
+.slds-has-error .slds-textarea:focus {
+  border-color: var(--slds-g-color-error-base-40, #ba0517);
+  box-shadow: 0 0 0 2px var(--slds-g-color-error-base-40, #ba0517);
+}
+
+/* Success state */
+.slds-has-success .slds-input,
+.slds-has-success .slds-textarea {
+  border-color: var(--slds-g-color-success-base-50, #027e46);
+  box-shadow: 0 0 0 1px var (--slds-g-color-success-base-50, #027e46);
+}
+
+.slds-has-success .slds-input:focus,
+.slds-has-success .slds-textarea:focus {
+  border-color: var(--slds-g-color-success-base-50, #027e46);
+  box-shadow: 0 0 0 2px var(--slds-g-color-success-base-50, #027e46);
+}
+
+/* Remove the previous sticky-preview-column class */
+.sticky-preview-column {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: calc(50% - 35px); /* Adjust for the large-size_1-of-2 column width and account for gutters */
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  z-index: 10;
+  padding-bottom: 20px;
+}
+
+/* Add additional styling for the parent container to ensure proper layout */
+.preview-container-parent {
+  position: relative;
+  min-height: 100vh;
+}
+
+/* Ensure the left column has proper spacing to account for the fixed right column */
+.controls-column {
+  width: calc(50% - 20px);
+}
+
+/* Remove rotation and enhance help button interactions */
+.slds-button_icon[title="Formatting Help"] {
+  transition: background-color 0.2s ease, border-color 0.2s ease !important;
+  transform: none !important;
+}
+
+.slds-button_icon[title="Formatting Help"]:hover {
+  background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
+}
+
+.slds-button_icon[title="Formatting Help"].slds-is-selected {
+  background-color: var(--ui-accent-color);
+  border-color: var(--ui-accent-color);
+  color: white;
+}
+
+/* Dark mode adjustments */
+.slds-theme_dark .slds-button_icon[title="Formatting Help"]:hover {
+  background-color: var(--slds-g-color-neutral-base-30, #444444);
+}
+
+.slds-button_icon[title="Formatting Help"],
+.slds-button_icon[title="Formatting Help"] svg,
+.slds-button_icon[title="Formatting Help"] * {
+  transform: none !important;
+  transition: background-color 0.2s ease !important;
+  transform-origin: center center !important;
+  backface-visibility: hidden !important;
+  perspective: none !important;
+  transform-style: flat !important;
+}
+
+.slds-button_icon[title="Formatting Help"]:active {
+  transform: none !important;
+}
+
+.slds-button_icon[title="Formatting Help"].slds-is-selected {
+  transform: none !important;
 }

@@ -316,9 +316,9 @@ export function ClientApp() {
   };
 
   return (
-    <div className="slds-grid slds-wrap slds-gutters_large slds-p-around_medium">
+    <div className="slds-grid slds-wrap slds-gutters_large slds-p-around_medium preview-container-parent">
       {/* Left column - Controls */}
-      <div className="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+      <div className="slds-col slds-size_1-of-1 slds-large-size_1-of-2 controls-column">
         <article className="slds-card slds-card_boundary shadow-md">
           <div className="slds-card__header slds-grid slds-grid_align-spread slds-border_bottom slds-p-around_medium">
             <div className="slds-media__body">
@@ -661,9 +661,9 @@ export function ClientApp() {
         </article>
       </div>
       
-      {/* Right column - Preview */}
-      <div className="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
-        <article className="slds-card slds-card_boundary shadow-md preview-card" aria-label="Image preview">
+      {/* Right column - Preview - Using fixed positioning instead of sticky */}
+      <div className="sticky-preview-column">
+        <article className="slds-card slds-card_boundary shadow-md" aria-label="Image preview">
           <div className="slds-card__header slds-grid slds-grid_align-spread slds-border_bottom slds-p-around_medium">
             <div className="slds-media__body">
               <h2 className="slds-text-heading_medium slds-text-color_default">

@@ -301,17 +301,13 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
         <div className="slds-m-left_small">
           <button 
             className={`slds-button slds-button_icon slds-button_icon-border-filled ${showHelp ? 'slds-is-selected' : ''}`}
-            onClick={(e) => {
-              createRipple(e);
-              setShowHelp(!showHelp);
-            }}
+            onClick={() => setShowHelp(!showHelp)}
             aria-label="Formatting help"
             title="Formatting Help"
             style={{
-              position: 'relative', 
-              overflow: 'hidden', 
-              transition: 'all 0.3s ease',
-              transform: showHelp ? 'rotate(180deg)' : 'rotate(0)'
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'background-color 0.2s ease'
             }}
           >
             <Icons.Help />
