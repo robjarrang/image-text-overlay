@@ -84,13 +84,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const { text = '', imageUrl, fontSize = '5', fontColor = '#000000', x = '10', y = '10' } = params;
+    const { 
+      text = '', 
+      imageUrl, 
+      fontSize = '5', 
+      fontColor = '#000000', 
+      x = '10', 
+      y = '10', 
+      brightness = '100' 
+    } = params;
     
     if (!imageUrl) {
       return res.status(400).json({ error: 'Image URL is required' });
     }
 
-    console.log('Processing request with params:', { text, imageUrl, fontSize, fontColor, x, y });
+    console.log('Processing request with params:', { text, imageUrl, fontSize, fontColor, x, y, brightness });
 
     // Load and validate font first
     console.log('Loading font...');
@@ -124,6 +132,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     const imageWidth = metadata.width || MAX_WIDTH;
     const imageHeight = metadata.height || MAX_HEIGHT;
+
+    // Apply brightness adjustment if not 100%
+    const brightnessValue = parseInt(brightness as string);
+    if (brightnessValue !== 100) {
+      // Use modulate to adjust brightness
+      // modulate brightnessMultiplier is between 0 and Infinity, where 1 is no change,
+      // values < 1 darken the image, values > 1 brighten it
+      // Convert our scale (0-200) to sharp's scale (0-Infinity)
+      const brightnessMultiplier = brightnessValue / 100;
+      image.modulate({ brightness: brightnessMultiplier });
+      console.log(`Applied brightness adjustment: ${brightnessValue}%`);
+    }
 
     // Process text lines
     console.log('Processing text lines...');

@@ -18,10 +18,11 @@ interface FormState {
   y: number; // now as percentage of image height
   width: number;
   height: number;
+  brightness: number; // 0 to 200 where 100 is normal brightness (0 is black, 200 is double brightness)
 }
 
 type FormStateKey = keyof FormState;
-type NumericKeys = Extract<FormStateKey, 'x' | 'y' | 'width' | 'height' | 'fontSize'>;
+type NumericKeys = Extract<FormStateKey, 'x' | 'y' | 'width' | 'height' | 'fontSize' | 'brightness'>;
 type StringKeys = Extract<FormStateKey, 'text' | 'imageUrl' | 'fontColor'>;
 
 export function ClientApp() {
@@ -33,7 +34,8 @@ export function ClientApp() {
     x: 10, // 10% from left
     y: 10, // 10% from top
     width: 800,
-    height: 600
+    height: 600,
+    brightness: 100 // normal brightness (100%)
   });
   const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
   const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload'>('url');
@@ -412,6 +414,40 @@ export function ClientApp() {
                           Select an image file from your computer (JPG, PNG, or GIF)
                         </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-section">
+                <div className="section-heading">Image Adjustments</div>
+                <div className="slds-form-element slds-form-element_stacked">
+                  <div className="slds-form-element">
+                    <label className="slds-form-element__label" htmlFor="brightness">
+                      Brightness: {formState.brightness}%
+                    </label>
+                    <div className="slds-form-element__control">
+                      <div className="slds-slider custom-slider">
+                        <input
+                          type="range"
+                          id="brightness"
+                          name="brightness"
+                          min={0}
+                          max={200}
+                          value={formState.brightness}
+                          onChange={handleInputChange}
+                          className="slds-slider__range"
+                          aria-valuemin={0}
+                          aria-valuemax={200}
+                          aria-valuenow={formState.brightness}
+                          aria-valuetext={`Image brightness: ${formState.brightness}%`}
+                        />
+                      </div>
+                    </div>
+                    <div className="slds-form-element__help slds-m-top_x-small">
+                      <p className="position-tip">
+                        <strong>Tip:</strong> Use lower brightness values when adding light-colored text to bright images
+                      </p>
                     </div>
                   </div>
                 </div>

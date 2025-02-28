@@ -2604,3 +2604,72 @@ main,
 .slds-button_icon[title="Formatting Help"].slds-is-selected {
   transform: none !important;
 }
+
+/* Brightness control specific styles */
+.brightness-control-container {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.brightness-control-container .slds-slider__range {
+  background: linear-gradient(to right, 
+    rgba(0, 0, 0, 0.8) 0%, 
+    rgba(128, 128, 128, 0.5) 50%,
+    rgba(255, 255, 255, 0.8) 100%
+  );
+}
+
+.brightness-control-container .slds-slider__range::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+}
+
+.brightness-icon {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 0.5rem;
+  width: 1rem;
+  height: 1rem;
+}
+
+.brightness-value-indicator {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.5rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 1rem;
+  background: var(--slds-g-color-neutral-base-95, #f3f3f3);
+  font-size: 0.75rem;
+  transition: background-color 0.2s ease;
+}
+
+.slds-theme_dark .brightness-value-indicator {
+  background: var(--slds-g-color-neutral-base-20, #2e2e2e);
+}
+
+/* Add visual cues for brightness values */
+.brightness-value-low {
+  color: var(--slds-g-color-neutral-base-30, #444444);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.brightness-value-normal {
+  color: var(--slds-g-color-brand-base-50, #0176d3);
+}
+
+.brightness-value-high {
+  color: var(--slds-g-color-warning-base-60, #dd7a01);
+}
+
+.slds-theme_dark .brightness-value-low {
+  color: var(--slds-g-color-neutral-base-80, #c9c9c9);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.slds-theme_dark .brightness-value-normal {
+  color: var(--slds-g-color-brand-base-80, #78b0fa);
+}
+
+.slds-theme_dark .brightness-value-high {
+  color: var(--slds-g-color-warning-base-70, #f1bc5a);
+}

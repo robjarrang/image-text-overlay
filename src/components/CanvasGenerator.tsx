@@ -10,6 +10,7 @@ interface CanvasGeneratorProps {
   y: number;
   width: number;
   height: number;
+  brightness: number; // Added brightness property
   onLoad: () => void;
   onError: (message: string) => void;
   onImageLoad?: (dimensions: { width: number; height: number }) => void;
@@ -26,6 +27,7 @@ export function CanvasGenerator({
   y,
   width,
   height,
+  brightness = 100, // Default to normal brightness (100%)
   onLoad,
   onError,
   onImageLoad,
@@ -122,6 +124,30 @@ export function CanvasGenerator({
     });
   };
 
+  // Apply brightness filter to the image
+  const applyBrightnessFilter = (ctx: CanvasRenderingContext2D, canvasWidth: number, canvasHeight: number, brightnessValue: number) => {
+    // Only apply if brightness is not 100% (normal)
+    if (brightnessValue !== 100) {
+      const brightnessRatio = brightnessValue / 100;
+      
+      // Get the current image data for the full canvas dimensions
+      const imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+      const data = imageData.data;
+      
+      // Apply brightness adjustment
+      for (let i = 0; i < data.length; i += 4) {
+        // Adjust RGB values based on brightness ratio
+        data[i] = Math.min(255, Math.max(0, data[i] * brightnessRatio));         // Red
+        data[i + 1] = Math.min(255, Math.max(0, data[i + 1] * brightnessRatio)); // Green
+        data[i + 2] = Math.min(255, Math.max(0, data[i + 2] * brightnessRatio)); // Blue
+        // Alpha (i+3) remains unchanged
+      }
+      
+      // Put the modified image data back on the full canvas
+      ctx.putImageData(imageData, 0, 0);
+    }
+  };
+
   useEffect(() => {
     if (!fontLoaded) return;
     
@@ -159,6 +185,16 @@ export function CanvasGenerator({
       canvas.width = imageWidth;
       canvas.height = imageHeight;
       
+      // Get the scaled canvas context for direct drawing
+      const displayCtx = canvas.getContext('2d');
+      if (!displayCtx) return;
+      
+      // Draw the image to display canvas first
+      displayCtx.drawImage(image, 0, 0, imageWidth, imageHeight);
+      
+      // Apply brightness filter to the display canvas
+      applyBrightnessFilter(displayCtx, imageWidth, imageHeight, brightness);
+      
       const actualX = (x / 100) * imageWidth;
       const actualY = (y / 100) * imageHeight;
       
@@ -166,7 +202,7 @@ export function CanvasGenerator({
       
       const lines = processText(text);
       
-      // Draw text on high-res canvas
+      // Now draw text directly on the display canvas with the brightness already applied
       lines.forEach((line, lineIndex) => {
         let currentX = actualX;
         const lineHeight = scaledFontSize * 1.2;
@@ -174,8 +210,8 @@ export function CanvasGenerator({
         
         let totalWidth = 0;
         line.parts.forEach(part => {
-          offscreenCtx.font = `${part.isSuper ? scaledFontSize * 0.7 : scaledFontSize}px HelveticaNeue-Condensed`;
-          totalWidth += offscreenCtx.measureText(part.text).width;
+          displayCtx.font = `${part.isSuper ? scaledFontSize * 0.7 : scaledFontSize}px HelveticaNeue-Condensed`;
+          totalWidth += displayCtx.measureText(part.text).width;
         });
         
         if (line.align === 'center') {
@@ -185,21 +221,16 @@ export function CanvasGenerator({
         }
         
         line.parts.forEach(part => {
-          offscreenCtx.font = `${part.isSuper ? scaledFontSize * 0.7 : scaledFontSize}px HelveticaNeue-Condensed`;
-          offscreenCtx.fillStyle = fontColor;
-          offscreenCtx.fillText(
+          displayCtx.font = `${part.isSuper ? scaledFontSize * 0.7 : scaledFontSize}px HelveticaNeue-Condensed`;
+          displayCtx.fillStyle = fontColor;
+          displayCtx.fillText(
             part.text,
             currentX,
             currentY - (part.isSuper ? scaledFontSize * 0.3 : 0)
           );
-          currentX += offscreenCtx.measureText(part.text).width;
+          currentX += displayCtx.measureText(part.text).width;
         });
       });
-      
-      // Draw the high-res canvas onto the display canvas with smoothing
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(offscreenCanvas, 0, 0, imageWidth * scale, imageHeight * scale, 0, 0, imageWidth, imageHeight);
       
       onLoad();
     };
@@ -220,7 +251,7 @@ export function CanvasGenerator({
       ctx.textAlign = 'center';
       ctx.fillText('Please enter an image URL', canvas.width / 2, canvas.height / 2);
     }
-  }, [text, imageUrl, fontSize, fontColor, x, y, width, height, onLoad, onError, onImageLoad, fontLoaded]);
+  }, [text, imageUrl, fontSize, fontColor, x, y, width, height, brightness, onLoad, onError, onImageLoad, fontLoaded]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current) return;
