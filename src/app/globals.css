@@ -2673,3 +2673,130 @@ main,
 .slds-theme_dark .brightness-value-high {
   color: var(--slds-g-color-warning-base-70, #f1bc5a);
 }
+
+/* Image zoom and position controls */
+.image-transform-controls {
+  margin: 1rem 0;
+}
+
+.zoom-slider {
+  background: linear-gradient(to right,
+    var(--ui-accent-color) 0%,
+    var(--ui-accent-color) var(--range-progress, 0%),
+    var(--slds-g-color-neutral-base-80, #c9c9c9) var(--range-progress, 0%)
+  );
+}
+
+.zoom-value-indicator {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 1rem;
+  background: var(--slds-g-color-neutral-base-95, #f3f3f3);
+  color: var(--slds-g-color-brand-base-50, #0176d3);
+}
+
+.slds-theme_dark .zoom-value-indicator {
+  background: var(--slds-g-color-neutral-base-20, #2e2e2e);
+  color: var(--slds-g-color-brand-base-80, #78b0fa);
+}
+
+/* Position control grid layout */
+.position-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+/* Dark mode adjustments for transform controls */
+.slds-theme_dark .zoom-slider {
+  background: linear-gradient(to right,
+    var(--ui-accent-color) 0%,
+    var (--ui-accent-color) var(--range-progress, 0%),
+    var(--slds-g-color-neutral-base-30, #444444) var (--range-progress, 0%)
+  );
+}
+
+/* Enhanced Accordion Styles */
+.slds-accordion__section {
+  transition: background-color 0.2s ease;
+  border-radius: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.slds-accordion__summary {
+  position: relative;
+  overflow: hidden;
+}
+
+.slds-accordion__summary-action {
+  width: 100%;
+  padding: 0.75rem;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  border-radius: 0.25rem;
+}
+
+.slds-accordion__summary-action:hover {
+  background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
+  transform: translateX(2px);
+}
+
+.slds-theme_dark .slds-accordion__summary-action:hover {
+  background-color: var(--slds-g-color-neutral-base-30, #444444);
+}
+
+.slds-accordion__summary-action:active {
+  transform: translateX(4px);
+}
+
+.slds-accordion__summary-action-icon {
+  transition: transform 0.3s ease;
+  transform: rotate(-90deg); /* Start rotated -90 degrees */
+}
+
+.slds-accordion__section.slds-is-open .slds-accordion__summary-action-icon {
+  transform: rotate(0deg); /* Rotate to 0 degrees when open */
+}
+
+.slds-accordion__content {
+  padding: 1rem;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out, padding 0.2s ease-in-out;
+}
+
+.slds-accordion__section.slds-is-open .slds-accordion__content {
+  opacity: 1;
+  max-height: 1000px; /* Adjust based on your content */
+}
+
+/* Add subtle hover indicator */
+.slds-accordion__summary::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background-color: var(--slds-g-color-brand-base-50, #0176d3);
+  transform: scaleY(0);
+  transition: transform 0.2s ease;
+  border-radius: 2px;
+}
+
+.slds-accordion__summary:hover::before {
+  transform: scaleY(1);
+}
+
+/* Active state enhancement */
+.slds-accordion__section.slds-is-open .slds-accordion__summary-action {
+  background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
+}
+
+.slds-theme_dark .slds-accordion__section.slds-is-open .slds-accordion__summary-action {
+  background-color: var(--slds-g-color-neutral-base-30, #444444);
+}

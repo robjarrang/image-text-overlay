@@ -19,10 +19,13 @@ interface FormState {
   width: number;
   height: number;
   brightness: number; // 0 to 200 where 100 is normal brightness (0 is black, 200 is double brightness)
+  imageZoom: number;
+  imageX: number;
+  imageY: number;
 }
 
 type FormStateKey = keyof FormState;
-type NumericKeys = Extract<FormStateKey, 'x' | 'y' | 'width' | 'height' | 'fontSize' | 'brightness'>;
+type NumericKeys = Extract<FormStateKey, 'x' | 'y' | 'width' | 'height' | 'fontSize' | 'brightness' | 'imageX' | 'imageY' | 'imageZoom'>;
 type StringKeys = Extract<FormStateKey, 'text' | 'imageUrl' | 'fontColor'>;
 
 export function ClientApp() {
@@ -35,7 +38,10 @@ export function ClientApp() {
     y: 10, // 10% from top
     width: 800,
     height: 600,
-    brightness: 100 // normal brightness (100%)
+    brightness: 100, // normal brightness (100%)
+    imageZoom: 1,
+    imageX: 0,
+    imageY: 0
   });
   const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
   const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload'>('url');
@@ -49,9 +55,25 @@ export function ClientApp() {
   // Added state for custom tooltip
   const [showShareTooltip, setShowShareTooltip] = useState(false);
 
+  // Add state for accordion sections
+  const [openAccordions, setOpenAccordions] = useState({
+    imageSource: true,
+    imageAdjustments: false,
+    textContent: true, 
+    textStyle: false
+  });
+
+  // Function to toggle accordion sections
+  const toggleAccordion = (section: keyof typeof openAccordions) => {
+    setOpenAccordions(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const numericKeys: NumericKeys[] = ['x', 'y', 'width', 'height', 'fontSize'];
+    const numericKeys: NumericKeys[] = ['x', 'y', 'width', 'height', 'fontSize', 'brightness', 'imageX', 'imageY', 'imageZoom'];
     const stringKeys: StringKeys[] = ['text', 'fontColor'];  // Removed imageUrl
     const urlState: Partial<FormState> = {};
     
@@ -331,289 +353,470 @@ export function ClientApp() {
           </div>
           <div className="slds-card__body slds-p-around_large">
             <form className="slds-form" onSubmit={(e) => e.preventDefault()} role="form" aria-label="Image overlay configuration">
-              <div className="form-section">
-                <div className="slds-form-element slds-form-element_stacked">
-                  <div className="slds-tabs_scoped">
-                    <ul className="slds-tabs_scoped__nav" role="tablist">
-                      <li className={`slds-tabs_scoped__item ${activeImageSourceTab === 'url' ? 'slds-is-active' : ''}`} role="presentation">
-                        <button
-                          className="slds-tabs_scoped__link"
-                          role="tab"
-                          aria-selected={activeImageSourceTab === 'url'}
-                          aria-controls="image-url-tab-content"
-                          id="image-url-tab"
-                          onClick={() => setActiveImageSourceTab('url')}
-                        >
-                          Image URL
-                        </button>
-                      </li>
-                      <li className={`slds-tabs_scoped__item ${activeImageSourceTab === 'upload' ? 'slds-is-active' : ''}`} role="presentation">
-                        <button
-                          className="slds-tabs_scoped__link"
-                          role="tab"
-                          aria-selected={activeImageSourceTab === 'upload'}
-                          aria-controls="image-upload-tab-content"
-                          id="image-upload-tab"
-                          onClick={() => setActiveImageSourceTab('upload')}
-                        >
-                          Image Upload
-                        </button>
-                      </li>
-                    </ul>
-                    <div id="image-url-tab-content" className={`slds-tabs_scoped__content ${activeImageSourceTab === 'url' ? '' : 'slds-hide'}`} role="tabpanel" aria-labelledby="image-url-tab">
-                      <div className="slds-form-element__control">
-                        <label className="slds-form-element__label" htmlFor="imageUrl">
-                          <abbr className="slds-required" title="required">*</abbr>
-                          Image URL
-                        </label>
-                        <div className="slds-form-element__control slds-input-has-icon slds-input-has-icon_left">
-                          <div className="slds-icon_container">
-                            <svg className="slds-icon slds-input__icon slds-icon-text-default" aria-hidden="true">
-                              <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#link"></use>
-                            </svg>
+              
+              {/* Image Source Accordion */}
+              <div className="slds-accordion">
+                <div className={`slds-accordion__section ${openAccordions.imageSource ? 'slds-is-open' : ''}`}>
+                  <div className="slds-accordion__summary">
+                    <h3 className="slds-accordion__summary-heading">
+                      <button
+                        aria-controls="image-source-content"
+                        aria-expanded={openAccordions.imageSource}
+                        className="slds-button slds-button_reset slds-accordion__summary-action"
+                        onClick={() => toggleAccordion('imageSource')}
+                      >
+                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#switch"></use>
+                        </svg>
+                        <span className="slds-accordion__summary-content">Image Source</span>
+                      </button>
+                    </h3>
+                  </div>
+                  <div 
+                    className="slds-accordion__content" 
+                    id="image-source-content"
+                    hidden={!openAccordions.imageSource}
+                  >
+                    <div className="form-section">
+                      <div className="slds-form-element slds-form-element_stacked">
+                        <div className="slds-tabs_scoped">
+                          <ul className="slds-tabs_scoped__nav" role="tablist">
+                            <li className={`slds-tabs_scoped__item ${activeImageSourceTab === 'url' ? 'slds-is-active' : ''}`} role="presentation">
+                              <button
+                                className="slds-tabs_scoped__link"
+                                role="tab"
+                                aria-selected={activeImageSourceTab === 'url'}
+                                aria-controls="image-url-tab-content"
+                                id="image-url-tab"
+                                onClick={() => setActiveImageSourceTab('url')}
+                              >
+                                Image URL
+                              </button>
+                            </li>
+                            <li className={`slds-tabs_scoped__item ${activeImageSourceTab === 'upload' ? 'slds-is-active' : ''}`} role="presentation">
+                              <button
+                                className="slds-tabs_scoped__link"
+                                role="tab"
+                                aria-selected={activeImageSourceTab === 'upload'}
+                                aria-controls="image-upload-tab-content"
+                                id="image-upload-tab"
+                                onClick={() => setActiveImageSourceTab('upload')}
+                              >
+                                Image Upload
+                              </button>
+                            </li>
+                          </ul>
+                          <div id="image-url-tab-content" className={`slds-tabs_scoped__content ${activeImageSourceTab === 'url' ? '' : 'slds-hide'}`} role="tabpanel" aria-labelledby="image-url-tab">
+                            <div className="slds-form-element__control">
+                              <label className="slds-form-element__label" htmlFor="imageUrl">
+                                <abbr className="slds-required" title="required">*</abbr>
+                                Image URL
+                              </label>
+                              <div className="slds-form-element__control slds-input-has-icon slds-input-has-icon_left">
+                                <div className="slds-icon_container">
+                                  <svg className="slds-icon slds-input__icon slds-icon-text-default" aria-hidden="true">
+                                    <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#link"></use>
+                                  </svg>
+                                </div>
+                                <input
+                                  type="url"
+                                  id="imageUrl"
+                                  name="imageUrl"
+                                  value={originalImageUrl}
+                                  onChange={handleInputChange}
+                                  className="slds-input"
+                                  placeholder="https://example.com/image.jpg"
+                                  aria-describedby="imageUrlHelp"
+                                  required={activeImageSourceTab !== 'upload'}
+                                />
+                              </div>
+                              <div className="slds-form-element__help" id="imageUrlHelp">
+                                Enter the URL of the image you want to add text to
+                              </div>
+                            </div>
                           </div>
-                          <input
-                            type="url"
-                            id="imageUrl"
-                            name="imageUrl"
-                            value={originalImageUrl}
-                            onChange={handleInputChange}
-                            className="slds-input"
-                            placeholder="https://example.com/image.jpg"
-                            aria-describedby="imageUrlHelp"
-                            required={activeImageSourceTab !== 'upload'}
+                          <div id="image-upload-tab-content" className={`slds-tabs_scoped__content ${activeImageSourceTab === 'upload' ? '' : 'slds-hide'}`} role="tabpanel" aria-labelledby="image-upload-tab">
+                            <div className="slds-form-element__control">
+                              <label className="slds-form-element__label" htmlFor="imageUpload">
+                                <abbr className="slds-required" title="required">*</abbr>
+                                Upload Image
+                              </label>
+                              <input
+                                type="file"
+                                id="imageUpload"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="slds-file-selector__input slds-assistive-text"
+                              />
+                              <label className="slds-file-selector__body" htmlFor="imageUpload">
+                                <span className="slds-file-selector__button slds-button slds-button_neutral">
+                                  <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                                    <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#upload"></use>
+                                  </svg>
+                                  Upload Image
+                                </span>
+                              </label>
+                              <div className="slds-form-element__help" id="imageUploadHelp">
+                                Select an image file from your computer (JPG, PNG, or GIF)
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              
+                {/* Image Adjustments Accordion */}
+                <div className={`slds-accordion__section ${openAccordions.imageAdjustments ? 'slds-is-open' : ''}`}>
+                  <div className="slds-accordion__summary">
+                    <h3 className="slds-accordion__summary-heading">
+                      <button
+                        aria-controls="image-adjustments-content"
+                        aria-expanded={openAccordions.imageAdjustments}
+                        className="slds-button slds-button_reset slds-accordion__summary-action"
+                        onClick={() => toggleAccordion('imageAdjustments')}
+                      >
+                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#image"></use>
+                        </svg>
+                        <span className="slds-accordion__summary-content">Image Adjustments</span>
+                      </button>
+                    </h3>
+                  </div>
+                  <div 
+                    className="slds-accordion__content" 
+                    id="image-adjustments-content"
+                    hidden={!openAccordions.imageAdjustments}
+                  >
+                    <div className="form-section">
+                      <div className="slds-form-element slds-form-element_stacked">
+                        <div className="slds-form-element">
+                          <label className="slds-form-element__label" htmlFor="brightness">
+                            Brightness: {formState.brightness}%
+                          </label>
+                          <div className="slds-form-element__control">
+                            <div className="slds-slider custom-slider">
+                              <input
+                                type="range"
+                                id="brightness"
+                                name="brightness"
+                                min={0}
+                                max={200}
+                                value={formState.brightness}
+                                onChange={handleInputChange}
+                                className="slds-slider__range"
+                                aria-valuemin={0}
+                                aria-valuemax={200}
+                                aria-valuenow={formState.brightness}
+                                aria-valuetext={`Image brightness: ${formState.brightness}%`}
+                              />
+                            </div>
+                          </div>
+                          <div className="slds-form-element__help slds-m-top_x-small">
+                            <p className="position-tip">
+                              <strong>Tip:</strong> Use lower brightness values when adding light-colored text to bright images
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="slds-form-element">
+                        <label className="slds-form-element__label" htmlFor="imageZoom">
+                          Image Zoom: {formState.imageZoom * 100}%
+                        </label>
+                        <div className="slds-form-element__control">
+                          <div className="slds-slider custom-slider">
+                            <input
+                              type="range"
+                              id="imageZoom"
+                              name="imageZoom"
+                              min={1}
+                              max={3}
+                              step={0.1}
+                              value={formState.imageZoom}
+                              onChange={handleInputChange}
+                              className="slds-slider__range"
+                              aria-valuemin={1}
+                              aria-valuemax={3}
+                              aria-valuenow={formState.imageZoom}
+                              aria-valuetext={`Image zoom: ${formState.imageZoom * 100}%`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="slds-grid slds-gutters_small slds-m-top_small">
+                        <div className="slds-col">
+                          <div className="slds-form-element">
+                            <label className="slds-form-element__label" htmlFor="imageX">
+                              Horizontal Position: {formState.imageX}%
+                            </label>
+                            <div className="slds-form-element__control">
+                              <div className="slds-slider custom-slider">
+                                <input
+                                  type="range"
+                                  id="imageX"
+                                  name="imageX"
+                                  min={0}
+                                  max={100}
+                                  value={formState.imageX}
+                                  onChange={handleInputChange}
+                                  className="slds-slider__range"
+                                  aria-valuemin={0}
+                                  aria-valuemax={100}
+                                  aria-valuenow={formState.imageX}
+                                  aria-valuetext={`Image horizontal position: ${formState.imageX}%`}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="slds-col">
+                          <div className="slds-form-element">
+                            <label className="slds-form-element__label" htmlFor="imageY">
+                              Vertical Position: {formState.imageY}%
+                            </label>
+                            <div className="slds-form-element__control">
+                              <div className="slds-slider custom-slider">
+                                <input
+                                  type="range"
+                                  id="imageY"
+                                  name="imageY"
+                                  min={0}
+                                  max={100}
+                                  value={formState.imageY}
+                                  onChange={handleInputChange}
+                                  className="slds-slider__range"
+                                  aria-valuemin={0}
+                                  aria-valuemax={100}
+                                  aria-valuenow={formState.imageY}
+                                  aria-valuetext={`Image vertical position: ${formState.imageY}%`}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="slds-form-element__help slds-m-top_x-small">
+                        <p className="position-tip">
+                          <strong>Tip:</strong> Use these controls to adjust how the background image is displayed
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Text Content Accordion */}
+                <div className={`slds-accordion__section ${openAccordions.textContent ? 'slds-is-open' : ''}`}>
+                  <div className="slds-accordion__summary">
+                    <h3 className="slds-accordion__summary-heading">
+                      <button
+                        aria-controls="text-content-content"
+                        aria-expanded={openAccordions.textContent}
+                        className="slds-button slds-button_reset slds-accordion__summary-action"
+                        onClick={() => toggleAccordion('textContent')}
+                      >
+                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#text"></use>
+                        </svg>
+                        <span className="slds-accordion__summary-content">Text Content</span>
+                      </button>
+                    </h3>
+                  </div>
+                  <div 
+                    className="slds-accordion__content" 
+                    id="text-content-content"
+                    hidden={!openAccordions.textContent}
+                  >
+                    <div className="form-section">
+                      <div className="slds-form-element slds-form-element_stacked">
+                        <div className="slds-form-element__control">
+                          <RichTextEditor
+                            value={formState.text}
+                            onChange={handleTextChange}
                           />
                         </div>
-                        <div className="slds-form-element__help" id="imageUrlHelp">
-                          Enter the URL of the image you want to add text to
-                        </div>
-                      </div>
-                    </div>
-                    <div id="image-upload-tab-content" className={`slds-tabs_scoped__content ${activeImageSourceTab === 'upload' ? '' : 'slds-hide'}`} role="tabpanel" aria-labelledby="image-upload-tab">
-                      <div className="slds-form-element__control">
-                        <label className="slds-form-element__label" htmlFor="imageUpload">
-                          <abbr className="slds-required" title="required">*</abbr>
-                          Upload Image
-                        </label>
-                        <input
-                          type="file"
-                          id="imageUpload"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="slds-file-selector__input slds-assistive-text"
-                        />
-                        <label className="slds-file-selector__body" htmlFor="imageUpload">
-                          <span className="slds-file-selector__button slds-button slds-button_neutral">
-                            <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                              <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#upload"></use>
-                            </svg>
-                            Upload Image
-                          </span>
-                        </label>
-                        <div className="slds-form-element__help" id="imageUploadHelp">
-                          Select an image file from your computer (JPG, PNG, or GIF)
-                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="form-section">
-                <div className="section-heading">Image Adjustments</div>
-                <div className="slds-form-element slds-form-element_stacked">
-                  <div className="slds-form-element">
-                    <label className="slds-form-element__label" htmlFor="brightness">
-                      Brightness: {formState.brightness}%
-                    </label>
-                    <div className="slds-form-element__control">
-                      <div className="slds-slider custom-slider">
-                        <input
-                          type="range"
-                          id="brightness"
-                          name="brightness"
-                          min={0}
-                          max={200}
-                          value={formState.brightness}
-                          onChange={handleInputChange}
-                          className="slds-slider__range"
-                          aria-valuemin={0}
-                          aria-valuemax={200}
-                          aria-valuenow={formState.brightness}
-                          aria-valuetext={`Image brightness: ${formState.brightness}%`}
-                        />
-                      </div>
+                
+                {/* Text Style & Position Accordion */}
+                <div className={`slds-accordion__section ${openAccordions.textStyle ? 'slds-is-open' : ''}`}>
+                  <div className="slds-accordion__summary">
+                    <h3 className="slds-accordion__summary-heading">
+                      <button
+                        aria-controls="text-style-content"
+                        aria-expanded={openAccordions.textStyle}
+                        className="slds-button slds-button_reset slds-accordion__summary-action"
+                        onClick={() => toggleAccordion('textStyle')}
+                      >
+                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#brush"></use>
+                        </svg>
+                        <span className="slds-accordion__summary-content">Text Style & Position</span>
+                      </button>
+                    </h3>
+                  </div>
+                  <div 
+                    className="slds-accordion__content" 
+                    id="text-style-content"
+                    hidden={!openAccordions.textStyle}
+                  >
+                    {/* Text Style Section */}
+                    <div className="form-section">
+                      <fieldset className="slds-form-element">
+                        <legend className="slds-form-element__label slds-form-element__legend">Text Style</legend>
+                        <div className="slds-form-element_compound">
+                          <div className="slds-grid slds-gutters_medium">
+                            <div className="slds-col slds-size_2-of-3">
+                              <div className="slds-form-element">
+                                <label className="slds-form-element__label" htmlFor="fontSize">
+                                  Font Size: {formatSliderLabel(formState.fontSize, 'fontSize')}
+                                </label>
+                                <div className="slds-form-element__control">
+                                  <div className="slds-slider custom-slider">
+                                    <input
+                                      type="range"
+                                      id="fontSize"
+                                      name="fontSize"
+                                      min={1}
+                                      max={20}
+                                      value={formState.fontSize}
+                                      onChange={handleInputChange}
+                                      className="slds-slider__range"
+                                      aria-valuemin={1}
+                                      aria-valuemax={20}
+                                      aria-valuenow={formState.fontSize}
+                                      aria-valuetext={`${formState.fontSize}% of image width`}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="slds-col slds-size_1-of-3">
+                              <div className="slds-form-element">
+                                <label className="slds-form-element__label" htmlFor="fontColor">Color</label>
+                                <div className="slds-form-element__control">
+                                  <div className="slds-color-picker_swatches color-swatch-container">
+                                    <button
+                                      type="button"
+                                      className={`slds-color-picker__swatch ${formState.fontColor === '#DB011C' ? 'slds-is-selected' : ''}`}
+                                      aria-label="Red Color"
+                                      title="Red"
+                                      style={{ backgroundColor: '#DB011C' }}
+                                      onClick={() => handleColorSwatchClick('#DB011C')}
+                                    >
+                                      {formState.fontColor === '#DB011C' && 
+                                        <span className="slds-color-picker__swatch-check" style={{ color: '#FFFFFF' }}>
+                                          <Icons.Success size="x-small" />
+                                        </span>
+                                      }
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={`slds-color-picker__swatch ${formState.fontColor === '#000000' ? 'slds-is-selected' : ''}`}
+                                      aria-label="Black Color"
+                                      title="Black"
+                                      style={{ backgroundColor: '#000000' }}
+                                      onClick={() => handleColorSwatchClick('#000000')}
+                                    >
+                                      {formState.fontColor === '#000000' && 
+                                        <span className="slds-color-picker__swatch-check" style={{ color: '#FFFFFF' }}>
+                                          <Icons.Success size="x-small" />
+                                        </span>
+                                      }
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={`slds-color-picker__swatch ${formState.fontColor === '#FFFFFF' ? 'slds-is-selected' : ''}`}
+                                      aria-label="White Color"
+                                      title="White"
+                                      style={{ backgroundColor: '#FFFFFF', border: '1px solid #dddbda' }}
+                                      onClick={() => handleColorSwatchClick('#FFFFFF')}
+                                    >
+                                      {formState.fontColor === '#FFFFFF' && 
+                                        <span className="slds-color-picker__swatch-check" style={{ color: '#000000' }}>
+                                          <Icons.Success size="x-small" />
+                                        </span>
+                                      }
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </fieldset>
                     </div>
-                    <div className="slds-form-element__help slds-m-top_x-small">
-                      <p className="position-tip">
-                        <strong>Tip:</strong> Use lower brightness values when adding light-colored text to bright images
-                      </p>
+                    
+                    {/* Position Section */}
+                    <div className="form-section">
+                      <fieldset className="slds-form-element">
+                        <legend className="slds-form-element__label slds-form-element__legend">Position</legend>
+                        <div className="slds-form-element_compound">
+                          <div className="slds-grid slds-gutters_medium">
+                            <div className="slds-col">
+                              <div className="slds-form-element">
+                                <label className="slds-form-element__label" htmlFor="x-position">
+                                  X Position: {formatSliderLabel(formState.x, 'x')}
+                                </label>
+                                <div className="slds-form-element__control">
+                                  <div className="slds-slider custom-slider">
+                                    <input
+                                      type="range"
+                                      id="x-position"
+                                      name="x"
+                                      min={0}
+                                      max={100}
+                                      value={formState.x}
+                                      onChange={handleInputChange}
+                                      className="slds-slider__range"
+                                      aria-valuemin={0}
+                                      aria-valuemax={100}
+                                      aria-valuenow={formState.x}
+                                      aria-valuetext={`${formState.x}% from left`}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="slds-col">
+                              <div className="slds-form-element">
+                                <label className="slds-form-element__label" htmlFor="y-position">
+                                  Y Position: {formatSliderLabel(formState.y, 'y')}
+                                </label>
+                                <div className="slds-form-element__control">
+                                  <div className="slds-slider custom-slider">
+                                    <input
+                                      type="range"
+                                      id="y-position"
+                                      name="y"
+                                      min={0}
+                                      max={100}
+                                      value={formState.y}
+                                      onChange={handleInputChange}
+                                      className="slds-slider__range"
+                                      aria-valuemin={0}
+                                      aria-valuemax={100}
+                                      aria-valuenow={formState.y}
+                                      aria-valuetext={`${formState.y}% from top`}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="slds-form-element__help slds-m-top_x-small">
+                            <p className="position-tip">
+                              <strong>Tip:</strong> You can also click and drag the text directly on the preview image to position it.
+                            </p>
+                          </div>
+                        </div>
+                      </fieldset>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="form-section">
-                <div className="section-heading">Text Content</div>
-                <div className="slds-form-element slds-form-element_stacked">
-                  <div className="slds-form-element__control">
-                    <RichTextEditor
-                      value={formState.text}
-                      onChange={handleTextChange}
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="form-section">
-                <fieldset className="slds-form-element">
-                  <legend className="slds-form-element__label slds-form-element__legend section-heading">Text Style</legend>
-                  <div className="slds-form-element_compound">
-                    <div className="slds-grid slds-gutters_medium">
-                      <div className="slds-col slds-size_2-of-3">
-                        <div className="slds-form-element">
-                          <label className="slds-form-element__label" htmlFor="fontSize">
-                            Font Size: {formatSliderLabel(formState.fontSize, 'fontSize')}
-                          </label>
-                          <div className="slds-form-element__control">
-                            <div className="slds-slider custom-slider">
-                              <input
-                                type="range"
-                                id="fontSize"
-                                name="fontSize"
-                                min={1}
-                                max={20}
-                                value={formState.fontSize}
-                                onChange={handleInputChange}
-                                className="slds-slider__range"
-                                aria-valuemin={1}
-                                aria-valuemax={20}
-                                aria-valuenow={formState.fontSize}
-                                aria-valuetext={`${formState.fontSize}% of image width`}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="slds-col slds-size_1-of-3">
-                        <div className="slds-form-element">
-                          <label className="slds-form-element__label" htmlFor="fontColor">Color</label>
-                          <div className="slds-form-element__control">
-                            <div className="slds-color-picker_swatches color-swatch-container">
-                              <button
-                                type="button"
-                                className={`slds-color-picker__swatch ${formState.fontColor === '#DB011C' ? 'slds-is-selected' : ''}`}
-                                aria-label="Red Color"
-                                title="Red"
-                                style={{ backgroundColor: '#DB011C' }}
-                                onClick={() => handleColorSwatchClick('#DB011C')}
-                              >
-                                {formState.fontColor === '#DB011C' && 
-                                  <span className="slds-color-picker__swatch-check" style={{ color: '#FFFFFF' }}>
-                                    <Icons.Success size="x-small" />
-                                  </span>
-                                }
-                              </button>
-                              <button
-                                type="button"
-                                className={`slds-color-picker__swatch ${formState.fontColor === '#000000' ? 'slds-is-selected' : ''}`}
-                                aria-label="Black Color"
-                                title="Black"
-                                style={{ backgroundColor: '#000000' }}
-                                onClick={() => handleColorSwatchClick('#000000')}
-                              >
-                                {formState.fontColor === '#000000' && 
-                                  <span className="slds-color-picker__swatch-check" style={{ color: '#FFFFFF' }}>
-                                    <Icons.Success size="x-small" />
-                                  </span>
-                                }
-                              </button>
-                              <button
-                                type="button"
-                                className={`slds-color-picker__swatch ${formState.fontColor === '#FFFFFF' ? 'slds-is-selected' : ''}`}
-                                aria-label="White Color"
-                                title="White"
-                                style={{ backgroundColor: '#FFFFFF', border: '1px solid #dddbda' }}
-                                onClick={() => handleColorSwatchClick('#FFFFFF')}
-                              >
-                                {formState.fontColor === '#FFFFFF' && 
-                                  <span className="slds-color-picker__swatch-check" style={{ color: '#000000' }}>
-                                    <Icons.Success size="x-small" />
-                                  </span>
-                                }
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </fieldset>
-              </div>
-              
-              <div className="form-section">
-                <fieldset className="slds-form-element">
-                  <legend className="slds-form-element__label slds-form-element__legend section-heading">Position</legend>
-                  <div className="slds-form-element_compound">
-                    <div className="slds-grid slds-gutters_medium">
-                      <div className="slds-col">
-                        <div className="slds-form-element">
-                          <label className="slds-form-element__label" htmlFor="x-position">
-                            X Position: {formatSliderLabel(formState.x, 'x')}
-                          </label>
-                          <div className="slds-form-element__control">
-                            <div className="slds-slider custom-slider">
-                              <input
-                                type="range"
-                                id="x-position"
-                                name="x"
-                                min={0}
-                                max={100}
-                                value={formState.x}
-                                onChange={handleInputChange}
-                                className="slds-slider__range"
-                                aria-valuemin={0}
-                                aria-valuemax={100}
-                                aria-valuenow={formState.x}
-                                aria-valuetext={`${formState.x}% from left`}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="slds-col">
-                        <div className="slds-form-element">
-                          <label className="slds-form-element__label" htmlFor="y-position">
-                            Y Position: {formatSliderLabel(formState.y, 'y')}
-                          </label>
-                          <div className="slds-form-element__control">
-                            <div className="slds-slider custom-slider">
-                              <input
-                                type="range"
-                                id="y-position"
-                                name="y"
-                                min={0}
-                                max={100}
-                                value={formState.y}
-                                onChange={handleInputChange}
-                                className="slds-slider__range"
-                                aria-valuemin={0}
-                                aria-valuemax={100}
-                                aria-valuenow={formState.y}
-                                aria-valuetext={`${formState.y}% from top`}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="slds-form-element__help slds-m-top_x-small">
-                      <p className="position-tip">
-                        <strong>Tip:</strong> You can also click and drag the text directly on the preview image to position it.
-                      </p>
-                    </div>
-                  </div>
-                </fieldset>
               </div>
             </form>
           </div>

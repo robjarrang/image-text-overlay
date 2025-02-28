@@ -11,10 +11,14 @@ interface CanvasGeneratorProps {
   width: number;
   height: number;
   brightness: number; // Added brightness property
+  imageZoom: number; // New: Control image zoom level (1 = 100%)
+  imageX: number; // New: Control image horizontal position (0-100)
+  imageY: number; // New: Control image vertical position (0-100)
   onLoad: () => void;
   onError: (message: string) => void;
   onImageLoad?: (dimensions: { width: number; height: number }) => void;
   onPositionChange?: (newX: number, newY: number) => void;
+  onImageTransformChange?: (transform: { zoom: number; x: number; y: number }) => void;
   className?: string;
 }
 
@@ -28,10 +32,14 @@ export function CanvasGenerator({
   width,
   height,
   brightness = 100, // Default to normal brightness (100%)
+  imageZoom = 1, // Default to no zoom (100%)
+  imageX = 0, // Default to no horizontal offset
+  imageY = 0, // Default to no vertical offset
   onLoad,
   onError,
   onImageLoad,
   onPositionChange,
+  onImageTransformChange,
   className = ''
 }: CanvasGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -166,40 +174,37 @@ export function CanvasGenerator({
       
       onImageLoad?.({ width: imageWidth, height: imageHeight });
       
-      // Create a higher resolution offscreen canvas
-      const scale = 2; // Increase resolution by 2x
-      const offscreenCanvas = document.createElement('canvas');
-      offscreenCanvas.width = imageWidth * scale;
-      offscreenCanvas.height = imageHeight * scale;
-      const offscreenCtx = offscreenCanvas.getContext('2d');
-      
-      if (!offscreenCtx) return;
-      
-      // Scale everything up
-      offscreenCtx.scale(scale, scale);
-      
-      // Draw the image
-      offscreenCtx.drawImage(image, 0, 0, imageWidth, imageHeight);
-      
       // Set the display canvas size
       canvas.width = imageWidth;
       canvas.height = imageHeight;
       
-      // Get the scaled canvas context for direct drawing
       const displayCtx = canvas.getContext('2d');
       if (!displayCtx) return;
+
+      // Calculate scaled dimensions based on zoom
+      const scaledWidth = imageWidth * imageZoom;
+      const scaledHeight = imageHeight * imageZoom;
       
-      // Draw the image to display canvas first
-      displayCtx.drawImage(image, 0, 0, imageWidth, imageHeight);
+      // Calculate position offsets
+      const offsetX = ((imageX / 100) * (scaledWidth - imageWidth));
+      const offsetY = ((imageY / 100) * (scaledHeight - imageHeight));
       
-      // Apply brightness filter to the display canvas
+      // Clear the canvas
+      displayCtx.clearRect(0, 0, imageWidth, imageHeight);
+      
+      // Draw the image with transformations
+      displayCtx.save();
+      displayCtx.translate(-offsetX, -offsetY);
+      displayCtx.drawImage(image, 0, 0, scaledWidth, scaledHeight);
+      displayCtx.restore();
+      
+      // Apply brightness filter
       applyBrightnessFilter(displayCtx, imageWidth, imageHeight, brightness);
-      
+
+      // Draw text overlays
       const actualX = (x / 100) * imageWidth;
       const actualY = (y / 100) * imageHeight;
-      
       const scaledFontSize = (fontSize / 100) * imageWidth;
-      
       const lines = processText(text);
       
       // Now draw text directly on the display canvas with the brightness already applied
@@ -251,7 +256,7 @@ export function CanvasGenerator({
       ctx.textAlign = 'center';
       ctx.fillText('Please enter an image URL', canvas.width / 2, canvas.height / 2);
     }
-  }, [text, imageUrl, fontSize, fontColor, x, y, width, height, brightness, onLoad, onError, onImageLoad, fontLoaded]);
+  }, [text, imageUrl, fontSize, fontColor, x, y, width, height, brightness, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current) return;

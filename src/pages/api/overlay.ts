@@ -132,6 +132,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     const imageWidth = metadata.width || MAX_WIDTH;
     const imageHeight = metadata.height || MAX_HEIGHT;
+    
+    // Calculate transformed dimensions and position
+    const imageZoomValue = parseFloat(params.imageZoom);
+    const imageXPercent = parseFloat(params.imageX) / 100;
+    const imageYPercent = parseFloat(params.imageY) / 100;
+    
+    const scaledWidth = imageWidth * imageZoomValue;
+    const scaledHeight = imageHeight * imageZoomValue;
+    const offsetX = (scaledWidth - imageWidth) * imageXPercent;
+    const offsetY = (scaledHeight - imageHeight) * imageYPercent;
+
+    // Create a new Sharp instance with the transformed image
+    const transformedImage = sharp(imageBuffer)
+      .resize(scaledWidth, scaledHeight)
+      .extract({
+        left: Math.round(offsetX),
+        top: Math.round(offsetY),
+        width: imageWidth,
+        height: imageHeight
+      });
 
     // Apply brightness adjustment if not 100%
     const brightnessValue = parseInt(brightness as string);
@@ -141,7 +161,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // values < 1 darken the image, values > 1 brighten it
       // Convert our scale (0-200) to sharp's scale (0-Infinity)
       const brightnessMultiplier = brightnessValue / 100;
-      image.modulate({ brightness: brightnessMultiplier });
+      transformedImage.modulate({ brightness: brightnessMultiplier });
       console.log(`Applied brightness adjustment: ${brightnessValue}%`);
     }
 
@@ -265,7 +285,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Composite image
       console.log('Compositing image...');
-      const finalImage = await image
+      const finalImage = await transformedImage
         .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
         .jpeg({ quality: 90 })
         .toBuffer();
