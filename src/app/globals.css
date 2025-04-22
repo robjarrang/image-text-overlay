@@ -2800,3 +2800,30 @@ main,
 .slds-theme_dark .slds-accordion__section.slds-is-open .slds-accordion__summary-action {
   background-color: var(--slds-g-color-neutral-base-30, #444444);
 }
+
+/* Text overlay selection styles */
+.overlay-item.active-overlay-item {
+  background-color: rgba(21, 137, 238, 0.1);
+  border-left: 3px solid #1589ee;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease-in-out;
+}
+
+.overlay-item {
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  border-left: 3px solid transparent;
+}
+
+.overlay-item:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.overlay-item.active-overlay-item:hover {
+  background-color: rgba(21, 137, 238, 0.15);
+}
+
+/* Add padding to accommodate the checkmark icon */
+.overlay-item.active-overlay-item .slds-media {
+  padding-left: 12px;
+}

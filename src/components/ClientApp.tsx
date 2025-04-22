@@ -753,7 +753,7 @@ export function ClientApp() {
                             {formState.textOverlays.map(overlay => (
                               <li 
                                 key={overlay.id} 
-                                className={`slds-item overlay-item ${formState.activeOverlayId === overlay.id ? 'slds-is-selected' : ''}`}
+                                className={`slds-item overlay-item ${formState.activeOverlayId === overlay.id ? 'slds-is-selected active-overlay-item' : ''}`}
                               >
                                 <div className="slds-grid slds-grid_align-spread slds-p-around_xx-small">
                                   <button 
@@ -765,9 +765,26 @@ export function ClientApp() {
                                       cursor: 'pointer',
                                       border: 'none',
                                       background: 'transparent',
-                                      padding: '0.5rem'
+                                      padding: '0.5rem',
+                                      position: 'relative'
                                     }}
+                                    aria-pressed={formState.activeOverlayId === overlay.id}
                                   >
+                                    {formState.activeOverlayId === overlay.id && (
+                                      <div 
+                                        className="slds-is-selected__icon" 
+                                        style={{
+                                          position: 'absolute',
+                                          left: '-12px',
+                                          top: '50%',
+                                          transform: 'translateY(-50%)'
+                                        }}
+                                      >
+                                        <svg className="slds-icon slds-icon_x-small slds-icon-text-default" aria-hidden="true">
+                                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#check"></use>
+                                        </svg>
+                                      </div>
+                                    )}
                                     <div className="slds-media__figure">
                                       <span 
                                         className="slds-icon_container" 
