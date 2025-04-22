@@ -164,24 +164,30 @@ export function CanvasGenerator({
     const lines = processText(overlay.text);
 
     lines.forEach((line, lineIndex) => {
-      let currentX = actualX;
+      let lineX = actualX;
       const lineHeight = scaledFontSize * 1.2;
       const currentY = actualY + lineIndex * lineHeight;
       
+      // Calculate total width for alignment
       let totalWidth = 0;
       line.parts.forEach(part => {
-        ctx.font = `${part.isSuper ? scaledFontSize * 0.7 : scaledFontSize}px HelveticaNeue-Condensed`;
+        const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
         totalWidth += ctx.measureText(part.text).width;
       });
       
+      // Adjust position based on alignment
       if (line.align === 'center') {
-        currentX = actualX + (canvasWidth - totalWidth) / 2;
+        lineX = actualX - (totalWidth / 2);
       } else if (line.align === 'right') {
-        currentX = actualX + canvasWidth - totalWidth;
+        lineX = actualX - totalWidth;
       }
       
+      // Draw each part of the line
+      let currentX = lineX;
       line.parts.forEach(part => {
-        ctx.font = `${part.isSuper ? scaledFontSize * 0.7 : scaledFontSize}px HelveticaNeue-Condensed`;
+        const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
         ctx.fillStyle = overlay.fontColor;
         ctx.fillText(
           part.text,
@@ -276,18 +282,47 @@ export function CanvasGenerator({
     const actualY = (overlay.y / 100) * canvasHeight;
     const scaledFontSize = (overlay.fontSize / 100) * canvasWidth;
     
-    // Simple text bounds check (can be refined based on actual text metrics)
-    const lines = overlay.text.split('\n');
+    // Process text to get proper alignment and bounds
+    const processedLines = processText(overlay.text);
     
-    for (let i = 0; i < lines.length; i++) {
+    // Check each line for hit testing
+    for (let i = 0; i < processedLines.length; i++) {
+      const line = processedLines[i];
       const lineY = actualY + i * (scaledFontSize * 1.2);
-      const textWidth = lines[i].length * scaledFontSize * 0.6; // Approximate width
       
+      // Calculate line width more accurately
+      let lineX = actualX;
+      let totalWidth = 0;
+      
+      // Measure all parts of the line for accurate width
+      line.parts.forEach(part => {
+        const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx) {
+          ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+          totalWidth += ctx.measureText(part.text).width;
+        } else {
+          // Fallback if context not available
+          totalWidth += part.text.length * partSize * 0.6;
+        }
+      });
+      
+      // Adjust position based on alignment
+      if (line.align === 'center') {
+        lineX = actualX - totalWidth / 2;
+      } else if (line.align === 'right') {
+        lineX = actualX - totalWidth;
+      }
+      
+      // Add padding around the text for easier selection
+      const padding = scaledFontSize * 0.5;
+      
+      // Check if the point is within the bounds of this line
       if (
-        x >= actualX - scaledFontSize * 0.5 &&
-        x <= actualX + textWidth + scaledFontSize * 0.5 &&
-        y >= lineY - scaledFontSize * 1.2 &&
-        y <= lineY + scaledFontSize * 0.2
+        x >= lineX - padding &&
+        x <= lineX + totalWidth + padding &&
+        y >= lineY - scaledFontSize && 
+        y <= lineY + padding
       ) {
         return true;
       }
@@ -314,6 +349,17 @@ export function CanvasGenerator({
       if (isPointInTextOverlay(overlay, clickX, clickY, canvas.width, canvas.height)) {
         setIsDragging(true);
         setDraggedOverlayId(overlay.id);
+        
+        // Also make this overlay active for editing
+        if (overlay.id !== activeOverlayId) {
+          // Find the onPositionChange handler which is provided by ClientApp
+          const clientAppHandler = onPositionChange;
+          if (clientAppHandler) {
+            // Pass a special value to notify ClientApp to change the active overlay
+            // without changing position - this is a bit of a hack but works
+            clientAppHandler(overlay.id, -1, -1);
+          }
+        }
         
         const actualX = (overlay.x / 100) * canvas.width;
         const actualY = (overlay.y / 100) * canvas.height;

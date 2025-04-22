@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import sharp from 'sharp';
 import * as opentype from 'opentype.js';
 import { base64FontData } from '../../utils/fontData';
+import { TextOverlay } from '../../components/ClientApp';
 
 export const config = {
   api: {
@@ -18,6 +19,16 @@ const MAX_HEIGHT = 300;
 
 // Cache the font instance
 let cachedFont: opentype.Font | null = null;
+
+interface OverlayParams {
+  textOverlays: TextOverlay[];
+  imageUrl: string;
+  brightness?: string;
+  imageZoom?: number;
+  imageX?: number;
+  imageY?: number;
+  download?: boolean;
+}
 
 async function loadFont(): Promise<opentype.Font> {
   if (!cachedFont) {
@@ -84,21 +95,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const { 
-      text = '', 
-      imageUrl, 
-      fontSize = '5', 
-      fontColor = '#000000', 
-      x = '10', 
-      y = '10', 
-      brightness = '100' 
-    } = params;
+    // Handle backward compatibility for GET requests and legacy format
+    let textOverlays: TextOverlay[] = [];
+    const { imageUrl, brightness = '100', imageZoom = 1, imageX = 0, imageY = 0 } = params;
+    
+    // For backward compatibility with single text overlay
+    if (req.method === 'GET' || !params.textOverlays) {
+      const { 
+        text = '', 
+        fontSize = '5', 
+        fontColor = '#000000', 
+        x = '10', 
+        y = '10'
+      } = params;
+      
+      // Create a single text overlay from the parameters
+      textOverlays = [{
+        id: 'legacy-overlay',
+        text: text as string,
+        fontSize: parseInt(fontSize as string),
+        fontColor: fontColor as string,
+        x: parseInt(x as string),
+        y: parseInt(y as string)
+      }];
+    } else {
+      // Use the array of text overlays provided
+      textOverlays = params.textOverlays as TextOverlay[];
+    }
     
     if (!imageUrl) {
       return res.status(400).json({ error: 'Image URL is required' });
     }
 
-    console.log('Processing request with params:', { text, imageUrl, fontSize, fontColor, x, y, brightness });
+    console.log('Processing request with overlays:', { 
+      overlayCount: textOverlays.length, 
+      imageUrl, 
+      brightness, 
+      imageZoom, 
+      imageX, 
+      imageY 
+    });
 
     // Load and validate font first
     console.log('Loading font...');
@@ -134,9 +170,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const imageHeight = metadata.height || MAX_HEIGHT;
     
     // Calculate transformed dimensions and position
-    const imageZoomValue = parseFloat(params.imageZoom);
-    const imageXPercent = parseFloat(params.imageX) / 100;
-    const imageYPercent = parseFloat(params.imageY) / 100;
+    const imageZoomValue = typeof imageZoom === 'number' ? imageZoom : parseFloat(imageZoom as string);
+    const imageXPercent = typeof imageX === 'number' ? imageX / 100 : parseFloat(imageX as string) / 100;
+    const imageYPercent = typeof imageY === 'number' ? imageY / 100 : parseFloat(imageY as string) / 100;
     
     const scaledWidth = imageWidth * imageZoomValue;
     const scaledHeight = imageHeight * imageZoomValue;
@@ -165,25 +201,82 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log(`Applied brightness adjustment: ${brightnessValue}%`);
     }
 
-    // Process text lines
-    console.log('Processing text lines...');
-    const lines = (text as string).split('\n');
-    const actualFontSize = Math.round((parseInt(fontSize as string) / 100) * imageWidth);
+    // Process all text overlays
+    console.log(`Processing ${textOverlays.length} text overlays...`);
     let svgPaths = '';
 
     try {
-      for (const [index, line] of lines.entries()) {
-        let processedLine = line;
-        let xPos = Math.round((parseInt(x as string) / 100) * imageWidth);
+      // Process each overlay
+      for (const overlay of textOverlays) {
+        const { text, fontSize, fontColor, x, y } = overlay;
         
-        // Handle alignment
-        let alignmentOffset = 0;
-        if (processedLine.match(/^\[(left|center|right)\]/)) {
-          const align = processedLine.match(/^\[(left|center|right)\]/)![1];
-          processedLine = processedLine.replace(/^\[(left|center|right)\]/, '');
-          console.log('Processing aligned text:', { align, processedLine });
+        // Skip empty overlays
+        if (!text || text.trim() === '') continue;
+        
+        // Process text lines for this overlay
+        const lines = text.split('\n');
+        const actualFontSize = Math.round((fontSize / 100) * imageWidth);
+        
+        for (const [index, line] of lines.entries()) {
+          let processedLine = line;
+          let xPos = Math.round((x / 100) * imageWidth);
           
-          // Process text with superscript first to get accurate width
+          // Handle alignment
+          if (processedLine.match(/^\[(left|center|right)\]/)) {
+            const align = processedLine.match(/^\[(left|center|right)\]/)![1];
+            processedLine = processedLine.replace(/^\[(left|center|right)\]/, '');
+            console.log('Processing aligned text:', { align, processedLine });
+            
+            // Process text with superscript first to get accurate width
+            const parts: Array<{ text: string; isSuper: boolean }> = [];
+            let currentIndex = 0;
+            const superscriptRegex = /\^{([^}]+)}/g;
+            let match;
+
+            while ((match = superscriptRegex.exec(processedLine)) !== null) {
+              if (match.index > currentIndex) {
+                parts.push({
+                  text: processedLine.slice(currentIndex, match.index),
+                  isSuper: false
+                });
+              }
+
+              parts.push({
+                text: match[1],
+                isSuper: true
+              });
+
+              currentIndex = match.index + match[0].length;
+            }
+
+            if (currentIndex < processedLine.length) {
+              parts.push({
+                text: processedLine.slice(currentIndex),
+                isSuper: false
+              });
+            }
+
+            // Calculate total width considering both regular and superscript text
+            let totalWidth = 0;
+            for (const part of parts) {
+              const partSize = part.isSuper ? actualFontSize * 0.7 : actualFontSize;
+              const testPath = font.getPath(part.text, 0, 0, partSize);
+              const bbox = testPath.getBoundingBox();
+              totalWidth += bbox.x2 - bbox.x1;
+            }
+
+            if (align === 'center') {
+              xPos = Math.round((imageWidth - totalWidth) / 2);
+            } else if (align === 'right') {
+              xPos = Math.round(imageWidth - totalWidth - ((100 - x) / 100 * imageWidth));
+            }
+          }
+
+          // Reset position for first text part
+          let currentX = xPos;
+          const yPos = Math.round((y / 100) * imageHeight + (index * actualFontSize * 1.2));
+
+          // Process and render text parts
           const parts: Array<{ text: string; isSuper: boolean }> = [];
           let currentIndex = 0;
           const superscriptRegex = /\^{([^}]+)}/g;
@@ -212,66 +305,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             });
           }
 
-          // Calculate total width considering both regular and superscript text
-          let totalWidth = 0;
+          // Render each part
           for (const part of parts) {
             const partSize = part.isSuper ? actualFontSize * 0.7 : actualFontSize;
-            const testPath = font.getPath(part.text, 0, 0, partSize);
-            const bbox = testPath.getBoundingBox();
-            totalWidth += bbox.x2 - bbox.x1;
+            const partY = part.isSuper ? yPos - (actualFontSize * 0.3) : yPos;
+            const path = font.getPath(part.text, currentX, partY, partSize);
+            svgPaths += `<path d="${path.toPathData()}" fill="${fontColor}" />`;
+
+            // Move x position for next part
+            const bbox = path.getBoundingBox();
+            currentX += bbox.x2 - bbox.x1;
           }
-
-          if (align === 'center') {
-            xPos = Math.round((imageWidth - totalWidth) / 2);
-          } else if (align === 'right') {
-            xPos = Math.round(imageWidth - totalWidth - ((100 - parseInt(x as string)) / 100 * imageWidth));
-          }
-          console.log('Calculated position:', { align, xPos, totalWidth });
-        }
-
-        // Reset position for first text part
-        let currentX = xPos;
-        const yPos = Math.round((parseInt(y as string) / 100) * imageHeight + (index * actualFontSize * 1.2));
-
-        // Process and render text parts
-        const parts: Array<{ text: string; isSuper: boolean }> = [];
-        let currentIndex = 0;
-        const superscriptRegex = /\^{([^}]+)}/g;
-        let match;
-
-        while ((match = superscriptRegex.exec(processedLine)) !== null) {
-          if (match.index > currentIndex) {
-            parts.push({
-              text: processedLine.slice(currentIndex, match.index),
-              isSuper: false
-            });
-          }
-
-          parts.push({
-            text: match[1],
-            isSuper: true
-          });
-
-          currentIndex = match.index + match[0].length;
-        }
-
-        if (currentIndex < processedLine.length) {
-          parts.push({
-            text: processedLine.slice(currentIndex),
-            isSuper: false
-          });
-        }
-
-        // Render each part
-        for (const part of parts) {
-          const partSize = part.isSuper ? actualFontSize * 0.7 : actualFontSize;
-          const partY = part.isSuper ? yPos - (actualFontSize * 0.3) : yPos;
-          const path = font.getPath(part.text, currentX, partY, partSize);
-          svgPaths += `<path d="${path.toPathData()}" fill="${fontColor}" />`;
-
-          // Move x position for next part
-          const bbox = path.getBoundingBox();
-          currentX += bbox.x2 - bbox.x1;
         }
       }
 
@@ -293,11 +337,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('Image processing complete, sending response...');
       res.setHeader('Content-Type', 'image/jpeg');
       res.setHeader('Cache-Control', 'public, max-age=31536000');
-      if (req.method === 'GET' && req.query.download) {
-        res.setHeader('Content-Disposition', `attachment; filename="overlay-${Date.now()}.jpg"`);
-      } else if (req.method === 'POST' && params.download) {
+      
+      // Set Content-Disposition for downloads
+      const isDownload = req.method === 'GET' 
+        ? Boolean(req.query.download) 
+        : Boolean(params.download);
+        
+      if (isDownload) {
         res.setHeader('Content-Disposition', `attachment; filename="overlay-${Date.now()}.jpg"`);
       }
+      
       res.send(finalImage);
       console.log('Response sent successfully');
     } catch (error) {

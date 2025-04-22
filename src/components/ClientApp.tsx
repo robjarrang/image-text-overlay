@@ -66,6 +66,7 @@ export function ClientApp() {
     imageSource: true,
     imageAdjustments: false,
     textOverlays: true,
+    textContent: true, 
     textStyle: false
   });
   
@@ -396,13 +397,22 @@ export function ClientApp() {
 
   // Handle position change for a text overlay
   const handlePositionChange = (overlayId: string, newX: number, newY: number) => {
+    // Special case: If newX and newY are both -1, this is a signal to just select the overlay
+    if (newX === -1 && newY === -1) {
+      setActiveOverlay(overlayId);
+      return;
+    }
+    
+    // Normal case: Update the position of the overlay
     setFormState(prev => ({
       ...prev,
       textOverlays: prev.textOverlays.map(overlay => 
         overlay.id === overlayId
           ? { ...overlay, x: Math.round(newX), y: Math.round(newY) }
           : overlay
-      )
+      ),
+      // Also make this the active overlay when dragging it
+      activeOverlayId: overlayId
     }));
   };
 
