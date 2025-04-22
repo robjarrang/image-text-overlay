@@ -156,10 +156,11 @@ export function CanvasGenerator({
   const drawTextOverlay = (
     ctx: CanvasRenderingContext2D, 
     overlay: TextOverlay, 
-    canvasWidth: number
+    canvasWidth: number,
+    canvasHeight: number
   ) => {
     const actualX = (overlay.x / 100) * canvasWidth;
-    const actualY = (overlay.y / 100) * canvasWidth;
+    const actualY = (overlay.y / 100) * canvasHeight; // Fixed: use canvasHeight for Y-axis
     const scaledFontSize = (overlay.fontSize / 100) * canvasWidth;
     const lines = processText(overlay.text);
 
@@ -246,7 +247,7 @@ export function CanvasGenerator({
 
       // Draw all text overlays
       textOverlays.forEach(overlay => {
-        drawTextOverlay(displayCtx, overlay, imageWidth);
+        drawTextOverlay(displayCtx, overlay, imageWidth, imageHeight);
       });
       
       onLoad();
@@ -279,7 +280,7 @@ export function CanvasGenerator({
     canvasHeight: number
   ): boolean => {
     const actualX = (overlay.x / 100) * canvasWidth;
-    const actualY = (overlay.y / 100) * canvasHeight;
+    const actualY = (overlay.y / 100) * canvasHeight; // Fixed: use canvasHeight for Y-axis
     const scaledFontSize = (overlay.fontSize / 100) * canvasWidth;
     
     // Process text to get proper alignment and bounds
@@ -336,11 +337,13 @@ export function CanvasGenerator({
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
     
-    const clickX = (e.clientX - rect.left) * scaleX;
-    const clickY = (e.clientY - rect.top) * scaleY;
+    // Calculate scale factors more accurately
+    const scaleFactorX = canvas.width / rect.width;
+    const scaleFactorY = canvas.height / rect.height;
+    
+    const clickX = (e.clientX - rect.left) * scaleFactorX;
+    const clickY = (e.clientY - rect.top) * scaleFactorY;
 
     // Check each overlay (in reverse order to handle overlapping - top one gets priority)
     for (let i = textOverlays.length - 1; i >= 0; i--) {
@@ -361,10 +364,13 @@ export function CanvasGenerator({
           }
         }
         
-        // Store the click point directly without conversion to allow exact 1:1 movement
+        // Store percentage position at time of click
+        const overlayXPixels = (overlay.x / 100) * canvas.width;
+        const overlayYPixels = (overlay.y / 100) * canvas.height; // Fixed: use canvas height
+        
         setDragOffset({
-          x: clickX - (overlay.x / 100) * canvas.width,
-          y: clickY - (overlay.y / 100) * canvas.height
+          x: clickX - overlayXPixels,
+          y: clickY - overlayYPixels
         });
         
         canvas.style.cursor = 'grabbing';
@@ -378,13 +384,16 @@ export function CanvasGenerator({
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
     
-    const mouseX = (e.clientX - rect.left) * scaleX;
-    const mouseY = (e.clientY - rect.top) * scaleY;
+    // Calculate scale factors more accurately
+    const scaleFactorX = canvas.width / rect.width;
+    const scaleFactorY = canvas.height / rect.height;
     
-    // Calculate new position as percentage of canvas size
+    // Get mouse position in canvas pixel coordinates
+    const mouseX = (e.clientX - rect.left) * scaleFactorX;
+    const mouseY = (e.clientY - rect.top) * scaleFactorY;
+    
+    // Calculate new position as percentage of canvas dimensions - fixing Y axis to use height
     const newX = Math.max(0, Math.min(100, ((mouseX - dragOffset.x) / canvas.width) * 100));
     const newY = Math.max(0, Math.min(100, ((mouseY - dragOffset.y) / canvas.height) * 100));
     
@@ -414,12 +423,14 @@ export function CanvasGenerator({
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
+    
+    // Calculate scale factors more accurately
+    const scaleFactorX = canvas.width / rect.width;
+    const scaleFactorY = canvas.height / rect.height;
     
     const touch = e.touches[0];
-    const touchX = (touch.clientX - rect.left) * scaleX;
-    const touchY = (touch.clientY - rect.top) * scaleY;
+    const touchX = (touch.clientX - rect.left) * scaleFactorX;
+    const touchY = (touch.clientY - rect.top) * scaleFactorY;
     
     // Check each overlay (in reverse order to handle overlapping - top one gets priority)
     for (let i = textOverlays.length - 1; i >= 0; i--) {
@@ -429,11 +440,13 @@ export function CanvasGenerator({
         setIsDragging(true);
         setDraggedOverlayId(overlay.id);
         
-        // Store the touch point directly without conversion to allow exact 1:1 movement
-        // This matches our mouse implementation for consistent behavior
+        // Store percentage position at time of touch
+        const overlayXPixels = (overlay.x / 100) * canvas.width;
+        const overlayYPixels = (overlay.y / 100) * canvas.height; // Fixed: use canvas height
+        
         setDragOffset({
-          x: touchX - (overlay.x / 100) * canvas.width,
-          y: touchY - (overlay.y / 100) * canvas.height
+          x: touchX - overlayXPixels,
+          y: touchY - overlayYPixels
         });
         
         e.preventDefault(); // Prevent scrolling while dragging
@@ -447,13 +460,16 @@ export function CanvasGenerator({
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
+    
+    // Calculate scale factors more accurately
+    const scaleFactorX = canvas.width / rect.width;
+    const scaleFactorY = canvas.height / rect.height;
     
     const touch = e.touches[0];
-    const touchX = (touch.clientX - rect.left) * scaleX;
-    const touchY = (touch.clientY - rect.top) * scaleY;
+    const touchX = (touch.clientX - rect.left) * scaleFactorX;
+    const touchY = (touch.clientY - rect.top) * scaleFactorY;
     
+    // Calculate new position as percentage of canvas dimensions - fixing Y axis to use height
     const newX = Math.max(0, Math.min(100, ((touchX - dragOffset.x) / canvas.width) * 100));
     const newY = Math.max(0, Math.min(100, ((touchY - dragOffset.y) / canvas.height) * 100));
     
