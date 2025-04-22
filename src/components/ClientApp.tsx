@@ -57,6 +57,8 @@ export function ClientApp() {
   const [showShareSuccess, setShowShareSuccess] = useState(false);
   // Added state for custom tooltip
   const [showShareTooltip, setShowShareTooltip] = useState(false);
+  // State for delete confirmation
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   // Add new overlay input state
   const [newOverlayText, setNewOverlayText] = useState('');
@@ -129,6 +131,24 @@ export function ClientApp() {
         activeOverlayId: prev.activeOverlayId === id ? (updatedOverlays.length > 0 ? updatedOverlays[0].id : null) : prev.activeOverlayId
       };
     });
+  };
+  
+  // Function to confirm deletion of an overlay
+  const confirmDelete = (id: string) => {
+    setPendingDeleteId(id);
+  };
+
+  // Function to cancel deletion
+  const cancelDelete = () => {
+    setPendingDeleteId(null);
+  };
+
+  // Function to confirm and process deletion
+  const handleDeleteConfirmed = () => {
+    if (pendingDeleteId) {
+      deleteOverlay(pendingDeleteId);
+      setPendingDeleteId(null);
+    }
   };
   
   // Function to handle text change for an overlay
@@ -821,7 +841,7 @@ export function ClientApp() {
                                   <div className="slds-no-flex">
                                     <button 
                                       className="slds-button slds-button_icon" 
-                                      onClick={() => deleteOverlay(overlay.id)}
+                                      onClick={() => confirmDelete(overlay.id)}
                                       title="Delete this overlay"
                                     >
                                       <svg className="slds-button__icon" aria-hidden="true">
@@ -1267,6 +1287,44 @@ export function ClientApp() {
             </div>
           </div>
         </div>
+      )}
+      {pendingDeleteId && (
+        <div className="slds-backdrop slds-backdrop_open" role="presentation"></div>
+      )}
+      {pendingDeleteId && (
+        <section
+          role="dialog"
+          tabIndex={-1}
+          aria-modal="true"
+          aria-labelledby="modal-heading-01"
+          aria-describedby="modal-content-id-1"
+          className="slds-modal slds-fade-in-open"
+        >
+          <div className="slds-modal__container">
+            <header className="slds-modal__header">
+              <button
+                className="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                title="Close"
+                onClick={cancelDelete}
+              >
+                <svg className="slds-button__icon slds-button__icon_large" aria-hidden="true">
+                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#close"></use>
+                </svg>
+                <span className="slds-assistive-text">Cancel</span>
+              </button>
+              <h2 id="modal-heading-01" className="slds-modal__title slds-hyphenate">
+                Delete Text Overlay
+              </h2>
+            </header>
+            <div className="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+              <p>Are you sure you want to delete this text overlay? This action cannot be undone.</p>
+            </div>
+            <footer className="slds-modal__footer">
+              <button className="slds-button slds-button_neutral" onClick={cancelDelete}>Cancel</button>
+              <button className="slds-button slds-button_destructive" onClick={handleDeleteConfirmed}>Delete</button>
+            </footer>
+          </div>
+        </section>
       )}
     </div>
   );
