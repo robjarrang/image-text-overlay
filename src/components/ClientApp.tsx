@@ -171,6 +171,22 @@ export function ClientApp() {
       }
     });
 
+    // Handle text overlays if present in URL
+    const overlaysParam = params.get('overlays');
+    if (overlaysParam) {
+      try {
+        const decodedOverlays = JSON.parse(decodeURIComponent(overlaysParam)) as TextOverlay[];
+        if (Array.isArray(decodedOverlays) && decodedOverlays.length > 0) {
+          urlState.textOverlays = decodedOverlays;
+          // Set the first overlay as active
+          urlState.activeOverlayId = decodedOverlays[0].id;
+        }
+      } catch (error) {
+        console.error('Failed to parse text overlays from URL:', error);
+        // Continue with other parameters even if overlay parsing fails
+      }
+    }
+
     // Handle imageUrl separately
     const imageUrl = params.get('imageUrl');
     if (imageUrl) {
@@ -352,12 +368,22 @@ export function ClientApp() {
   const handleShare = () => {
     const url = new URL(window.location.href);
     
-    // Add the params individually to handle types correctly
-    Object.entries(formState).forEach(([key, value]) => {
-      if (key === 'imageUrl') return; // Skip the base64 imageUrl
-      url.searchParams.set(key, String(value));
+    // Add the basic parameters
+    const baseParams: (keyof Omit<FormState, 'textOverlays' | 'activeOverlayId' | 'imageUrl'>)[] = 
+      ['width', 'height', 'brightness', 'imageZoom', 'imageX', 'imageY'];
+    
+    baseParams.forEach(key => {
+      url.searchParams.set(key, String(formState[key]));
     });
+    
+    // Add the image URL (using original URL, not base64)
     url.searchParams.set('imageUrl', originalImageUrl);
+    
+    // Encode text overlays as JSON in the URL
+    if (formState.textOverlays.length > 0) {
+      const overlaysJson = JSON.stringify(formState.textOverlays);
+      url.searchParams.set('overlays', encodeURIComponent(overlaysJson));
+    }
 
     navigator.clipboard.writeText(url.toString());
     setToastMessage('Settings URL copied to clipboard!');
