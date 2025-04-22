@@ -361,6 +361,8 @@ export function CanvasGenerator({
           }
         }
         
+        // Calculate proper offset as percentage of canvas size
+        // This is critical for text to move with the cursor
         const actualX = (overlay.x / 100) * canvas.width;
         const actualY = (overlay.y / 100) * canvas.height;
         
@@ -386,6 +388,7 @@ export function CanvasGenerator({
     const mouseX = (e.clientX - rect.left) * scaleX;
     const mouseY = (e.clientY - rect.top) * scaleY;
     
+    // Calculate new position as percentage of canvas size
     const newX = Math.max(0, Math.min(100, ((mouseX - dragOffset.x) / canvas.width) * 100));
     const newY = Math.max(0, Math.min(100, ((mouseY - dragOffset.y) / canvas.height) * 100));
     
