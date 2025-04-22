@@ -2827,3 +2827,23 @@ main,
 .overlay-item.active-overlay-item .slds-media {
   padding-left: 12px;
 }
+
+/* Hide default checkbox from the SLDS framework */
+.overlay-item.slds-is-selected:before {
+  display: none !important;
+}
+
+.overlay-item.slds-is-selected:after {
+  display: none !important;
+}
+
+/* Ensure our custom icon is visible */
+.overlay-item .slds-is-selected__icon {
+  display: block !important;
+  z-index: 2;
+}
+
+/* Add padding to accommodate the checkmark icon */
+.overlay-item.active-overlay-item .slds-media {
+  padding-left: 12px;
+}
