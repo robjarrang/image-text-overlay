@@ -361,14 +361,10 @@ export function CanvasGenerator({
           }
         }
         
-        // Calculate proper offset as percentage of canvas size
-        // This is critical for text to move with the cursor
-        const actualX = (overlay.x / 100) * canvas.width;
-        const actualY = (overlay.y / 100) * canvas.height;
-        
+        // Store the click point directly without conversion to allow exact 1:1 movement
         setDragOffset({
-          x: clickX - actualX,
-          y: clickY - actualY
+          x: clickX - (overlay.x / 100) * canvas.width,
+          y: clickY - (overlay.y / 100) * canvas.height
         });
         
         canvas.style.cursor = 'grabbing';
@@ -433,12 +429,11 @@ export function CanvasGenerator({
         setIsDragging(true);
         setDraggedOverlayId(overlay.id);
         
-        const actualX = (overlay.x / 100) * canvas.width;
-        const actualY = (overlay.y / 100) * canvas.height;
-        
+        // Store the touch point directly without conversion to allow exact 1:1 movement
+        // This matches our mouse implementation for consistent behavior
         setDragOffset({
-          x: touchX - actualX,
-          y: touchY - actualY
+          x: touchX - (overlay.x / 100) * canvas.width,
+          y: touchY - (overlay.y / 100) * canvas.height
         });
         
         e.preventDefault(); // Prevent scrolling while dragging
