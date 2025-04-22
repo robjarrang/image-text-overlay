@@ -559,6 +559,20 @@ export function ClientApp() {
                             </div>
                           </div>
                           <div id="image-upload-tab-content" className={`slds-tabs_scoped__content ${activeImageSourceTab === 'upload' ? '' : 'slds-hide'}`} role="tabpanel" aria-labelledby="image-upload-tab">
+                            <div className="slds-notify slds-notify_alert slds-theme_warning slds-m-bottom_small" role="alert">
+                              <div className="slds-notify__content">
+                                <div className="slds-media slds-media_center">
+                                  <div className="slds-media__figure">
+                                    <svg className="slds-icon slds-icon_small" aria-hidden="true">
+                                      <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#warning"></use>
+                                    </svg>
+                                  </div>
+                                  <div className="slds-media__body">
+                                    <p>Note: Uploaded images will not be included in shareable URLs. Only text overlays and settings will be shared.</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                             <div className="slds-form-element__control">
                               <label className="slds-form-element__label" htmlFor="imageUpload">
                                 <abbr className="slds-required" title="required">*</abbr>
