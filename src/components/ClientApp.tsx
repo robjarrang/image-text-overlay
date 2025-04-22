@@ -770,21 +770,6 @@ export function ClientApp() {
                                     }}
                                     aria-pressed={formState.activeOverlayId === overlay.id}
                                   >
-                                    {formState.activeOverlayId === overlay.id && (
-                                      <div 
-                                        className="slds-is-selected__icon" 
-                                        style={{
-                                          position: 'absolute',
-                                          left: '-12px',
-                                          top: '50%',
-                                          transform: 'translateY(-50%)'
-                                        }}
-                                      >
-                                        <svg className="slds-icon slds-icon_x-small slds-icon-text-default" aria-hidden="true">
-                                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#check"></use>
-                                        </svg>
-                                      </div>
-                                    )}
                                     <div className="slds-media__figure">
                                       <span 
                                         className="slds-icon_container" 
