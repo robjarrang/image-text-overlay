@@ -1,40 +1,35 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icons } from './Icons';
+import { TextOverlay } from './ClientApp';
 
 interface CanvasGeneratorProps {
-  text: string;
+  textOverlays: TextOverlay[];
+  activeOverlayId: string | null;
   imageUrl: string;
-  fontSize: number;
-  fontColor: string;
-  x: number;
-  y: number;
   width: number;
   height: number;
-  brightness: number; // Added brightness property
-  imageZoom: number; // New: Control image zoom level (1 = 100%)
-  imageX: number; // New: Control image horizontal position (0-100)
-  imageY: number; // New: Control image vertical position (0-100)
+  brightness: number;
+  imageZoom: number; 
+  imageX: number;
+  imageY: number;
   onLoad: () => void;
   onError: (message: string) => void;
   onImageLoad?: (dimensions: { width: number; height: number }) => void;
-  onPositionChange?: (newX: number, newY: number) => void;
+  onPositionChange?: (overlayId: string, newX: number, newY: number) => void;
   onImageTransformChange?: (transform: { zoom: number; x: number; y: number }) => void;
   className?: string;
 }
 
 export function CanvasGenerator({
-  text,
+  textOverlays,
+  activeOverlayId,
   imageUrl,
-  fontSize,
-  fontColor,
-  x,
-  y,
   width,
   height,
-  brightness = 100, // Default to normal brightness (100%)
-  imageZoom = 1, // Default to no zoom (100%)
-  imageX = 0, // Default to no horizontal offset
-  imageY = 0, // Default to no vertical offset
+  brightness = 100,
+  imageZoom = 1,
+  imageX = 0,
+  imageY = 0,
   onLoad,
   onError,
   onImageLoad,
@@ -47,6 +42,7 @@ export function CanvasGenerator({
   const [fontLoaded, setFontLoaded] = useState(false);
   const fontLoadingAttempted = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [draggedOverlayId, setDraggedOverlayId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showDragHint, setShowDragHint] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -156,6 +152,47 @@ export function CanvasGenerator({
     }
   };
 
+  // Draw a single text overlay
+  const drawTextOverlay = (
+    ctx: CanvasRenderingContext2D, 
+    overlay: TextOverlay, 
+    canvasWidth: number
+  ) => {
+    const actualX = (overlay.x / 100) * canvasWidth;
+    const actualY = (overlay.y / 100) * canvasWidth;
+    const scaledFontSize = (overlay.fontSize / 100) * canvasWidth;
+    const lines = processText(overlay.text);
+
+    lines.forEach((line, lineIndex) => {
+      let currentX = actualX;
+      const lineHeight = scaledFontSize * 1.2;
+      const currentY = actualY + lineIndex * lineHeight;
+      
+      let totalWidth = 0;
+      line.parts.forEach(part => {
+        ctx.font = `${part.isSuper ? scaledFontSize * 0.7 : scaledFontSize}px HelveticaNeue-Condensed`;
+        totalWidth += ctx.measureText(part.text).width;
+      });
+      
+      if (line.align === 'center') {
+        currentX = actualX + (canvasWidth - totalWidth) / 2;
+      } else if (line.align === 'right') {
+        currentX = actualX + canvasWidth - totalWidth;
+      }
+      
+      line.parts.forEach(part => {
+        ctx.font = `${part.isSuper ? scaledFontSize * 0.7 : scaledFontSize}px HelveticaNeue-Condensed`;
+        ctx.fillStyle = overlay.fontColor;
+        ctx.fillText(
+          part.text,
+          currentX,
+          currentY - (part.isSuper ? scaledFontSize * 0.3 : 0)
+        );
+        currentX += ctx.measureText(part.text).width;
+      });
+    });
+  };
+
   useEffect(() => {
     if (!fontLoaded) return;
     
@@ -201,40 +238,9 @@ export function CanvasGenerator({
       // Apply brightness filter
       applyBrightnessFilter(displayCtx, imageWidth, imageHeight, brightness);
 
-      // Draw text overlays
-      const actualX = (x / 100) * imageWidth;
-      const actualY = (y / 100) * imageHeight;
-      const scaledFontSize = (fontSize / 100) * imageWidth;
-      const lines = processText(text);
-      
-      // Now draw text directly on the display canvas with the brightness already applied
-      lines.forEach((line, lineIndex) => {
-        let currentX = actualX;
-        const lineHeight = scaledFontSize * 1.2;
-        const currentY = actualY + lineIndex * lineHeight;
-        
-        let totalWidth = 0;
-        line.parts.forEach(part => {
-          displayCtx.font = `${part.isSuper ? scaledFontSize * 0.7 : scaledFontSize}px HelveticaNeue-Condensed`;
-          totalWidth += displayCtx.measureText(part.text).width;
-        });
-        
-        if (line.align === 'center') {
-          currentX = actualX + (imageWidth - totalWidth) / 2;
-        } else if (line.align === 'right') {
-          currentX = actualX + imageWidth - totalWidth;
-        }
-        
-        line.parts.forEach(part => {
-          displayCtx.font = `${part.isSuper ? scaledFontSize * 0.7 : scaledFontSize}px HelveticaNeue-Condensed`;
-          displayCtx.fillStyle = fontColor;
-          displayCtx.fillText(
-            part.text,
-            currentX,
-            currentY - (part.isSuper ? scaledFontSize * 0.3 : 0)
-          );
-          currentX += displayCtx.measureText(part.text).width;
-        });
+      // Draw all text overlays
+      textOverlays.forEach(overlay => {
+        drawTextOverlay(displayCtx, overlay, imageWidth);
       });
       
       onLoad();
@@ -256,10 +262,42 @@ export function CanvasGenerator({
       ctx.textAlign = 'center';
       ctx.fillText('Please enter an image URL', canvas.width / 2, canvas.height / 2);
     }
-  }, [text, imageUrl, fontSize, fontColor, x, y, width, height, brightness, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded]);
+  }, [textOverlays, imageUrl, brightness, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded]);
+
+  // Check if a point is within a text overlay's bounds
+  const isPointInTextOverlay = (
+    overlay: TextOverlay,
+    x: number, 
+    y: number, 
+    canvasWidth: number,
+    canvasHeight: number
+  ): boolean => {
+    const actualX = (overlay.x / 100) * canvasWidth;
+    const actualY = (overlay.y / 100) * canvasHeight;
+    const scaledFontSize = (overlay.fontSize / 100) * canvasWidth;
+    
+    // Simple text bounds check (can be refined based on actual text metrics)
+    const lines = overlay.text.split('\n');
+    
+    for (let i = 0; i < lines.length; i++) {
+      const lineY = actualY + i * (scaledFontSize * 1.2);
+      const textWidth = lines[i].length * scaledFontSize * 0.6; // Approximate width
+      
+      if (
+        x >= actualX - scaledFontSize * 0.5 &&
+        x <= actualX + textWidth + scaledFontSize * 0.5 &&
+        y >= lineY - scaledFontSize * 1.2 &&
+        y <= lineY + scaledFontSize * 0.2
+      ) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || textOverlays.length === 0) return;
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -268,41 +306,31 @@ export function CanvasGenerator({
     
     const clickX = (e.clientX - rect.left) * scaleX;
     const clickY = (e.clientY - rect.top) * scaleY;
-    
-    const actualX = (x / 100) * canvas.width;
-    const actualY = (y / 100) * canvas.height;
-    const scaledFontSize = (fontSize / 100) * canvas.width;
-    
-    // Simple text bounds check (can be refined based on actual text metrics)
-    const lines = text.split('\n');
-    let isWithinText = false;
-    
-    lines.forEach((line, index) => {
-      const lineY = actualY + index * (scaledFontSize * 1.2);
-      const textWidth = line.length * scaledFontSize * 0.6; // Approximate width
+
+    // Check each overlay (in reverse order to handle overlapping - top one gets priority)
+    for (let i = textOverlays.length - 1; i >= 0; i--) {
+      const overlay = textOverlays[i];
       
-      if (
-        clickX >= actualX - scaledFontSize * 0.5 &&
-        clickX <= actualX + textWidth + scaledFontSize * 0.5 &&
-        clickY >= lineY - scaledFontSize * 1.2 &&
-        clickY <= lineY + scaledFontSize * 0.2
-      ) {
-        isWithinText = true;
+      if (isPointInTextOverlay(overlay, clickX, clickY, canvas.width, canvas.height)) {
+        setIsDragging(true);
+        setDraggedOverlayId(overlay.id);
+        
+        const actualX = (overlay.x / 100) * canvas.width;
+        const actualY = (overlay.y / 100) * canvas.height;
+        
+        setDragOffset({
+          x: clickX - actualX,
+          y: clickY - actualY
+        });
+        
+        canvas.style.cursor = 'grabbing';
+        return; // Exit after finding the first match
       }
-    });
-    
-    if (isWithinText) {
-      setIsDragging(true);
-      setDragOffset({
-        x: clickX - actualX,
-        y: clickY - actualY
-      });
-      canvas.style.cursor = 'grabbing';
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDragging || !canvasRef.current) return;
+    if (!isDragging || !draggedOverlayId || !canvasRef.current) return;
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -315,13 +343,14 @@ export function CanvasGenerator({
     const newX = Math.max(0, Math.min(100, ((mouseX - dragOffset.x) / canvas.width) * 100));
     const newY = Math.max(0, Math.min(100, ((mouseY - dragOffset.y) / canvas.height) * 100));
     
-    onPositionChange?.(newX, newY);
+    onPositionChange?.(draggedOverlayId, newX, newY);
   };
 
   const handleMouseUp = () => {
     if (isDragging && canvasRef.current) {
       canvasRef.current.style.cursor = 'grab';
       setIsDragging(false);
+      setDraggedOverlayId(null);
     }
   };
 
@@ -329,13 +358,14 @@ export function CanvasGenerator({
     if (isDragging && canvasRef.current) {
       canvasRef.current.style.cursor = 'grab';
       setIsDragging(false);
+      setDraggedOverlayId(null);
     }
     setShowDragHint(false);
     setIsHovering(false);
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current || e.touches.length !== 1) return;
+    if (!canvasRef.current || e.touches.length !== 1 || textOverlays.length === 0) return;
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -346,40 +376,30 @@ export function CanvasGenerator({
     const touchX = (touch.clientX - rect.left) * scaleX;
     const touchY = (touch.clientY - rect.top) * scaleY;
     
-    // Reuse the same bounds checking logic
-    const actualX = (x / 100) * canvas.width;
-    const actualY = (y / 100) * canvas.height;
-    const scaledFontSize = (fontSize / 100) * canvas.width;
-    
-    const lines = text.split('\n');
-    let isWithinText = false;
-    
-    lines.forEach((line, index) => {
-      const lineY = actualY + index * (scaledFontSize * 1.2);
-      const textWidth = line.length * scaledFontSize * 0.6;
+    // Check each overlay (in reverse order to handle overlapping - top one gets priority)
+    for (let i = textOverlays.length - 1; i >= 0; i--) {
+      const overlay = textOverlays[i];
       
-      if (
-        touchX >= actualX - scaledFontSize * 0.5 &&
-        touchX <= actualX + textWidth + scaledFontSize * 0.5 &&
-        touchY >= lineY - scaledFontSize * 1.2 &&
-        touchY <= lineY + scaledFontSize * 0.2
-      ) {
-        isWithinText = true;
+      if (isPointInTextOverlay(overlay, touchX, touchY, canvas.width, canvas.height)) {
+        setIsDragging(true);
+        setDraggedOverlayId(overlay.id);
+        
+        const actualX = (overlay.x / 100) * canvas.width;
+        const actualY = (overlay.y / 100) * canvas.height;
+        
+        setDragOffset({
+          x: touchX - actualX,
+          y: touchY - actualY
+        });
+        
+        e.preventDefault(); // Prevent scrolling while dragging
+        return; // Exit after finding the first match
       }
-    });
-    
-    if (isWithinText) {
-      setIsDragging(true);
-      setDragOffset({
-        x: touchX - actualX,
-        y: touchY - actualY
-      });
-      e.preventDefault(); // Prevent scrolling while dragging
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDragging || !canvasRef.current || e.touches.length !== 1) return;
+    if (!isDragging || !draggedOverlayId || !canvasRef.current || e.touches.length !== 1) return;
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -393,16 +413,17 @@ export function CanvasGenerator({
     const newX = Math.max(0, Math.min(100, ((touchX - dragOffset.x) / canvas.width) * 100));
     const newY = Math.max(0, Math.min(100, ((touchY - dragOffset.y) / canvas.height) * 100));
     
-    onPositionChange?.(newX, newY);
+    onPositionChange?.(draggedOverlayId, newX, newY);
     e.preventDefault(); // Prevent scrolling while dragging
   };
 
   const handleTouchEnd = () => {
     setIsDragging(false);
+    setDraggedOverlayId(null);
   };
 
   const handleMouseEnter = () => {
-    if (text) {
+    if (textOverlays.length > 0) {
       setShowDragHint(true);
     }
     if (canvasRef.current) {

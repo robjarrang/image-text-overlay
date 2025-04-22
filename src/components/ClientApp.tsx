@@ -9,33 +9,36 @@ const RichTextEditor = dynamic(() => import('./RichTextEditor').then(mod => ({ d
   ssr: false
 });
 
-interface FormState {
+export interface TextOverlay {
+  id: string;
   text: string;
-  imageUrl: string;
-  fontSize: number; // now as percentage of image width
+  fontSize: number;
   fontColor: string;
-  x: number; // now as percentage of image width
-  y: number; // now as percentage of image height
+  x: number;
+  y: number;
+}
+
+interface FormState {
+  textOverlays: TextOverlay[];
+  activeOverlayId: string | null;
+  imageUrl: string;
   width: number;
   height: number;
-  brightness: number; // 0 to 200 where 100 is normal brightness (0 is black, 200 is double brightness)
+  brightness: number;
   imageZoom: number;
   imageX: number;
   imageY: number;
 }
 
-type FormStateKey = keyof FormState;
-type NumericKeys = Extract<FormStateKey, 'x' | 'y' | 'width' | 'height' | 'fontSize' | 'brightness' | 'imageX' | 'imageY' | 'imageZoom'>;
-type StringKeys = Extract<FormStateKey, 'text' | 'imageUrl' | 'fontColor'>;
+type FormStateKey = keyof Omit<FormState, 'textOverlays' | 'activeOverlayId'>;
+type NumericKeys = Extract<FormStateKey, 'width' | 'height' | 'brightness' | 'imageX' | 'imageY' | 'imageZoom'>;
+type StringKeys = Extract<FormStateKey, 'imageUrl'>;
 
 export function ClientApp() {
   const [formState, setFormState] = useState<FormState>({
-    text: '',
+    textOverlays: [],
+    activeOverlayId: null,
     imageUrl: '',
-    fontSize: 5, // 5% of image width
-    fontColor: '#000000',
-    x: 10, // 10% from left
-    y: 10, // 10% from top
     width: 800,
     height: 600,
     brightness: 100, // normal brightness (100%)
@@ -55,13 +58,89 @@ export function ClientApp() {
   // Added state for custom tooltip
   const [showShareTooltip, setShowShareTooltip] = useState(false);
 
+  // Add new overlay input state
+  const [newOverlayText, setNewOverlayText] = useState('');
+
   // Add state for accordion sections
   const [openAccordions, setOpenAccordions] = useState({
     imageSource: true,
     imageAdjustments: false,
-    textContent: true, 
+    textOverlays: true,
     textStyle: false
   });
+  
+  // Function to generate a unique ID
+  const generateId = () => {
+    return `overlay-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  };
+  
+  // Function to add a new text overlay
+  const addTextOverlay = (text: string) => {
+    if (!text.trim()) return;
+    
+    const newOverlay: TextOverlay = {
+      id: generateId(),
+      text: text.trim(),
+      fontSize: 5, // Default font size (5% of image width)
+      fontColor: '#FFFFFF', // Default color (white)
+      x: 10, // Default position (10% from left)
+      y: 10 + (formState.textOverlays.length * 10) % 80 // Staggered positioning
+    };
+    
+    setFormState(prev => ({
+      ...prev,
+      textOverlays: [...prev.textOverlays, newOverlay],
+      activeOverlayId: newOverlay.id
+    }));
+    
+    setNewOverlayText(''); // Clear input field
+  };
+  
+  // Function to update an active text overlay
+  const updateActiveOverlay = (field: keyof TextOverlay, value: string | number) => {
+    if (!formState.activeOverlayId) return;
+    
+    setFormState(prev => ({
+      ...prev,
+      textOverlays: prev.textOverlays.map(overlay => 
+        overlay.id === prev.activeOverlayId 
+          ? { ...overlay, [field]: value }
+          : overlay
+      )
+    }));
+  };
+  
+  // Function to select an overlay as active
+  const setActiveOverlay = (id: string | null) => {
+    setFormState(prev => ({
+      ...prev,
+      activeOverlayId: id
+    }));
+  };
+  
+  // Function to delete an overlay
+  const deleteOverlay = (id: string) => {
+    setFormState(prev => {
+      const updatedOverlays = prev.textOverlays.filter(overlay => overlay.id !== id);
+      return {
+        ...prev,
+        textOverlays: updatedOverlays,
+        activeOverlayId: prev.activeOverlayId === id ? (updatedOverlays.length > 0 ? updatedOverlays[0].id : null) : prev.activeOverlayId
+      };
+    });
+  };
+  
+  // Function to handle text change for an overlay
+  const handleOverlayTextChange = (value: string) => {
+    if (formState.activeOverlayId) {
+      updateActiveOverlay('text', value);
+    }
+  };
+  
+  // Get currently active overlay
+  const activeOverlay = formState.activeOverlayId 
+    ? formState.textOverlays.find(overlay => overlay.id === formState.activeOverlayId) 
+    : null;
 
   // Function to toggle accordion sections
   const toggleAccordion = (section: keyof typeof openAccordions) => {
@@ -73,8 +152,8 @@ export function ClientApp() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const numericKeys: NumericKeys[] = ['x', 'y', 'width', 'height', 'fontSize', 'brightness', 'imageX', 'imageY', 'imageZoom'];
-    const stringKeys: StringKeys[] = ['text', 'fontColor'];  // Removed imageUrl
+    const numericKeys: NumericKeys[] = ['width', 'height', 'brightness', 'imageX', 'imageY', 'imageZoom'];
+    const stringKeys: StringKeys[] = [];  // Removed imageUrl
     const urlState: Partial<FormState> = {};
     
     numericKeys.forEach(key => {
@@ -315,28 +394,16 @@ export function ClientApp() {
     setFormState(prev => ({ ...prev, fontColor: color }));
   };
 
-  const handlePositionChange = (newX: number, newY: number) => {
+  // Handle position change for a text overlay
+  const handlePositionChange = (overlayId: string, newX: number, newY: number) => {
     setFormState(prev => ({
       ...prev,
-      x: Math.round(newX),
-      y: Math.round(newY)
+      textOverlays: prev.textOverlays.map(overlay => 
+        overlay.id === overlayId
+          ? { ...overlay, x: Math.round(newX), y: Math.round(newY) }
+          : overlay
+      )
     }));
-    
-    // Update slider positions visually
-    const xInput = document.getElementById('x-position') as HTMLInputElement;
-    const yInput = document.getElementById('y-position') as HTMLInputElement;
-    
-    if (xInput) {
-      xInput.value = Math.round(newX).toString();
-      const xValue = ((newX - Number(xInput.min)) / (Number(xInput.max) - Number(xInput.min))) * 100;
-      xInput.style.setProperty('--range-progress', `${xValue}%`);
-    }
-    
-    if (yInput) {
-      yInput.value = Math.round(newY).toString();
-      const yValue = ((newY - Number(yInput.min)) / (Number(yInput.max) - Number(yInput.min))) * 100;
-      yInput.style.setProperty('--range-progress', `${yValue}%`);
-    }
   };
 
   return (
@@ -606,6 +673,135 @@ export function ClientApp() {
                   </div>
                 </div>
                 
+                {/* Text Overlays Accordion */}
+                <div className={`slds-accordion__section ${openAccordions.textOverlays ? 'slds-is-open' : ''}`}>
+                  <div className="slds-accordion__summary">
+                    <h3 className="slds-accordion__summary-heading">
+                      <button
+                        aria-controls="text-overlays-content"
+                        aria-expanded={openAccordions.textOverlays}
+                        className="slds-button slds-button_reset slds-accordion__summary-action"
+                        onClick={() => toggleAccordion('textOverlays')}
+                      >
+                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#layers"></use>
+                        </svg>
+                        <span className="slds-accordion__summary-content">Text Overlays</span>
+                        <span className="slds-badge slds-m-left_xx-small">{formState.textOverlays.length}</span>
+                      </button>
+                    </h3>
+                  </div>
+                  <div 
+                    className="slds-accordion__content" 
+                    id="text-overlays-content"
+                    hidden={!openAccordions.textOverlays}
+                  >
+                    <div className="form-section">
+                      {/* Add New Overlay */}
+                      <div className="slds-form-element">
+                        <label className="slds-form-element__label" htmlFor="newOverlayText">
+                          Add New Text Overlay
+                        </label>
+                        <div className="slds-form-element__control slds-input-has-icon slds-input-has-icon_right">
+                          <input
+                            type="text"
+                            id="newOverlayText"
+                            value={newOverlayText}
+                            onChange={(e) => setNewOverlayText(e.target.value)}
+                            className="slds-input"
+                            placeholder="Enter text for new overlay"
+                          />
+                          <button 
+                            className="slds-button slds-button_icon slds-input__icon slds-input__icon_right"
+                            onClick={() => addTextOverlay(newOverlayText)}
+                            disabled={!newOverlayText.trim()}
+                            title="Add new text overlay"
+                          >
+                            <svg className="slds-button__icon" aria-hidden="true">
+                              <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#add"></use>
+                            </svg>
+                            <span className="slds-assistive-text">Add new text overlay</span>
+                          </button>
+                        </div>
+                        <div className="slds-form-element__help">
+                          Enter text and click the + icon to add a new text overlay
+                        </div>
+                      </div>
+
+                      {/* List of Overlays */}
+                      <div className="slds-m-top_medium">
+                        <h4 className="slds-text-title_caps slds-m-bottom_x-small">Text Overlays</h4>
+                        
+                        {formState.textOverlays.length === 0 ? (
+                          <div className="slds-box slds-box_xx-small slds-theme_shade slds-text-align_center slds-m-top_x-small">
+                            <p className="slds-text-body_small slds-text-color_weak">
+                              No text overlays added yet. Add your first one above!
+                            </p>
+                          </div>
+                        ) : (
+                          <ul className="slds-has-dividers_around-space">
+                            {formState.textOverlays.map(overlay => (
+                              <li 
+                                key={overlay.id} 
+                                className={`slds-item overlay-item ${formState.activeOverlayId === overlay.id ? 'slds-is-selected' : ''}`}
+                              >
+                                <div className="slds-grid slds-grid_align-spread slds-p-around_xx-small">
+                                  <button 
+                                    className="slds-media slds-media_center overlay-select-button" 
+                                    onClick={() => setActiveOverlay(overlay.id)}
+                                    style={{ 
+                                      width: 'calc(100% - 44px)',
+                                      textAlign: 'left',
+                                      cursor: 'pointer',
+                                      border: 'none',
+                                      background: 'transparent',
+                                      padding: '0.5rem'
+                                    }}
+                                  >
+                                    <div className="slds-media__figure">
+                                      <span 
+                                        className="slds-icon_container" 
+                                        style={{ 
+                                          width: '16px', 
+                                          height: '16px', 
+                                          borderRadius: '2px',
+                                          backgroundColor: overlay.fontColor,
+                                          border: overlay.fontColor === '#FFFFFF' ? '1px solid #dddbda' : 'none'
+                                        }}
+                                        title={`Color: ${overlay.fontColor}`}
+                                      ></span>
+                                    </div>
+                                    <div className="slds-media__body slds-truncate" title={overlay.text}>
+                                      <span className={`slds-text-body_regular ${formState.activeOverlayId === overlay.id ? 'slds-text-color_default' : 'slds-text-color_weak'}`}>
+                                        {overlay.text || <em>Empty text</em>}
+                                      </span>
+                                      <span className="slds-text-body_small slds-text-color_weak slds-m-left_small">
+                                        {overlay.fontSize}%
+                                      </span>
+                                    </div>
+                                  </button>
+                                  <div className="slds-no-flex">
+                                    <button 
+                                      className="slds-button slds-button_icon" 
+                                      onClick={() => deleteOverlay(overlay.id)}
+                                      title="Delete this overlay"
+                                    >
+                                      <svg className="slds-button__icon" aria-hidden="true">
+                                        <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#delete"></use>
+                                      </svg>
+                                      <span className="slds-assistive-text">Delete this overlay</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
                 {/* Text Content Accordion */}
                 <div className={`slds-accordion__section ${openAccordions.textContent ? 'slds-is-open' : ''}`}>
                   <div className="slds-accordion__summary">
@@ -629,14 +825,22 @@ export function ClientApp() {
                     hidden={!openAccordions.textContent}
                   >
                     <div className="form-section">
-                      <div className="slds-form-element slds-form-element_stacked">
-                        <div className="slds-form-element__control">
-                          <RichTextEditor
-                            value={formState.text}
-                            onChange={handleTextChange}
-                          />
+                      {!formState.activeOverlayId ? (
+                        <div className="slds-box slds-box_xx-small slds-theme_shade slds-text-align_center">
+                          <p className="slds-text-body_small slds-text-color_weak">
+                            Please select a text overlay to edit its content
+                          </p>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="slds-form-element slds-form-element_stacked">
+                          <div className="slds-form-element__control">
+                            <RichTextEditor
+                              value={activeOverlay?.text || ''}
+                              onChange={handleOverlayTextChange}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -665,155 +869,168 @@ export function ClientApp() {
                   >
                     {/* Text Style Section */}
                     <div className="form-section">
-                      <fieldset className="slds-form-element">
-                        <legend className="slds-form-element__label slds-form-element__legend">Text Style</legend>
-                        <div className="slds-form-element_compound">
-                          <div className="slds-grid slds-gutters_medium">
-                            <div className="slds-col slds-size_2-of-3">
-                              <div className="slds-form-element">
-                                <label className="slds-form-element__label" htmlFor="fontSize">
-                                  Font Size: {formatSliderLabel(formState.fontSize, 'fontSize')}
-                                </label>
-                                <div className="slds-form-element__control">
-                                  <div className="slds-slider custom-slider">
-                                    <input
-                                      type="range"
-                                      id="fontSize"
-                                      name="fontSize"
-                                      min={1}
-                                      max={20}
-                                      value={formState.fontSize}
-                                      onChange={handleInputChange}
-                                      className="slds-slider__range"
-                                      aria-valuemin={1}
-                                      aria-valuemax={20}
-                                      aria-valuenow={formState.fontSize}
-                                      aria-valuetext={`${formState.fontSize}% of image width`}
-                                    />
+                      {!formState.activeOverlayId ? (
+                        <div className="slds-box slds-box_xx-small slds-theme_shade slds-text-align_center">
+                          <p className="slds-text-body_small slds-text-color_weak">
+                            Please select a text overlay to edit its style
+                          </p>
+                        </div>
+                      ) : (
+                        <fieldset className="slds-form-element">
+                          <legend className="slds-form-element__label slds-form-element__legend">Text Style</legend>
+                          <div className="slds-form-element_compound">
+                            <div className="slds-grid slds-gutters_medium">
+                              <div className="slds-col slds-size_2-of-3">
+                                <div className="slds-form-element">
+                                  <label className="slds-form-element__label" htmlFor="fontSize">
+                                    Font Size: {formatSliderLabel(activeOverlay?.fontSize || 5, 'fontSize')}
+                                  </label>
+                                  <div className="slds-form-element__control">
+                                    <div className="slds-slider custom-slider">
+                                      <input
+                                        type="range"
+                                        id="fontSize"
+                                        min={1}
+                                        max={20}
+                                        value={activeOverlay?.fontSize || 5}
+                                        onChange={(e) => updateActiveOverlay('fontSize', Number(e.target.value))}
+                                        className="slds-slider__range"
+                                        aria-valuemin={1}
+                                        aria-valuemax={20}
+                                        aria-valuenow={activeOverlay?.fontSize || 5}
+                                        aria-valuetext={`${activeOverlay?.fontSize || 5}% of image width`}
+                                      />
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                            <div className="slds-col slds-size_1-of-3">
-                              <div className="slds-form-element">
-                                <label className="slds-form-element__label" htmlFor="fontColor">Color</label>
-                                <div className="slds-form-element__control">
-                                  <div className="slds-color-picker_swatches color-swatch-container">
-                                    <button
-                                      type="button"
-                                      className={`slds-color-picker__swatch ${formState.fontColor === '#DB011C' ? 'slds-is-selected' : ''}`}
-                                      aria-label="Red Color"
-                                      title="Red"
-                                      style={{ backgroundColor: '#DB011C' }}
-                                      onClick={() => handleColorSwatchClick('#DB011C')}
-                                    >
-                                      {formState.fontColor === '#DB011C' && 
-                                        <span className="slds-color-picker__swatch-check" style={{ color: '#FFFFFF' }}>
-                                          <Icons.Success size="x-small" />
-                                        </span>
-                                      }
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className={`slds-color-picker__swatch ${formState.fontColor === '#000000' ? 'slds-is-selected' : ''}`}
-                                      aria-label="Black Color"
-                                      title="Black"
-                                      style={{ backgroundColor: '#000000' }}
-                                      onClick={() => handleColorSwatchClick('#000000')}
-                                    >
-                                      {formState.fontColor === '#000000' && 
-                                        <span className="slds-color-picker__swatch-check" style={{ color: '#FFFFFF' }}>
-                                          <Icons.Success size="x-small" />
-                                        </span>
-                                      }
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className={`slds-color-picker__swatch ${formState.fontColor === '#FFFFFF' ? 'slds-is-selected' : ''}`}
-                                      aria-label="White Color"
-                                      title="White"
-                                      style={{ backgroundColor: '#FFFFFF', border: '1px solid #dddbda' }}
-                                      onClick={() => handleColorSwatchClick('#FFFFFF')}
-                                    >
-                                      {formState.fontColor === '#FFFFFF' && 
-                                        <span className="slds-color-picker__swatch-check" style={{ color: '#000000' }}>
-                                          <Icons.Success size="x-small" />
-                                        </span>
-                                      }
-                                    </button>
+                              <div className="slds-col slds-size_1-of-3">
+                                <div className="slds-form-element">
+                                  <label className="slds-form-element__label" htmlFor="fontColor">Color</label>
+                                  <div className="slds-form-element__control">
+                                    <div className="slds-color-picker_swatches color-swatch-container">
+                                      <button
+                                        type="button"
+                                        className={`slds-color-picker__swatch ${activeOverlay?.fontColor === '#DB011C' ? 'slds-is-selected' : ''}`}
+                                        aria-label="Red Color"
+                                        title="Red"
+                                        style={{ backgroundColor: '#DB011C' }}
+                                        onClick={() => updateActiveOverlay('fontColor', '#DB011C')}
+                                      >
+                                        {activeOverlay?.fontColor === '#DB011C' && 
+                                          <span className="slds-color-picker__swatch-check" style={{ color: '#FFFFFF' }}>
+                                            <Icons.Success size="x-small" />
+                                          </span>
+                                        }
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={`slds-color-picker__swatch ${activeOverlay?.fontColor === '#000000' ? 'slds-is-selected' : ''}`}
+                                        aria-label="Black Color"
+                                        title="Black"
+                                        style={{ backgroundColor: '#000000' }}
+                                        onClick={() => updateActiveOverlay('fontColor', '#000000')}
+                                      >
+                                        {activeOverlay?.fontColor === '#000000' && 
+                                          <span className="slds-color-picker__swatch-check" style={{ color: '#FFFFFF' }}>
+                                            <Icons.Success size="x-small" />
+                                          </span>
+                                        }
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={`slds-color-picker__swatch ${activeOverlay?.fontColor === '#FFFFFF' ? 'slds-is-selected' : ''}`}
+                                        aria-label="White Color"
+                                        title="White"
+                                        style={{ backgroundColor: '#FFFFFF', border: '1px solid #dddbda' }}
+                                        onClick={() => updateActiveOverlay('fontColor', '#FFFFFF')}
+                                      >
+                                        {activeOverlay?.fontColor === '#FFFFFF' && 
+                                          <span className="slds-color-picker__swatch-check" style={{ color: '#000000' }}>
+                                            <Icons.Success size="x-small" />
+                                          </span>
+                                        }
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </fieldset>
+                        </fieldset>
+                      )}
                     </div>
                     
                     {/* Position Section */}
                     <div className="form-section">
-                      <fieldset className="slds-form-element">
-                        <legend className="slds-form-element__label slds-form-element__legend">Position</legend>
-                        <div className="slds-form-element_compound">
-                          <div className="slds-grid slds-gutters_medium">
-                            <div className="slds-col">
-                              <div className="slds-form-element">
-                                <label className="slds-form-element__label" htmlFor="x-position">
-                                  X Position: {formatSliderLabel(formState.x, 'x')}
-                                </label>
-                                <div className="slds-form-element__control">
-                                  <div className="slds-slider custom-slider">
-                                    <input
-                                      type="range"
-                                      id="x-position"
-                                      name="x"
-                                      min={0}
-                                      max={100}
-                                      value={formState.x}
-                                      onChange={handleInputChange}
-                                      className="slds-slider__range"
-                                      aria-valuemin={0}
-                                      aria-valuemax={100}
-                                      aria-valuenow={formState.x}
-                                      aria-valuetext={`${formState.x}% from left`}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="slds-col">
-                              <div className="slds-form-element">
-                                <label className="slds-form-element__label" htmlFor="y-position">
-                                  Y Position: {formatSliderLabel(formState.y, 'y')}
-                                </label>
-                                <div className="slds-form-element__control">
-                                  <div className="slds-slider custom-slider">
-                                    <input
-                                      type="range"
-                                      id="y-position"
-                                      name="y"
-                                      min={0}
-                                      max={100}
-                                      value={formState.y}
-                                      onChange={handleInputChange}
-                                      className="slds-slider__range"
-                                      aria-valuemin={0}
-                                      aria-valuemax={100}
-                                      aria-valuenow={formState.y}
-                                      aria-valuetext={`${formState.y}% from top`}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="slds-form-element__help slds-m-top_x-small">
-                            <p className="position-tip">
-                              <strong>Tip:</strong> You can also click and drag the text directly on the preview image to position it.
-                            </p>
-                          </div>
+                      {!formState.activeOverlayId ? (
+                        <div className="slds-box slds-box_xx-small slds-theme_shade slds-text-align_center">
+                          <p className="slds-text-body_small slds-text-color_weak">
+                            Please select a text overlay to edit its position
+                          </p>
                         </div>
-                      </fieldset>
+                      ) : (
+                        <fieldset className="slds-form-element">
+                          <legend className="slds-form-element__label slds-form-element__legend">Position</legend>
+                          <div className="slds-form-element_compound">
+                            <div className="slds-grid slds-gutters_medium">
+                              <div className="slds-col">
+                                <div className="slds-form-element">
+                                  <label className="slds-form-element__label" htmlFor="x-position">
+                                    X Position: {formatSliderLabel(activeOverlay?.x || 0, 'x')}
+                                  </label>
+                                  <div className="slds-form-element__control">
+                                    <div className="slds-slider custom-slider">
+                                      <input
+                                        type="range"
+                                        id="x-position"
+                                        min={0}
+                                        max={100}
+                                        value={activeOverlay?.x || 0}
+                                        onChange={(e) => updateActiveOverlay('x', Number(e.target.value))}
+                                        className="slds-slider__range"
+                                        aria-valuemin={0}
+                                        aria-valuemax={100}
+                                        aria-valuenow={activeOverlay?.x || 0}
+                                        aria-valuetext={`${activeOverlay?.x || 0}% from left`}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="slds-col">
+                                <div className="slds-form-element">
+                                  <label className="slds-form-element__label" htmlFor="y-position">
+                                    Y Position: {formatSliderLabel(activeOverlay?.y || 0, 'y')}
+                                  </label>
+                                  <div className="slds-form-element__control">
+                                    <div className="slds-slider custom-slider">
+                                      <input
+                                        type="range"
+                                        id="y-position"
+                                        min={0}
+                                        max={100}
+                                        value={activeOverlay?.y || 0}
+                                        onChange={(e) => updateActiveOverlay('y', Number(e.target.value))}
+                                        className="slds-slider__range"
+                                        aria-valuemin={0}
+                                        aria-valuemax={100}
+                                        aria-valuenow={activeOverlay?.y || 0}
+                                        aria-valuetext={`${activeOverlay?.y || 0}% from top`}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="slds-form-element__help slds-m-top_x-small">
+                              <p className="position-tip">
+                                <strong>Tip:</strong> You can also click and drag the text directly on the preview image to position it.
+                              </p>
+                            </div>
+                          </div>
+                        </fieldset>
+                      )}
                     </div>
                   </div>
                 </div>
