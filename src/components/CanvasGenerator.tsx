@@ -57,7 +57,7 @@ export function CanvasGenerator({
         // Try loading from local first
         const font = new FontFace(
           'HelveticaNeue-Condensed',
-          'url(/HelveticaNeueLTW0585Heavy.woff)'
+          'url(/fonts/HelveticaNeueLTW0585Heavy.woff)'
         );
 
         await font.load();

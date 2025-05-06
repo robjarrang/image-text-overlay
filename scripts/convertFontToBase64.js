@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const fontPath = path.join(__dirname, '..', 'HelveticaNeueLTW0585Heavy.woff');
+const fontPath = path.join(__dirname, '..', 'public', 'fonts', 'HelveticaNeueLTW0585Heavy.woff');
 
 try {
     const fontData = fs.readFileSync(fontPath);
