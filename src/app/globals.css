@@ -4,7 +4,7 @@
 
 @font-face {
   font-family: 'HelveticaNeue-Condensed';
-  src: url('https://jarrang-font.s3.eu-west-2.amazonaws.com/milwaukee/HelveticaNeue-Condensed+Bold.ttf') format('truetype');
+  src: url('/fonts/HelveticaNeueLTW0585Heavy.woff') format('woff');
   font-weight: bold;
   font-style: normal;
   font-display: swap;
