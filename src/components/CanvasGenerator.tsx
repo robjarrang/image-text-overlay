@@ -57,7 +57,7 @@ export function CanvasGenerator({
         // Try loading from local first
         const font = new FontFace(
           'HelveticaNeue-Condensed',
-          'url(/fonts/HelveticaNeueLTW0585Heavy.woff)'
+          'url(/fonts/Helvetica Neue LT W05_93 Blk E.woff)'
         );
 
         await font.load();
@@ -70,7 +70,7 @@ export function CanvasGenerator({
           // Fallback to S3 URL as a last resort
           const font = new FontFace(
             'HelveticaNeue-Condensed',
-            'url(https://jarrang-font.s3.eu-west-2.amazonaws.com/milwaukee/HelveticaNeueLTW0585Heavy.woff)'
+            'url(https://jarrang-font.s3.eu-west-2.amazonaws.com/milwaukee/Helvetica Neue LT W05_93 Blk E.woff)'
           );
 
           await font.load();
