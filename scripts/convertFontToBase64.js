@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const fontPath = path.join(__dirname, '..', 'public', 'fonts', 'Helvetica Neue LT W05_93 Blk E.woff');
+const fontPath = path.join(__dirname, '..', 'public', 'fonts', 'Helvetica Neue LT Pro 93 Black Extended.otf');
 
 try {
     const fontData = fs.readFileSync(fontPath);
