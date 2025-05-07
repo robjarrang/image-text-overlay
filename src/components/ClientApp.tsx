@@ -981,7 +981,7 @@ export function ClientApp() {
                                         <div className="slds-form-element__control">
                                           <input
                                             type="number"
-                                            className="slds-input"
+                                            className="slds-input font-size-percentage-input"
                                             min={1}
                                             max={20}
                                             step={0.1}
@@ -1000,6 +1000,7 @@ export function ClientApp() {
                                               updateActiveOverlay('fontSize', Number(value.toFixed(1)));
                                             }}
                                             aria-label="Font size percentage"
+                                            style={{ width: "100%", minWidth: "60px" }}
                                           />
                                         </div>
                                         <div className="slds-form-element__help slds-text-align_center">%</div>
