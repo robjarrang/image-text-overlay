@@ -848,7 +848,7 @@ export function ClientApp() {
                                         {overlay.text || <em>Empty text</em>}
                                       </span>
                                       <span className="slds-text-body_small slds-text-color_weak slds-m-left_small">
-                                        {overlay.fontSize}%
+                                        {Number(overlay.fontSize).toFixed(1)}%
                                       </span>
                                     </div>
                                   </button>
@@ -955,23 +955,58 @@ export function ClientApp() {
                               <div className="slds-col slds-size_2-of-3">
                                 <div className="slds-form-element">
                                   <label className="slds-form-element__label" htmlFor="fontSize">
-                                    Font Size: {formatSliderLabel(activeOverlay?.fontSize || 5, 'fontSize')}
+                                    Font Size
                                   </label>
                                   <div className="slds-form-element__control">
-                                    <div className="slds-slider custom-slider">
-                                      <input
-                                        type="range"
-                                        id="fontSize"
-                                        min={1}
-                                        max={20}
-                                        value={activeOverlay?.fontSize || 5}
-                                        onChange={(e) => updateActiveOverlay('fontSize', Number(e.target.value))}
-                                        className="slds-slider__range"
-                                        aria-valuemin={1}
-                                        aria-valuemax={20}
-                                        aria-valuenow={activeOverlay?.fontSize || 5}
-                                        aria-valuetext={`${activeOverlay?.fontSize || 5}% of image width`}
-                                      />
+                                    <div className="slds-grid slds-gutters_small slds-grid_vertical-align-center">
+                                      <div className="slds-col slds-size_4-of-5">
+                                        <div className="slds-slider custom-slider">
+                                          <input
+                                            type="range"
+                                            id="fontSize"
+                                            min={1}
+                                            max={20}
+                                            step={0.1}
+                                            value={activeOverlay?.fontSize || 5}
+                                            onChange={(e) => updateActiveOverlay('fontSize', Number(parseFloat(e.target.value).toFixed(1)))}
+                                            className="slds-slider__range"
+                                            aria-valuemin={1}
+                                            aria-valuemax={20}
+                                            aria-valuenow={activeOverlay?.fontSize || 5}
+                                            aria-valuetext={`${activeOverlay?.fontSize || 5}% of image width`}
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="slds-col slds-size_1-of-5">
+                                        <div className="slds-form-element__control">
+                                          <input
+                                            type="number"
+                                            className="slds-input"
+                                            min={1}
+                                            max={20}
+                                            step={0.1}
+                                            value={activeOverlay?.fontSize || 5}
+                                            onChange={(e) => {
+                                              const value = parseFloat(e.target.value);
+                                              if (!isNaN(value) && value >= 1 && value <= 20) {
+                                                updateActiveOverlay('fontSize', Number(value.toFixed(1)));
+                                              }
+                                            }}
+                                            onBlur={(e) => {
+                                              let value = parseFloat(e.target.value);
+                                              if (isNaN(value)) value = 5;
+                                              if (value < 1) value = 1;
+                                              if (value > 20) value = 20;
+                                              updateActiveOverlay('fontSize', Number(value.toFixed(1)));
+                                            }}
+                                            aria-label="Font size percentage"
+                                          />
+                                        </div>
+                                        <div className="slds-form-element__help slds-text-align_center">%</div>
+                                      </div>
+                                    </div>
+                                    <div className="slds-form-element__help">
+                                      Percent of image width
                                     </div>
                                   </div>
                                 </div>
