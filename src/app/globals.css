@@ -2827,3 +2827,23 @@ main,
 .overlay-item.active-overlay-item .slds-media {
   padding-left: 12px;
 }
+
+/* Font size percentage input styling - remove spinner arrows */
+input.font-size-percentage-input::-webkit-outer-spin-button,
+input.font-size-percentage-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input.font-size-percentage-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* Additional styling for the font size input */
+input.font-size-percentage-input {
+  text-align: center;
+  font-weight: 500;
+  padding-right: 0.5rem;
+  padding-left: 0.5rem;
+}
