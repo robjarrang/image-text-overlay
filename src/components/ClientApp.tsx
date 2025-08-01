@@ -365,11 +365,16 @@ export function ClientApp() {
         response = await fetch(`/api/overlay?${downloadParams}`);
       }
       if (!response.ok) throw new Error('Failed to generate image');
+      
+      // Get the appropriate file extension from Content-Type header
+      const contentType = response.headers.get('Content-Type');
+      const fileExtension = contentType === 'image/png' ? 'png' : 'jpg';
+      
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `overlay-${Date.now()}.jpg`;
+      a.download = `overlay-${Date.now()}.${fileExtension}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

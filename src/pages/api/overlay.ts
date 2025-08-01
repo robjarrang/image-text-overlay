@@ -169,6 +169,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const imageWidth = metadata.width || MAX_WIDTH;
     const imageHeight = metadata.height || MAX_HEIGHT;
     
+    // Check if source image has transparency
+    const hasAlpha = metadata.channels === 4 || metadata.hasAlpha;
+    
     // Calculate transformed dimensions and position
     const imageZoomValue = typeof imageZoom === 'number' ? imageZoom : parseFloat(imageZoom as string);
     const imageXPercent = typeof imageX === 'number' ? imageX / 100 : parseFloat(imageX as string) / 100;
@@ -329,13 +332,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Composite image
       console.log('Compositing image...');
-      const finalImage = await transformedImage
-        .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
-        .jpeg({ quality: 90 })
-        .toBuffer();
+      
+      // Choose output format based on transparency
+      let finalImage: Buffer;
+      let contentType: string;
+      let fileExtension: string;
+      
+      if (hasAlpha) {
+        console.log('Source has transparency, outputting PNG...');
+        finalImage = await transformedImage
+          .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
+          .png({ quality: 90 })
+          .toBuffer();
+        contentType = 'image/png';
+        fileExtension = 'png';
+      } else {
+        console.log('Source has no transparency, outputting JPEG...');
+        finalImage = await transformedImage
+          .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
+          .jpeg({ quality: 90 })
+          .toBuffer();
+        contentType = 'image/jpeg';
+        fileExtension = 'jpg';
+      }
 
       console.log('Image processing complete, sending response...');
-      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'public, max-age=31536000');
       
       // Set Content-Disposition for downloads
@@ -344,7 +366,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         : Boolean(params.download);
         
       if (isDownload) {
-        res.setHeader('Content-Disposition', `attachment; filename="overlay-${Date.now()}.jpg"`);
+        res.setHeader('Content-Disposition', `attachment; filename="overlay-${Date.now()}.${fileExtension}"`);
       }
       
       res.send(finalImage);
