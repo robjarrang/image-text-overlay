@@ -12,8 +12,8 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
   const [activeButton, setActiveButton] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState<boolean>(false);
   
-  // Function to handle text alignment
-  const handleAlignmentClick = (alignment: 'left' | 'center' | 'right') => {
+  // Add this function to handle block alignment
+  const handleBlockAlignment = (alignment: 'left' | 'center' | 'right') => {
     if (!textareaRef.current) return;
     
     setActiveButton(alignment);
@@ -22,20 +22,33 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const selectedText = value.substring(start, end);
+    const text = value;
     
-    if (selectedText) {
-      const newText = `[${alignment}]${selectedText}`;
-      const newValue = value.substring(0, start) + newText + value.substring(end);
-      onChange(newValue);
-      
-      // Restore cursor position after the tag
-      setTimeout(() => {
-        textarea.focus();
-        textarea.selectionStart = start + alignment.length + 2; // +2 for the brackets
-        textarea.selectionEnd = start + alignment.length + 2 + selectedText.length;
-      }, 0);
+    // Find the start of the first line in selection
+    let lineStart = start;
+    while (lineStart > 0 && text[lineStart - 1] !== '\n') {
+      lineStart--;
     }
+    
+    // Check if there's already an alignment tag at the beginning of this block
+    const beforeSelection = text.substring(0, lineStart);
+    const afterLineStart = text.substring(lineStart);
+    
+    // Remove any existing alignment tag at the current position
+    const cleanedAfter = afterLineStart.replace(/^\[(left|center|right)\]/, '');
+    
+    // Add the new alignment tag
+    const newText = beforeSelection + `[${alignment}]` + cleanedAfter;
+    
+    onChange(newText);
+    
+    // Restore cursor position
+    setTimeout(() => {
+      textarea.focus();
+      const offset = `[${alignment}]`.length;
+      textarea.selectionStart = start + offset;
+      textarea.selectionEnd = end + offset;
+    }, 0);
   };
 
   // Function to handle superscript
@@ -177,7 +190,7 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
             className={`slds-button slds-button_icon slds-button_icon-border-filled ${activeButton === 'left' ? 'button-flash' : ''}`}
             onClick={(e) => { 
               createRipple(e);
-              handleAlignmentClick('left');
+              handleBlockAlignment('left');
             }}
             type="button"
             aria-label="Align text left"
@@ -197,7 +210,7 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
             className={`slds-button slds-button_icon slds-button_icon-border-filled ${activeButton === 'center' ? 'button-flash' : ''}`}
             onClick={(e) => {
               createRipple(e);
-              handleAlignmentClick('center');
+              handleBlockAlignment('center');
             }}
             type="button"
             aria-label="Align text center"
@@ -217,7 +230,7 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
             className={`slds-button slds-button_icon slds-button_icon-border-filled ${activeButton === 'right' ? 'button-flash' : ''}`}
             onClick={(e) => {
               createRipple(e);
-              handleAlignmentClick('right');
+              handleBlockAlignment('right');
             }}
             type="button"
             aria-label="Align text right"
