@@ -87,6 +87,37 @@ export function CanvasGenerator({
     loadFont();
   }, []);
 
+  const wrapText = (
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    maxWidth: number,
+    fontSize: number
+  ): string[] => {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+    
+    ctx.font = `${fontSize}px HelveticaNeue-Condensed`;
+    
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const metrics = ctx.measureText(testLine);
+      
+      if (metrics.width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    return lines;
+  };
+
   const processText = (text: string) => {
     const lines = text.split('\n');
     let currentAlign = 'left'; // Default alignment
@@ -167,42 +198,47 @@ export function CanvasGenerator({
     canvasHeight: number
   ) => {
     const actualX = (overlay.x / 100) * canvasWidth;
-    const actualY = (overlay.y / 100) * canvasHeight; // Fixed: use canvasHeight for Y-axis
+    const actualY = (overlay.y / 100) * canvasHeight;
     const scaledFontSize = (overlay.fontSize / 100) * canvasWidth;
+    const maxWidth = canvasWidth * 0.8; // 80% of canvas width for wrapping
     const lines = processText(overlay.text);
 
-    lines.forEach((line, lineIndex) => {
-      let lineX = actualX;
-      const lineHeight = scaledFontSize * 1.2;
-      const currentY = actualY + lineIndex * lineHeight;
-      
-      // Calculate total width for alignment
-      let totalWidth = 0;
-      line.parts.forEach(part => {
-        const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
-        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
-        totalWidth += ctx.measureText(part.text).width;
-      });
-      
-      // Adjust position based on alignment
-      if (line.align === 'center') {
-        lineX = actualX - (totalWidth / 2);
-      } else if (line.align === 'right') {
-        lineX = actualX - totalWidth;
-      }
-      
-      // Draw each part of the line
-      let currentX = lineX;
-      line.parts.forEach(part => {
-        const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
-        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
-        ctx.fillStyle = overlay.fontColor;
-        ctx.fillText(
-          part.text,
-          currentX,
-          currentY - (part.isSuper ? scaledFontSize * 0.3 : 0)
-        );
-        currentX += ctx.measureText(part.text).width;
+    let currentLineIndex = 0;
+
+    lines.forEach((line, originalLineIndex) => {
+      // For each processed line, we'll handle wrapping and then draw
+      line.parts.forEach((part, partIndex) => {
+        // Apply wrapping to each text part separately to preserve formatting
+        const wrappedLines = wrapText(ctx, part.text, maxWidth, scaledFontSize);
+        
+        wrappedLines.forEach((wrappedLineText, wrappedIndex) => {
+          let lineX = actualX;
+          const lineHeight = scaledFontSize * 1.2;
+          const currentY = actualY + currentLineIndex * lineHeight;
+          
+          // Calculate text width for alignment (simplified for wrapped text)
+          const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+          ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+          const textWidth = ctx.measureText(wrappedLineText).width;
+          
+          // Adjust position based on alignment
+          if (line.align === 'center') {
+            lineX = actualX - (textWidth / 2);
+          } else if (line.align === 'right') {
+            lineX = actualX - textWidth;
+          }
+          
+          // Draw the wrapped line part
+          ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+          ctx.fillStyle = overlay.fontColor;
+          ctx.fillText(
+            wrappedLineText,
+            lineX,
+            currentY - (part.isSuper ? scaledFontSize * 0.3 : 0)
+          );
+          
+          currentLineIndex++;
+        });
       });
     });
   };
