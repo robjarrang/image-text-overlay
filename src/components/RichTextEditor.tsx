@@ -375,9 +375,19 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
         </div>
         <div className="slds-m-top_small">
           <p className="slds-text-body_small">
-            <strong>Tip:</strong> Select text first, then click a formatting button to apply formatting. 
-            For symbols, position your cursor where you want the symbol, then click its button.
+            <strong>Tip:</strong> Alignment tags apply to the current line and all following lines until a new alignment is set. 
+            For example, adding [center] once will center all subsequent lines.
           </p>
+          <div className="slds-box slds-theme_shade slds-m-top_x-small">
+            <p className="slds-text-body_small slds-m-bottom_x-small"><strong>Example:</strong></p>
+            <pre className="slds-text-body_small" style={{ fontFamily: 'monospace', background: 'rgba(0,0,0,0.05)', padding: '0.5rem', borderRadius: '4px' }}>
+[center]This line is centered
+This is also centered
+Still centered
+[left]Now back to left
+This stays left
+            </pre>
+          </div>
         </div>
       </div>
       
