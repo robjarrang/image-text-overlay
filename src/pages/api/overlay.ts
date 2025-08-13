@@ -71,6 +71,85 @@ async function loadFont(): Promise<opentype.Font> {
   return cachedFont;
 }
 
+const wrapText = (
+  font: opentype.Font,
+  text: string,
+  maxWidth: number,
+  fontSize: number
+): string[] => {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+  
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const testPath = font.getPath(testLine, 0, 0, fontSize);
+    const bbox = testPath.getBoundingBox();
+    const textWidth = bbox.x2 - bbox.x1;
+    
+    if (textWidth > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+  
+  return lines;
+};
+
+const processText = (text: string) => {
+  const lines = text.split('\n');
+  let currentAlign = 'left'; // Default alignment
+  
+  return lines.map(line => {
+    // Check if this line has an alignment tag
+    const alignMatch = line.match(/\[(center|left|right)\]/);
+    if (alignMatch) {
+      // Update the current alignment for this and subsequent lines
+      currentAlign = alignMatch[1];
+      // Remove the alignment tag from the line
+      line = line.replace(/\[(center|left|right)\]/g, '');
+    }
+    
+    // Process superscript
+    const parts: Array<{ text: string; isSuper: boolean }> = [];
+    let currentIndex = 0;
+    
+    const superscriptRegex = /\^{([^}]+)}/g;
+    let match;
+    
+    while ((match = superscriptRegex.exec(line)) !== null) {
+      if (match.index > currentIndex) {
+        parts.push({
+          text: line.slice(currentIndex, match.index),
+          isSuper: false
+        });
+      }
+      
+      parts.push({
+        text: match[1],
+        isSuper: true
+      });
+      
+      currentIndex = match.index + match[0].length;
+    }
+    
+    if (currentIndex < line.length) {
+      parts.push({
+        text: line.slice(currentIndex),
+        isSuper: false
+      });
+    }
+    
+    return { parts, align: currentAlign }; // Use the current alignment
+  });
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   console.log('Request received:', {
     method: req.method,
@@ -247,110 +326,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Skip empty overlays
         if (!text || text.trim() === '') continue;
         
-        // Process text lines for this overlay
-        const lines = text.split('\n');
+        const actualX = (x / 100) * imageWidth;
+        const actualY = (y / 100) * imageHeight;
         const actualFontSize = Math.round((fontSize / 100) * imageWidth);
-        
-        for (const [index, line] of lines.entries()) {
-          let processedLine = line;
-          let xPos = Math.round((x / 100) * imageWidth);
-          
-          // Handle alignment
-          if (processedLine.match(/^\[(left|center|right)\]/)) {
-            const align = processedLine.match(/^\[(left|center|right)\]/)![1];
-            processedLine = processedLine.replace(/^\[(left|center|right)\]/, '');
-            console.log('Processing aligned text:', { align, processedLine });
+        const maxWidth = imageWidth * 0.8; // 80% of image width for wrapping
+        const lines = processText(text);
+
+        let currentLineIndex = 0;
+
+        lines.forEach((line, originalLineIndex) => {
+          // For each processed line, handle wrapping and then draw
+          line.parts.forEach((part, partIndex) => {
+            // Apply wrapping to each text part separately to preserve formatting
+            const wrappedLines = wrapText(font, part.text, maxWidth, actualFontSize);
             
-            // Process text with superscript first to get accurate width
-            const parts: Array<{ text: string; isSuper: boolean }> = [];
-            let currentIndex = 0;
-            const superscriptRegex = /\^{([^}]+)}/g;
-            let match;
-
-            while ((match = superscriptRegex.exec(processedLine)) !== null) {
-              if (match.index > currentIndex) {
-                parts.push({
-                  text: processedLine.slice(currentIndex, match.index),
-                  isSuper: false
-                });
-              }
-
-              parts.push({
-                text: match[1],
-                isSuper: true
-              });
-
-              currentIndex = match.index + match[0].length;
-            }
-
-            if (currentIndex < processedLine.length) {
-              parts.push({
-                text: processedLine.slice(currentIndex),
-                isSuper: false
-              });
-            }
-
-            // Calculate total width considering both regular and superscript text
-            let totalWidth = 0;
-            for (const part of parts) {
+            wrappedLines.forEach((wrappedLineText, wrappedIndex) => {
+              const lineHeight = actualFontSize * 1.2;
+              const currentY = actualY + currentLineIndex * lineHeight;
+              
+              // Calculate text width for alignment
               const partSize = part.isSuper ? actualFontSize * 0.7 : actualFontSize;
-              const testPath = font.getPath(part.text, 0, 0, partSize);
+              const testPath = font.getPath(wrappedLineText, 0, 0, partSize);
               const bbox = testPath.getBoundingBox();
-              totalWidth += bbox.x2 - bbox.x1;
-            }
-
-            if (align === 'center') {
-              xPos = Math.round((imageWidth - totalWidth) / 2);
-            } else if (align === 'right') {
-              xPos = Math.round(imageWidth - totalWidth - ((100 - x) / 100 * imageWidth));
-            }
-          }
-
-          // Reset position for first text part
-          let currentX = xPos;
-          const yPos = Math.round((y / 100) * imageHeight + (index * actualFontSize * 1.2));
-
-          // Process and render text parts
-          const parts: Array<{ text: string; isSuper: boolean }> = [];
-          let currentIndex = 0;
-          const superscriptRegex = /\^{([^}]+)}/g;
-          let match;
-
-          while ((match = superscriptRegex.exec(processedLine)) !== null) {
-            if (match.index > currentIndex) {
-              parts.push({
-                text: processedLine.slice(currentIndex, match.index),
-                isSuper: false
-              });
-            }
-
-            parts.push({
-              text: match[1],
-              isSuper: true
+              const textWidth = bbox.x2 - bbox.x1;
+              
+              // Calculate X position based on alignment
+              let lineX = actualX;
+              if (line.align === 'center') {
+                lineX = (imageWidth - textWidth) / 2;
+              } else if (line.align === 'right') {
+                lineX = imageWidth - textWidth - ((100 - x) / 100 * imageWidth);
+              }
+              
+              // Draw the wrapped line part
+              const partY = part.isSuper ? currentY - (actualFontSize * 0.3) : currentY;
+              const path = font.getPath(wrappedLineText, lineX, partY, partSize);
+              svgPaths += `<path d="${path.toPathData()}" fill="${fontColor}" />`;
+              
+              currentLineIndex++;
             });
-
-            currentIndex = match.index + match[0].length;
-          }
-
-          if (currentIndex < processedLine.length) {
-            parts.push({
-              text: processedLine.slice(currentIndex),
-              isSuper: false
-            });
-          }
-
-          // Render each part
-          for (const part of parts) {
-            const partSize = part.isSuper ? actualFontSize * 0.7 : actualFontSize;
-            const partY = part.isSuper ? yPos - (actualFontSize * 0.3) : yPos;
-            const path = font.getPath(part.text, currentX, partY, partSize);
-            svgPaths += `<path d="${path.toPathData()}" fill="${fontColor}" />`;
-
-            // Move x position for next part
-            const bbox = path.getBoundingBox();
-            currentX += bbox.x2 - bbox.x1;
-          }
-        }
+          });
+        });
       }
 
       // Create SVG
