@@ -88,13 +88,20 @@ export function CanvasGenerator({
   }, []);
 
   const processText = (text: string) => {
-    return text.split('\n').map(line => {
-      let align = 'left';
-      line = line.replace(/\[(center|left|right)\]/g, (_, a) => {
-        align = a;
-        return '';
-      });
+    const lines = text.split('\n');
+    let currentAlign = 'left'; // Default alignment
+    
+    return lines.map(line => {
+      // Check if this line has an alignment tag
+      const alignMatch = line.match(/\[(center|left|right)\]/);
+      if (alignMatch) {
+        // Update the current alignment for this and subsequent lines
+        currentAlign = alignMatch[1];
+        // Remove the alignment tag from the line
+        line = line.replace(/\[(center|left|right)\]/g, '');
+      }
       
+      // Process superscript
       const parts: Array<{ text: string; isSuper: boolean }> = [];
       let currentIndex = 0;
       
@@ -124,7 +131,7 @@ export function CanvasGenerator({
         });
       }
       
-      return { parts, align };
+      return { parts, align: currentAlign }; // Use the current alignment
     });
   };
 
