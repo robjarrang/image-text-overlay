@@ -97,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Handle backward compatibility for GET requests and legacy format
     let textOverlays: TextOverlay[] = [];
-    const { imageUrl, brightness = '100', imageZoom = 1, imageX = 0, imageY = 0 } = params;
+    const { imageUrl, brightness = '100', imageZoom = 1, imageX = 0, imageY = 0, width, height } = params;
     
     // For backward compatibility with single text overlay
     if (req.method === 'GET' || !params.textOverlays) {
@@ -123,13 +123,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       textOverlays = params.textOverlays as TextOverlay[];
     }
     
-    if (!imageUrl) {
+    // Check if this is transparent mode or regular image mode
+    const isTransparentMode = imageUrl === 'transparent';
+    
+    if (!imageUrl && !isTransparentMode) {
       return res.status(400).json({ error: 'Image URL is required' });
     }
 
     console.log('Processing request with overlays:', { 
       overlayCount: textOverlays.length, 
       imageUrl, 
+      isTransparentMode,
+      width,
+      height,
       brightness, 
       imageZoom, 
       imageX, 
@@ -144,64 +150,89 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     console.log('Font loaded successfully');
 
-    // Fetch and process image
-    console.log('Fetching image from URL...');
-    let imageBuffer: Buffer;
-    if ((imageUrl as string).startsWith('data:image/')) {
-      // If imageUrl is a base64 data URL, extract the base64 part
-      const base64Data = (imageUrl as string).split(',')[1];
-      imageBuffer = Buffer.from(base64Data, 'base64');
-      console.log('Processed base64 image upload, buffer size:', imageBuffer.length);
-    } else {
-      const imageResponse = await fetch(imageUrl as string);
-      if (!imageResponse.ok) {
-        console.error('Image fetch failed:', imageResponse.status, imageResponse.statusText);
-        return res.status(400).json({ error: `Failed to fetch image: ${imageResponse.statusText}` });
-      }
-      imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-      console.log('Image fetched from URL, size:', imageBuffer.length);
-    }
+    let imageWidth: number;
+    let imageHeight: number;
+    let transformedImage: sharp.Sharp;
+    let hasAlpha: boolean;
 
-    const image = sharp(imageBuffer);
-    const metadata = await image.metadata();
-    console.log('Image metadata:', metadata);
-    
-    const imageWidth = metadata.width || MAX_WIDTH;
-    const imageHeight = metadata.height || MAX_HEIGHT;
-    
-    // Check if source image has transparency
-    const hasAlpha = metadata.channels === 4 || metadata.hasAlpha;
-    
-    // Calculate transformed dimensions and position
-    const imageZoomValue = typeof imageZoom === 'number' ? imageZoom : parseFloat(imageZoom as string);
-    const imageXPercent = typeof imageX === 'number' ? imageX / 100 : parseFloat(imageX as string) / 100;
-    const imageYPercent = typeof imageY === 'number' ? imageY / 100 : parseFloat(imageY as string) / 100;
-    
-    const scaledWidth = imageWidth * imageZoomValue;
-    const scaledHeight = imageHeight * imageZoomValue;
-    const offsetX = (scaledWidth - imageWidth) * imageXPercent;
-    const offsetY = (scaledHeight - imageHeight) * imageYPercent;
-
-    // Create a new Sharp instance with the transformed image
-    const transformedImage = sharp(imageBuffer)
-      .resize(scaledWidth, scaledHeight)
-      .extract({
-        left: Math.round(offsetX),
-        top: Math.round(offsetY),
-        width: imageWidth,
-        height: imageHeight
+    if (isTransparentMode) {
+      // Handle transparent canvas mode
+      console.log('Creating transparent canvas...');
+      imageWidth = parseInt(width as string) || 800;
+      imageHeight = parseInt(height as string) || 600;
+      
+      // Create a transparent image
+      transformedImage = sharp({
+        create: {
+          width: imageWidth,
+          height: imageHeight,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        }
       });
+      
+      hasAlpha = true;
+      console.log('Transparent canvas created:', { width: imageWidth, height: imageHeight });
+    } else {
+      // Fetch and process image
+      console.log('Fetching image from URL...');
+      let imageBuffer: Buffer;
+      if ((imageUrl as string).startsWith('data:image/')) {
+        // If imageUrl is a base64 data URL, extract the base64 part
+        const base64Data = (imageUrl as string).split(',')[1];
+        imageBuffer = Buffer.from(base64Data, 'base64');
+        console.log('Processed base64 image upload, buffer size:', imageBuffer.length);
+      } else {
+        const imageResponse = await fetch(imageUrl as string);
+        if (!imageResponse.ok) {
+          console.error('Image fetch failed:', imageResponse.status, imageResponse.statusText);
+          return res.status(400).json({ error: `Failed to fetch image: ${imageResponse.statusText}` });
+        }
+        imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+        console.log('Image fetched from URL, size:', imageBuffer.length);
+      }
 
-    // Apply brightness adjustment if not 100%
-    const brightnessValue = parseInt(brightness as string);
-    if (brightnessValue !== 100) {
-      // Use modulate to adjust brightness
-      // modulate brightnessMultiplier is between 0 and Infinity, where 1 is no change,
-      // values < 1 darken the image, values > 1 brighten it
-      // Convert our scale (0-200) to sharp's scale (0-Infinity)
-      const brightnessMultiplier = brightnessValue / 100;
-      transformedImage.modulate({ brightness: brightnessMultiplier });
-      console.log(`Applied brightness adjustment: ${brightnessValue}%`);
+      const image = sharp(imageBuffer);
+      const metadata = await image.metadata();
+      console.log('Image metadata:', metadata);
+      
+      imageWidth = metadata.width || MAX_WIDTH;
+      imageHeight = metadata.height || MAX_HEIGHT;
+      
+      // Check if source image has transparency
+      hasAlpha = metadata.channels === 4 || Boolean(metadata.hasAlpha);
+      
+      // Calculate transformed dimensions and position
+      const imageZoomValue = typeof imageZoom === 'number' ? imageZoom : parseFloat(imageZoom as string);
+      const imageXPercent = typeof imageX === 'number' ? imageX / 100 : parseFloat(imageX as string) / 100;
+      const imageYPercent = typeof imageY === 'number' ? imageY / 100 : parseFloat(imageY as string) / 100;
+      
+      const scaledWidth = imageWidth * imageZoomValue;
+      const scaledHeight = imageHeight * imageZoomValue;
+      const offsetX = (scaledWidth - imageWidth) * imageXPercent;
+      const offsetY = (scaledHeight - imageHeight) * imageYPercent;
+
+      // Create a new Sharp instance with the transformed image
+      transformedImage = sharp(imageBuffer)
+        .resize(scaledWidth, scaledHeight)
+        .extract({
+          left: Math.round(offsetX),
+          top: Math.round(offsetY),
+          width: imageWidth,
+          height: imageHeight
+        });
+
+      // Apply brightness adjustment if not 100% and not transparent mode
+      const brightnessValue = parseInt(brightness as string);
+      if (brightnessValue !== 100) {
+        // Use modulate to adjust brightness
+        // modulate brightnessMultiplier is between 0 and Infinity, where 1 is no change,
+        // values < 1 darken the image, values > 1 brighten it
+        // Convert our scale (0-200) to sharp's scale (0-Infinity)
+        const brightnessMultiplier = brightnessValue / 100;
+        transformedImage.modulate({ brightness: brightnessMultiplier });
+        console.log(`Applied brightness adjustment: ${brightnessValue}%`);
+      }
     }
 
     // Process all text overlays

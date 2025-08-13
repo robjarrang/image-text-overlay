@@ -47,7 +47,7 @@ export function ClientApp() {
     imageY: 0
   });
   const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
-  const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload'>('url');
+  const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload' | 'transparent'>('url');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,6 +72,26 @@ export function ClientApp() {
     textStyle: false
   });
   
+  // Function to handle image source tab changes
+  const handleImageSourceTabChange = (tab: 'url' | 'upload' | 'transparent') => {
+    setActiveImageSourceTab(tab);
+    setError(null);
+    
+    if (tab === 'transparent') {
+      // Set a special imageUrl to indicate transparent mode
+      setFormState(prev => ({ ...prev, imageUrl: 'transparent' }));
+      setOriginalImageUrl('transparent');
+    } else if (tab === 'url' && formState.imageUrl === 'transparent') {
+      // Clear transparent mode when switching to URL
+      setFormState(prev => ({ ...prev, imageUrl: '' }));
+      setOriginalImageUrl('');
+    } else if (tab === 'upload' && formState.imageUrl === 'transparent') {
+      // Clear transparent mode when switching to upload
+      setFormState(prev => ({ ...prev, imageUrl: '' }));
+      setOriginalImageUrl('');
+    }
+  };
+
   // Function to generate a unique ID
   const generateId = () => {
     return `overlay-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -177,6 +197,12 @@ export function ClientApp() {
     const stringKeys: StringKeys[] = [];  // Removed imageUrl
     const urlState: Partial<FormState> = {};
     
+    // Handle mode parameter
+    const mode = params.get('mode') as 'url' | 'upload' | 'transparent' | null;
+    if (mode && ['url', 'upload', 'transparent'].includes(mode)) {
+      setActiveImageSourceTab(mode);
+    }
+    
     numericKeys.forEach(key => {
       const value = params.get(key);
       if (value) {
@@ -207,9 +233,9 @@ export function ClientApp() {
       }
     }
 
-    // Handle imageUrl separately
+    // Handle imageUrl separately - skip for transparent mode
     const imageUrl = params.get('imageUrl');
-    if (imageUrl) {
+    if (imageUrl && mode !== 'transparent') {
       setIsLoading(true);
       setOriginalImageUrl(imageUrl); // Store the original URL from params
       fetch('/api/load-images', {
@@ -234,6 +260,14 @@ export function ClientApp() {
         setOriginalImageUrl(''); // Clear original URL on error
         setIsLoading(false);
       });
+    } else if (mode === 'transparent') {
+      // Set transparent mode
+      setFormState(prev => ({
+        ...prev,
+        ...urlState,
+        imageUrl: 'transparent'
+      }));
+      setOriginalImageUrl('transparent');
     } else if (Object.keys(urlState).length) {
       setFormState(prev => ({ ...prev, ...urlState }));
     }
@@ -346,8 +380,8 @@ export function ClientApp() {
       }
 
       let response;
-      // Use POST if in upload mode or if the imageUrl is a base64 data URL
-      if (activeImageSourceTab === 'upload' || formState.imageUrl.startsWith('data:image/')) {
+      // Use POST for upload mode, transparent mode, or base64 data URLs
+      if (activeImageSourceTab === 'upload' || activeImageSourceTab === 'transparent' || formState.imageUrl.startsWith('data:image/')) {
         const payload = { ...formState, download: true };
         response = await fetch('/api/overlay', {
           method: 'POST',
@@ -393,6 +427,9 @@ export function ClientApp() {
   const handleShare = () => {
     const url = new URL(window.location.href);
     
+    // Add the image source mode
+    url.searchParams.set('mode', activeImageSourceTab);
+    
     // Add the basic parameters
     const baseParams: (keyof Omit<FormState, 'textOverlays' | 'activeOverlayId' | 'imageUrl'>)[] = 
       ['width', 'height', 'brightness', 'imageZoom', 'imageX', 'imageY'];
@@ -401,8 +438,10 @@ export function ClientApp() {
       url.searchParams.set(key, String(formState[key]));
     });
     
-    // Add the image URL (using original URL, not base64)
-    url.searchParams.set('imageUrl', originalImageUrl);
+    // Add the image URL (using original URL, not base64) - skip for transparent mode
+    if (activeImageSourceTab !== 'transparent') {
+      url.searchParams.set('imageUrl', originalImageUrl);
+    }
     
     // Encode text overlays as JSON in the URL
     if (formState.textOverlays.length > 0) {
@@ -516,7 +555,7 @@ export function ClientApp() {
                                 aria-selected={activeImageSourceTab === 'url'}
                                 aria-controls="image-url-tab-content"
                                 id="image-url-tab"
-                                onClick={() => setActiveImageSourceTab('url')}
+                                onClick={() => handleImageSourceTabChange('url')}
                               >
                                 Image URL
                               </button>
@@ -528,9 +567,21 @@ export function ClientApp() {
                                 aria-selected={activeImageSourceTab === 'upload'}
                                 aria-controls="image-upload-tab-content"
                                 id="image-upload-tab"
-                                onClick={() => setActiveImageSourceTab('upload')}
+                                onClick={() => handleImageSourceTabChange('upload')}
                               >
                                 Image Upload
+                              </button>
+                            </li>
+                            <li className={`slds-tabs_scoped__item ${activeImageSourceTab === 'transparent' ? 'slds-is-active' : ''}`} role="presentation">
+                              <button
+                                className="slds-tabs_scoped__link"
+                                role="tab"
+                                aria-selected={activeImageSourceTab === 'transparent'}
+                                aria-controls="transparent-canvas-tab-content"
+                                id="transparent-canvas-tab"
+                                onClick={() => handleImageSourceTabChange('transparent')}
+                              >
+                                Transparent Canvas
                               </button>
                             </li>
                           </ul>
@@ -603,13 +654,79 @@ export function ClientApp() {
                               </div>
                             </div>
                           </div>
+                          <div id="transparent-canvas-tab-content" className={`slds-tabs_scoped__content ${activeImageSourceTab === 'transparent' ? '' : 'slds-hide'}`} role="tabpanel" aria-labelledby="transparent-canvas-tab">
+                            <div className="slds-notify slds-notify_alert slds-theme_info slds-m-bottom_small" role="alert">
+                              <div className="slds-notify__content">
+                                <div className="slds-media slds-media_center">
+                                  <div className="slds-media__figure">
+                                    <svg className="slds-icon slds-icon_small" aria-hidden="true">
+                                      <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#info"></use>
+                                    </svg>
+                                  </div>
+                                  <div className="slds-media__body">
+                                    <p>Create a transparent background canvas with custom dimensions. Perfect for creating text-only images or overlays.</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="slds-grid slds-gutters_small">
+                              <div className="slds-col">
+                                <div className="slds-form-element">
+                                  <label className="slds-form-element__label" htmlFor="canvasWidth">
+                                    <abbr className="slds-required" title="required">*</abbr>
+                                    Canvas Width (px)
+                                  </label>
+                                  <div className="slds-form-element__control">
+                                    <input
+                                      type="number"
+                                      id="canvasWidth"
+                                      name="width"
+                                      value={formState.width}
+                                      onChange={handleInputChange}
+                                      className="slds-input"
+                                      min="100"
+                                      max="2000"
+                                      step="1"
+                                      required
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="slds-col">
+                                <div className="slds-form-element">
+                                  <label className="slds-form-element__label" htmlFor="canvasHeight">
+                                    <abbr className="slds-required" title="required">*</abbr>
+                                    Canvas Height (px)
+                                  </label>
+                                  <div className="slds-form-element__control">
+                                    <input
+                                      type="number"
+                                      id="canvasHeight"
+                                      name="height"
+                                      value={formState.height}
+                                      onChange={handleInputChange}
+                                      className="slds-input"
+                                      min="100"
+                                      max="2000"
+                                      step="1"
+                                      required
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="slds-form-element__help slds-m-top_small">
+                              Set custom dimensions for your transparent canvas. Common sizes: 800x600, 1200x630 (social media), 1920x1080 (HD)
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
               
-                {/* Image Adjustments Accordion */}
+                {/* Image Adjustments Accordion - hidden for transparent mode */}
+                {activeImageSourceTab !== 'transparent' && (
                 <div className={`slds-accordion__section ${openAccordions.imageAdjustments ? 'slds-is-open' : ''}`}>
                   <div className="slds-accordion__summary">
                     <h3 className="slds-accordion__summary-heading">
@@ -747,6 +864,7 @@ export function ClientApp() {
                     </div>
                   </div>
                 </div>
+                )}
                 
                 {/* Text Overlays Accordion */}
                 <div className={`slds-accordion__section ${openAccordions.textOverlays ? 'slds-is-open' : ''}`}>
@@ -1300,7 +1418,7 @@ export function ClientApp() {
                 </div>
                 <p className="slds-text-heading_small slds-m-bottom_small">No image selected</p>
                 <p className="slds-text-body_regular slds-text-color_weak">
-                  Please enter an image URL or upload an image to see a preview
+                  Please enter an image URL, upload an image, or create a transparent canvas to see a preview
                 </p>
               </div>
             ) : (

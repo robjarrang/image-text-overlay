@@ -257,8 +257,32 @@ export function CanvasGenerator({
       onError('Failed to load image');
     };
     
-    if (imageUrl) {
+    if (imageUrl && imageUrl !== 'transparent') {
       image.src = imageUrl;
+    } else if (imageUrl === 'transparent') {
+      // Handle transparent canvas mode
+      const canvasWidth = width;
+      const canvasHeight = height;
+      setImageAspectRatio(canvasWidth / canvasHeight);
+      
+      onImageLoad?.({ width: canvasWidth, height: canvasHeight });
+      
+      // Set the canvas size
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+      
+      const displayCtx = canvas.getContext('2d');
+      if (!displayCtx) return;
+
+      // Clear the canvas to transparent
+      displayCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+      
+      // Draw all text overlays on transparent background
+      textOverlays.forEach(overlay => {
+        drawTextOverlay(displayCtx, overlay, canvasWidth, canvasHeight);
+      });
+      
+      onLoad();
     } else {
       canvas.width = 800;
       canvas.height = 600;
