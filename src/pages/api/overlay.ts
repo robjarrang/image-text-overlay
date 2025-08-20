@@ -188,15 +188,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         y = '10'
       } = params;
       
+      // Apply font size adjustment for legacy URLs due to font changes
+      // Reduce legacy font size by approximately 41% (11 -> 6.5 is about 59% of original)
+      const originalFontSize = parseInt(fontSize as string);
+      const adjustedFontSize = Math.round(originalFontSize * 0.59 * 10) / 10; // Round to 1 decimal place
+      
       // Create a single text overlay from the parameters
       textOverlays = [{
         id: 'legacy-overlay',
         text: text as string,
-        fontSize: parseInt(fontSize as string),
+        fontSize: adjustedFontSize,
         fontColor: fontColor as string,
         x: parseInt(x as string),
         y: parseInt(y as string)
       }];
+      
+      console.log(`Legacy API request: Original fontSize: ${originalFontSize}, Adjusted fontSize: ${adjustedFontSize}`);
     } else {
       // Use the array of text overlays provided
       textOverlays = params.textOverlays as TextOverlay[];

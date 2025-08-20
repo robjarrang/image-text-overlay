@@ -241,10 +241,15 @@ export function ClientApp() {
       
       // If legacy text parameters exist, convert them to the new overlay format
       if (legacyText && legacyFontSize && legacyFontColor && legacyX !== null && legacyY !== null) {
+        // Apply font size adjustment for legacy URLs due to font changes
+        // Reduce legacy font size by approximately 41% (11 -> 6.5 is about 59% of original)
+        const originalFontSize = Number(legacyFontSize);
+        const adjustedFontSize = Math.round(originalFontSize * 0.59 * 10) / 10; // Round to 1 decimal place
+        
         const legacyOverlay: TextOverlay = {
           id: 'legacy-overlay',
           text: decodeURIComponent(legacyText.replace(/\+/g, ' ')), // Handle URL encoding
-          fontSize: Number(legacyFontSize),
+          fontSize: adjustedFontSize,
           fontColor: decodeURIComponent(legacyFontColor),
           x: Number(legacyX),
           y: Number(legacyY)
@@ -253,7 +258,7 @@ export function ClientApp() {
         urlState.textOverlays = [legacyOverlay];
         urlState.activeOverlayId = legacyOverlay.id;
         
-        console.log('Converted legacy URL parameters to overlay:', legacyOverlay);
+        console.log(`Converted legacy URL parameters to overlay. Original fontSize: ${originalFontSize}, Adjusted fontSize: ${adjustedFontSize}`, legacyOverlay);
       }
     }
 
