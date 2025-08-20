@@ -231,6 +231,30 @@ export function ClientApp() {
         console.error('Failed to parse text overlays from URL:', error);
         // Continue with other parameters even if overlay parsing fails
       }
+    } else {
+      // Handle legacy URL format (individual text parameters)
+      const legacyText = params.get('text');
+      const legacyFontSize = params.get('fontSize');
+      const legacyFontColor = params.get('fontColor');
+      const legacyX = params.get('x');
+      const legacyY = params.get('y');
+      
+      // If legacy text parameters exist, convert them to the new overlay format
+      if (legacyText && legacyFontSize && legacyFontColor && legacyX !== null && legacyY !== null) {
+        const legacyOverlay: TextOverlay = {
+          id: 'legacy-overlay',
+          text: decodeURIComponent(legacyText.replace(/\+/g, ' ')), // Handle URL encoding
+          fontSize: Number(legacyFontSize),
+          fontColor: decodeURIComponent(legacyFontColor),
+          x: Number(legacyX),
+          y: Number(legacyY)
+        };
+        
+        urlState.textOverlays = [legacyOverlay];
+        urlState.activeOverlayId = legacyOverlay.id;
+        
+        console.log('Converted legacy URL parameters to overlay:', legacyOverlay);
+      }
     }
 
     // Handle imageUrl separately - skip for transparent mode
