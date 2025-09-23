@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import sharp from 'sharp';
 import * as opentype from 'opentype.js';
 import { base64FontData } from '../../utils/fontData';
-import { TextOverlay } from '../../components/ClientApp';
+import { TextOverlay, ImageOverlay } from '../../components/ClientApp';
 
 export const config = {
   api: {
@@ -22,6 +22,7 @@ let cachedFont: opentype.Font | null = null;
 
 interface OverlayParams {
   textOverlays: TextOverlay[];
+  imageOverlays: ImageOverlay[];
   imageUrl: string;
   brightness?: string;
   imageZoom?: number;
@@ -30,6 +31,10 @@ interface OverlayParams {
   download?: boolean;
   isDesktopMobileMode?: boolean;
   desktopMobileVersion?: 'desktop' | 'mobile';
+  desktopWidth?: number;
+  desktopHeight?: number;
+  mobileWidth?: number;
+  mobileHeight?: number;
 }
 
 async function loadFont(): Promise<opentype.Font> {
@@ -178,6 +183,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Handle backward compatibility for GET requests and legacy format
     let textOverlays: TextOverlay[] = [];
+    let imageOverlays: ImageOverlay[] = [];
     const { imageUrl, brightness = '100', imageZoom = 1, imageX = 0, imageY = 0, width, height } = params;
     
     // For backward compatibility with single text overlay
@@ -209,19 +215,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } else {
       // Use the array of text overlays provided
       textOverlays = params.textOverlays as TextOverlay[];
+      // Extract image overlays if provided
+      imageOverlays = (params.imageOverlays as ImageOverlay[]) || [];
     }
     
     // Check if this is transparent mode, desktop/mobile mode, or regular image mode
     const isTransparentMode = imageUrl === 'transparent';
     const isDesktopMobileMode = params.isDesktopMobileMode;
     const desktopMobileVersion = params.desktopMobileVersion || 'desktop';
+    const desktopWidth = params.desktopWidth;
+    const desktopHeight = params.desktopHeight;
+    const mobileWidth = params.mobileWidth;
+    const mobileHeight = params.mobileHeight;
+    
+    console.log('Custom dimensions received:', { desktopWidth, desktopHeight, mobileWidth, mobileHeight, desktopMobileVersion });
     
     if (!imageUrl && !isTransparentMode) {
       return res.status(400).json({ error: 'Image URL is required' });
     }
 
     console.log('Processing request with overlays:', { 
-      overlayCount: textOverlays.length, 
+      textOverlayCount: textOverlays.length,
+      imageOverlayCount: imageOverlays.length,
       imageUrl, 
       isTransparentMode,
       isDesktopMobileMode,
@@ -266,10 +281,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       hasAlpha = true;
       console.log('Transparent canvas created:', { width: imageWidth, height: imageHeight });
     } else if (isDesktopMobileMode) {
-      // Handle desktop/mobile mode with fixed dimensions and logo
+      // Handle desktop/mobile mode with custom dimensions and logo
       console.log('Processing desktop/mobile mode...');
-      imageWidth = 1240;
-      imageHeight = desktopMobileVersion === 'desktop' ? 968 : 1400;
+      imageWidth = desktopMobileVersion === 'desktop' 
+        ? (desktopWidth || 1240) 
+        : (mobileWidth || 1240);
+      imageHeight = desktopMobileVersion === 'desktop' 
+        ? (desktopHeight || 968) 
+        : (mobileHeight || 1400);
+      
+      console.log('Calculated dimensions:', { imageWidth, imageHeight, version: desktopMobileVersion });
       
       // Fetch background image
       const imageResponse = await fetch(imageUrl as string);
@@ -283,36 +304,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const backgroundImage = sharp(backgroundBuffer)
         .resize(imageWidth, imageHeight, { fit: 'cover' });
       
-      // Fetch logo
-      const logoUrl = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
-      console.log('Fetching logo from:', logoUrl);
-      const logoResponse = await fetch(logoUrl);
-      if (!logoResponse.ok) {
-        console.warn('Logo fetch failed, continuing without logo:', logoResponse.status, logoResponse.statusText);
-        transformedImage = backgroundImage;
-      } else {
-        console.log('Logo fetch successful, response status:', logoResponse.status);
-        const logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
-        console.log('Logo buffer size:', logoBuffer.length);
-        const logoWidth = desktopMobileVersion === 'desktop' ? 360 : 484;
-        console.log('Resizing logo to width:', logoWidth);
-        
-        // Resize logo and composite it on the background
-        const resizedLogo = await sharp(logoBuffer)
-          .resize(logoWidth, null, { withoutEnlargement: false })
-          .png()
-          .toBuffer();
-        
-        console.log('Resized logo buffer size:', resizedLogo.length);
-        
-        transformedImage = backgroundImage.composite([{
-          input: resizedLogo,
-          top: 0,
-          left: 20
-        }]);
-        
-        console.log('Logo composited successfully at top-left corner');
-      }
+      // Keep background separate - don't composite logo yet
+      console.log('Background image prepared for desktop/mobile mode');
+      transformedImage = backgroundImage;
       
       hasAlpha = false;
       console.log('Desktop/mobile image prepared:', { width: imageWidth, height: imageHeight, version: desktopMobileVersion });
@@ -385,23 +379,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       // Process each overlay
       for (const overlay of textOverlays) {
-        const { text, fontSize, fontColor, x, y } = overlay;
+        const { text, fontSize, fontColor, x, y, desktopFontSize, mobileFontSize, desktopX, desktopY, mobileX, mobileY } = overlay;
         
         // Skip empty overlays
         if (!text || text.trim() === '') continue;
         
-        // Determine which font size to use based on mode
-        let effectiveFontSize = fontSize;
+        // Use appropriate position based on desktop/mobile mode
+        let effectiveX = x;
+        let effectiveY = y;
         if (isDesktopMobileMode && desktopMobileVersion) {
-          if (desktopMobileVersion === 'desktop' && overlay.desktopFontSize !== undefined) {
-            effectiveFontSize = overlay.desktopFontSize;
-          } else if (desktopMobileVersion === 'mobile' && overlay.mobileFontSize !== undefined) {
-            effectiveFontSize = overlay.mobileFontSize;
+          if (desktopMobileVersion === 'desktop') {
+            effectiveX = desktopX ?? x;
+            effectiveY = desktopY ?? y;
+          } else if (desktopMobileVersion === 'mobile') {
+            effectiveX = mobileX ?? x;
+            effectiveY = mobileY ?? y;
           }
         }
         
-        const actualX = (x / 100) * imageWidth;
-        const actualY = (y / 100) * imageHeight;
+        const actualX = (effectiveX / 100) * imageWidth;
+        const actualY = (effectiveY / 100) * imageHeight;
+        
+        // Use appropriate font size based on desktop/mobile mode
+        let effectiveFontSize = fontSize;
+        if (isDesktopMobileMode && desktopMobileVersion) {
+          if (desktopMobileVersion === 'desktop' && desktopFontSize !== undefined) {
+            effectiveFontSize = desktopFontSize;
+          } else if (desktopMobileVersion === 'mobile' && mobileFontSize !== undefined) {
+            effectiveFontSize = mobileFontSize;
+          }
+        }
+        
         const actualFontSize = Math.round((effectiveFontSize / 100) * imageWidth);
         const maxWidth = imageWidth * 0.8; // 80% of image width for wrapping
         const lines = processText(text);
@@ -412,7 +420,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           // For each processed line, handle wrapping and then draw
           line.parts.forEach((part, partIndex) => {
             // Apply wrapping to each text part separately to preserve formatting
-            const wrappedLines = wrapText(font, part.text, maxWidth, actualFontSize);
+            const displayText = overlay.allCaps ? part.text.toUpperCase() : part.text;
+            const wrappedLines = wrapText(font, displayText, maxWidth, actualFontSize);
             
             wrappedLines.forEach((wrappedLineText, wrappedIndex) => {
               const lineHeight = actualFontSize * 1.2;
@@ -451,6 +460,82 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       `;
       console.log('SVG generated successfully');
 
+      // Process image overlays
+      console.log(`Processing ${imageOverlays.length} image overlays...`);
+      const imageComposites: sharp.OverlayOptions[] = [];
+
+      for (const imageOverlay of imageOverlays) {
+        try {
+          const { imageUrl: overlayImageUrl, width: overlayWidth, height: overlayHeight, x: overlayX, y: overlayY, 
+                  desktopWidth, desktopHeight, desktopX, desktopY, mobileWidth, mobileHeight, mobileX, mobileY } = imageOverlay;
+          
+          // Skip empty overlays
+          if (!overlayImageUrl) continue;
+          
+          // Use appropriate dimensions and position based on desktop/mobile mode
+          let effectiveWidth = overlayWidth;
+          let effectiveHeight = overlayHeight;
+          let effectiveX = overlayX;
+          let effectiveY = overlayY;
+          
+          if (isDesktopMobileMode && desktopMobileVersion) {
+            if (desktopMobileVersion === 'desktop') {
+              effectiveWidth = desktopWidth ?? overlayWidth;
+              effectiveHeight = desktopHeight ?? overlayHeight;
+              effectiveX = desktopX ?? overlayX;
+              effectiveY = desktopY ?? overlayY;
+            } else if (desktopMobileVersion === 'mobile') {
+              effectiveWidth = mobileWidth ?? overlayWidth;
+              effectiveHeight = mobileHeight ?? overlayHeight;
+              effectiveX = mobileX ?? overlayX;
+              effectiveY = mobileY ?? overlayY;
+            }
+          }
+          
+          // Convert percentages to actual pixels
+          const actualWidth = Math.round((effectiveWidth / 100) * imageWidth);
+          const actualHeight = Math.round((effectiveHeight / 100) * imageHeight);
+          const actualX = Math.round((effectiveX / 100) * imageWidth);
+          const actualY = Math.round((effectiveY / 100) * imageHeight);
+          
+          console.log(`Processing image overlay: ${overlayImageUrl.substring(0, 50)}... at (${actualX}, ${actualY}) size ${actualWidth}x${actualHeight}`);
+          
+          // Fetch and process overlay image
+          let overlayBuffer: Buffer;
+          if (overlayImageUrl.startsWith('data:image/')) {
+            // Handle base64 data URL
+            const base64Data = overlayImageUrl.split(',')[1];
+            overlayBuffer = Buffer.from(base64Data, 'base64');
+          } else {
+            // Handle external URL
+            const overlayResponse = await fetch(overlayImageUrl);
+            if (!overlayResponse.ok) {
+              console.warn(`Failed to fetch overlay image: ${overlayResponse.status} ${overlayResponse.statusText}`);
+              continue; // Skip this overlay if it fails to load
+            }
+            overlayBuffer = Buffer.from(await overlayResponse.arrayBuffer());
+          }
+          
+          // Resize the overlay image and prepare for compositing
+          const processedOverlay = await sharp(overlayBuffer)
+            .resize(actualWidth, actualHeight, { fit: 'contain' })
+            .png() // Convert to PNG to preserve transparency
+            .toBuffer();
+          
+          imageComposites.push({
+            input: processedOverlay,
+            top: actualY,
+            left: actualX
+          });
+          
+          console.log(`Image overlay processed successfully: ${actualWidth}x${actualHeight} at (${actualX}, ${actualY})`);
+        } catch (error) {
+          console.error('Error processing image overlay:', error);
+          // Continue with other overlays even if one fails
+          continue;
+        }
+      }
+
       // Composite image
       console.log('Compositing image...');
       
@@ -459,29 +544,77 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let contentType: string;
       let fileExtension: string;
       
-      // Only composite SVG if there are text overlays
+      // Prepare all composites (text and images)
+      const allComposites: sharp.OverlayOptions[] = [];
+      
+      // Add image overlays first (they go behind text)
+      allComposites.push(...imageComposites);
+      
+      // Add built-in logo for desktop/mobile mode (goes on top of user image overlays)
+      if (isDesktopMobileMode && desktopMobileVersion) {
+        try {
+          const logoUrl = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
+          console.log('Fetching built-in logo for compositing from:', logoUrl);
+          const logoResponse = await fetch(logoUrl);
+          if (logoResponse.ok) {
+            console.log('Built-in logo fetch successful, response status:', logoResponse.status);
+            const logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
+            console.log('Built-in logo buffer size:', logoBuffer.length);
+            const logoWidth = desktopMobileVersion === 'desktop' ? 360 : 484;
+            console.log('Resizing built-in logo to width:', logoWidth);
+            
+            // Resize logo for compositing
+            const resizedLogo = await sharp(logoBuffer)
+              .resize(logoWidth, null, { withoutEnlargement: false })
+              .png()
+              .toBuffer();
+            
+            // Add logo to composites (it will appear on top of user image overlays)
+            allComposites.push({
+              input: resizedLogo,
+              top: 0,
+              left: 20
+            });
+            
+            console.log('Built-in logo added to compositing stack at top-left corner');
+          }
+        } catch (error) {
+          console.warn('Error processing built-in logo:', error);
+        }
+      }
+
+      // Add text overlay SVG if there are text overlays
       if (svgPaths.trim() !== '') {
-        console.log('Compositing with text overlays...');
-        if (hasAlpha) {
-          console.log('Source has transparency, outputting PNG...');
+        allComposites.push({ input: Buffer.from(svg), top: 0, left: 0 });
+      }
+      
+      // Determine if we need PNG (for transparency)
+      const needsPng = hasAlpha || imageComposites.length > 0; // Image overlays may have transparency
+      
+      // Only composite if there are overlays
+      if (allComposites.length > 0) {
+        const builtInLogoCount = isDesktopMobileMode && desktopMobileVersion ? 1 : 0;
+        console.log(`Compositing with ${imageComposites.length} image overlays, ${builtInLogoCount} built-in logo, and ${svgPaths.trim() ? '1' : '0'} text overlay...`);
+        if (needsPng) {
+          console.log('Has transparency or image overlays, outputting PNG...');
           finalImage = await transformedImage
-            .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
+            .composite(allComposites)
             .png({ quality: 90 })
             .toBuffer();
           contentType = 'image/png';
           fileExtension = 'png';
         } else {
-          console.log('Source has no transparency, outputting JPEG...');
+          console.log('No transparency, outputting JPEG...');
           finalImage = await transformedImage
-            .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
+            .composite(allComposites)
             .jpeg({ quality: 90 })
             .toBuffer();
           contentType = 'image/jpeg';
           fileExtension = 'jpg';
         }
       } else {
-        console.log('No text overlays, using image as-is...');
-        if (hasAlpha) {
+        console.log('No overlays, using image as-is...');
+        if (needsPng) {
           console.log('Source has transparency, outputting PNG...');
           finalImage = await transformedImage
             .png({ quality: 90 })

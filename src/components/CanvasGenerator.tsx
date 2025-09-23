@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icons } from './Icons';
-import { TextOverlay } from './ClientApp';
+import { TextOverlay, ImageOverlay } from './ClientApp';
 
 interface CanvasGeneratorProps {
   textOverlays: TextOverlay[];
+  imageOverlays: ImageOverlay[];
   activeOverlayId: string | null;
+  activeOverlayType: 'text' | 'image' | null;
   imageUrl: string;
   width: number;
   height: number;
@@ -16,6 +18,8 @@ interface CanvasGeneratorProps {
   onError: (message: string) => void;
   onImageLoad?: (dimensions: { width: number; height: number }) => void;
   onPositionChange?: (overlayId: string, newX: number, newY: number) => void;
+  onFontSizeChange?: (overlayId: string, newFontSize: number) => void;
+  onImageSizeChange?: (overlayId: string, newWidth: number) => void;
   onImageTransformChange?: (transform: { zoom: number; x: number; y: number }) => void;
   className?: string;
   isDesktopMobileMode?: boolean;
@@ -24,7 +28,9 @@ interface CanvasGeneratorProps {
 
 export function CanvasGenerator({
   textOverlays,
+  imageOverlays,
   activeOverlayId,
+  activeOverlayType,
   imageUrl,
   width,
   height,
@@ -36,6 +42,8 @@ export function CanvasGenerator({
   onError,
   onImageLoad,
   onPositionChange,
+  onFontSizeChange,
+  onImageSizeChange,
   onImageTransformChange,
   className = '',
   isDesktopMobileMode = false,
@@ -48,8 +56,14 @@ export function CanvasGenerator({
   const [isDragging, setIsDragging] = useState(false);
   const [draggedOverlayId, setDraggedOverlayId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [initialDragPosition, setInitialDragPosition] = useState({ x: 0, y: 0 });
   const [showDragHint, setShowDragHint] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const [hoveredOverlayId, setHoveredOverlayId] = useState<string | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeOverlayId, setResizeOverlayId] = useState<string | null>(null);
+  const [initialFontSize, setInitialFontSize] = useState(0);
+  const [resizeStartDistance, setResizeStartDistance] = useState(0);
 
   // Improved font loading with retry mechanism
   useEffect(() => {
@@ -196,14 +210,38 @@ export function CanvasGenerator({
 
   // Draw a single text overlay
   const drawTextOverlay = (
-    ctx: CanvasRenderingContext2D, 
+    ctx: CanvasRenderingContext2D,
     overlay: TextOverlay, 
     canvasWidth: number,
     canvasHeight: number
   ) => {
-    const actualX = (overlay.x / 100) * canvasWidth;
-    const actualY = (overlay.y / 100) * canvasHeight;
-    const scaledFontSize = (overlay.fontSize / 100) * canvasWidth;
+    // Use appropriate position based on desktop/mobile mode
+    let effectiveX = overlay.x;
+    let effectiveY = overlay.y;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop') {
+        effectiveX = overlay.desktopX ?? overlay.x;
+        effectiveY = overlay.desktopY ?? overlay.y;
+      } else if (desktopMobileVersion === 'mobile') {
+        effectiveX = overlay.mobileX ?? overlay.x;
+        effectiveY = overlay.mobileY ?? overlay.y;
+      }
+    }
+    
+    const actualX = (effectiveX / 100) * canvasWidth;
+    const actualY = (effectiveY / 100) * canvasHeight;
+    
+    // Use appropriate font size based on desktop/mobile mode
+    let effectiveFontSize = overlay.fontSize;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop' && overlay.desktopFontSize !== undefined) {
+        effectiveFontSize = overlay.desktopFontSize;
+      } else if (desktopMobileVersion === 'mobile' && overlay.mobileFontSize !== undefined) {
+        effectiveFontSize = overlay.mobileFontSize;
+      }
+    }
+    
+    const scaledFontSize = (effectiveFontSize / 100) * canvasWidth;
     const maxWidth = canvasWidth * 0.8; // 80% of canvas width for wrapping
     const lines = processText(overlay.text);
 
@@ -223,7 +261,8 @@ export function CanvasGenerator({
           // Calculate text width for alignment (simplified for wrapped text)
           const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
           ctx.font = `${partSize}px HelveticaNeue-Condensed`;
-          const textWidth = ctx.measureText(wrappedLineText).width;
+          const alignmentDisplayText = overlay.allCaps ? wrappedLineText.toUpperCase() : wrappedLineText;
+          const textWidth = ctx.measureText(alignmentDisplayText).width;
           
           // Adjust position based on alignment
           if (line.align === 'center') {
@@ -232,19 +271,179 @@ export function CanvasGenerator({
             lineX = actualX - textWidth;
           }
           
-          // Draw the wrapped line part
+          // Draw visual indicator only on hover
+          const textY = currentY - (part.isSuper ? scaledFontSize * 0.3 : 0);
+          
+          // Add hover effect - subtle background with border
+          if (hoveredOverlayId === overlay.id && !isDragging && !isResizing) {
+            ctx.save();
+            const padding = partSize * 0.1;
+            const boxX = lineX - padding;
+            const boxY = textY - partSize - padding;
+            const boxWidth = textWidth + (padding * 2);
+            const boxHeight = partSize + (padding * 2);
+            
+            // Light blue background
+            ctx.fillStyle = 'rgba(0, 123, 255, 0.1)';
+            ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+            
+            // Blue border outline
+            ctx.strokeStyle = 'rgba(0, 123, 255, 0.3)';
+            ctx.lineWidth = Math.max(1, partSize * 0.015);
+            ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+            
+            // Draw resize handle in bottom-right corner
+            const handleSize = Math.max(8, partSize * 0.15);
+            const handleX = boxX + boxWidth - handleSize;
+            const handleY = boxY + boxHeight - handleSize;
+            
+            // Handle background
+            ctx.fillStyle = 'rgba(0, 123, 255, 0.8)';
+            ctx.fillRect(handleX, handleY, handleSize, handleSize);
+            
+            // Handle border
+            ctx.strokeStyle = 'rgba(0, 123, 255, 1)';
+            ctx.strokeRect(handleX, handleY, handleSize, handleSize);
+            
+            // Draw diagonal lines in the handle
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 3; i++) {
+              const offset = (i + 1) * handleSize / 4;
+              ctx.beginPath();
+              ctx.moveTo(handleX + offset, handleY + handleSize);
+              ctx.lineTo(handleX + handleSize, handleY + offset);
+              ctx.stroke();
+            }
+            
+            ctx.restore();
+          }
+          
+          // Draw the actual text
           ctx.font = `${partSize}px HelveticaNeue-Condensed`;
           ctx.fillStyle = overlay.fontColor;
-          ctx.fillText(
-            wrappedLineText,
-            lineX,
-            currentY - (part.isSuper ? scaledFontSize * 0.3 : 0)
-          );
+          const displayText = overlay.allCaps ? wrappedLineText.toUpperCase() : wrappedLineText;
+          ctx.fillText(displayText, lineX, textY);
           
           currentLineIndex++;
         });
       });
     });
+  };
+
+  // Draw hover effect for image overlays
+  const drawImageHoverEffect = (
+    ctx: CanvasRenderingContext2D,
+    actualX: number,
+    actualY: number,
+    actualWidth: number,
+    actualHeight: number
+  ) => {
+    ctx.save();
+    const padding = 4;
+    const boxX = actualX - padding;
+    const boxY = actualY - padding;
+    const boxWidth = actualWidth + (padding * 2);
+    const boxHeight = actualHeight + (padding * 2);
+
+    // Light blue background
+    ctx.fillStyle = 'rgba(0, 123, 255, 0.1)';
+    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+    // Blue border outline
+    ctx.strokeStyle = 'rgba(0, 123, 255, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+    // Draw resize handle in bottom-right corner
+    const handleSize = Math.max(8, actualWidth * 0.05);
+    const handleX = boxX + boxWidth - handleSize;
+    const handleY = boxY + boxHeight - handleSize;
+
+    // Handle background
+    ctx.fillStyle = 'rgba(0, 123, 255, 0.8)';
+    ctx.fillRect(handleX, handleY, handleSize, handleSize);
+
+    // Handle border
+    ctx.strokeStyle = 'rgba(0, 123, 255, 1)';
+    ctx.strokeRect(handleX, handleY, handleSize, handleSize);
+
+    // Draw diagonal lines in the handle
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) {
+      const offset = (i + 1) * handleSize / 4;
+      ctx.beginPath();
+      ctx.moveTo(handleX + offset, handleY + handleSize);
+      ctx.lineTo(handleX + handleSize, handleY + offset);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  };
+
+  // Draw a single image overlay
+  const drawImageOverlay = (
+    ctx: CanvasRenderingContext2D,
+    overlay: ImageOverlay,
+    canvasWidth: number,
+    canvasHeight: number
+  ) => {
+    // Use appropriate position based on desktop/mobile mode
+    let effectiveX = overlay.x;
+    let effectiveY = overlay.y;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop') {
+        effectiveX = overlay.desktopX ?? overlay.x;
+        effectiveY = overlay.desktopY ?? overlay.y;
+      } else if (desktopMobileVersion === 'mobile') {
+        effectiveX = overlay.mobileX ?? overlay.x;
+        effectiveY = overlay.mobileY ?? overlay.y;
+      }
+    }
+
+    // Use appropriate size based on desktop/mobile mode
+    let effectiveWidth = overlay.width;
+    let effectiveHeight = overlay.height;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop') {
+        effectiveWidth = overlay.desktopWidth ?? overlay.width;
+        effectiveHeight = overlay.desktopHeight ?? overlay.height;
+      } else if (desktopMobileVersion === 'mobile') {
+        effectiveWidth = overlay.mobileWidth ?? overlay.width;
+        effectiveHeight = overlay.mobileHeight ?? overlay.height;
+      }
+    }
+
+    const actualX = (effectiveX / 100) * canvasWidth;
+    const actualY = (effectiveY / 100) * canvasHeight;
+    const actualWidth = (effectiveWidth / 100) * canvasWidth;
+    const actualHeight = (effectiveHeight / 100) * canvasWidth; // Use width for consistent scaling
+
+    // Create and draw the image
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    // Function to draw the image
+    const drawImageOnly = () => {
+      ctx.drawImage(img, actualX, actualY, actualWidth, actualHeight);
+    };
+    
+    try {
+      img.onload = drawImageOnly;
+      img.onerror = (error) => {
+        console.error('Error loading image overlay:', error);
+      };
+      
+      img.src = overlay.imageUrl;
+      
+      // For base64 images, this should work immediately
+      if (img.complete && img.naturalWidth > 0) {
+        drawImageOnly();
+      }
+    } catch (error) {
+      console.error('Error drawing image overlay:', error);
+    }
   };
 
   useEffect(() => {
@@ -292,6 +491,43 @@ export function CanvasGenerator({
       // Apply brightness filter
       applyBrightnessFilter(displayCtx, imageWidth, imageHeight, brightness);
 
+      // Draw all image overlays first (behind text)
+      imageOverlays.forEach(overlay => {
+        drawImageOverlay(displayCtx, overlay, imageWidth, imageHeight);
+      });
+
+      // Draw hover effects for image overlays (on top of images)
+      imageOverlays.forEach(overlay => {
+        if (hoveredOverlayId === overlay.id && !isDragging && !isResizing) {
+          // Use appropriate position and size based on desktop/mobile mode
+          let effectiveX = overlay.x;
+          let effectiveY = overlay.y;
+          let effectiveWidth = overlay.width;
+          let effectiveHeight = overlay.height;
+          
+          if (isDesktopMobileMode && desktopMobileVersion) {
+            if (desktopMobileVersion === 'desktop') {
+              effectiveX = overlay.desktopX ?? overlay.x;
+              effectiveY = overlay.desktopY ?? overlay.y;
+              effectiveWidth = overlay.desktopWidth ?? overlay.width;
+              effectiveHeight = overlay.desktopHeight ?? overlay.height;
+            } else if (desktopMobileVersion === 'mobile') {
+              effectiveX = overlay.mobileX ?? overlay.x;
+              effectiveY = overlay.mobileY ?? overlay.y;
+              effectiveWidth = overlay.mobileWidth ?? overlay.width;
+              effectiveHeight = overlay.mobileHeight ?? overlay.height;
+            }
+          }
+
+          const actualX = (effectiveX / 100) * imageWidth;
+          const actualY = (effectiveY / 100) * imageHeight;
+          const actualWidth = (effectiveWidth / 100) * imageWidth;
+          const actualHeight = (effectiveHeight / 100) * imageWidth; // Use width for consistent scaling
+
+          drawImageHoverEffect(displayCtx, actualX, actualY, actualWidth, actualHeight);
+        }
+      });
+
       // Draw all text overlays (logo is handled server-side for desktop-mobile mode)
       textOverlays.forEach(overlay => {
         drawTextOverlay(displayCtx, overlay, imageWidth, imageHeight);
@@ -324,6 +560,43 @@ export function CanvasGenerator({
       // Clear the canvas to transparent
       displayCtx.clearRect(0, 0, canvasWidth, canvasHeight);
       
+      // Draw all image overlays first (behind text)
+      imageOverlays.forEach(overlay => {
+        drawImageOverlay(displayCtx, overlay, canvasWidth, canvasHeight);
+      });
+
+      // Draw hover effects for image overlays (on top of images)
+      imageOverlays.forEach(overlay => {
+        if (hoveredOverlayId === overlay.id && !isDragging && !isResizing) {
+          // Use appropriate position and size based on desktop/mobile mode
+          let effectiveX = overlay.x;
+          let effectiveY = overlay.y;
+          let effectiveWidth = overlay.width;
+          let effectiveHeight = overlay.height;
+          
+          if (isDesktopMobileMode && desktopMobileVersion) {
+            if (desktopMobileVersion === 'desktop') {
+              effectiveX = overlay.desktopX ?? overlay.x;
+              effectiveY = overlay.desktopY ?? overlay.y;
+              effectiveWidth = overlay.desktopWidth ?? overlay.width;
+              effectiveHeight = overlay.desktopHeight ?? overlay.height;
+            } else if (desktopMobileVersion === 'mobile') {
+              effectiveX = overlay.mobileX ?? overlay.x;
+              effectiveY = overlay.mobileY ?? overlay.y;
+              effectiveWidth = overlay.mobileWidth ?? overlay.width;
+              effectiveHeight = overlay.mobileHeight ?? overlay.height;
+            }
+          }
+
+          const actualX = (effectiveX / 100) * canvasWidth;
+          const actualY = (effectiveY / 100) * canvasHeight;
+          const actualWidth = (effectiveWidth / 100) * canvasWidth;
+          const actualHeight = (effectiveHeight / 100) * canvasWidth; // Use width for consistent scaling
+
+          drawImageHoverEffect(displayCtx, actualX, actualY, actualWidth, actualHeight);
+        }
+      });
+
       // Draw all text overlays on transparent background
       textOverlays.forEach(overlay => {
         drawTextOverlay(displayCtx, overlay, canvasWidth, canvasHeight);
@@ -340,7 +613,7 @@ export function CanvasGenerator({
       ctx.textAlign = 'center';
       ctx.fillText('Please enter an image URL', canvas.width / 2, canvas.height / 2);
     }
-  }, [textOverlays, imageUrl, brightness, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion]);
+  }, [textOverlays, imageOverlays, imageUrl, brightness, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion, hoveredOverlayId, isDragging, isResizing]);
 
   // Check if a point is within a text overlay's bounds
   const isPointInTextOverlay = (
@@ -350,9 +623,33 @@ export function CanvasGenerator({
     canvasWidth: number,
     canvasHeight: number
   ): boolean => {
-    const actualX = (overlay.x / 100) * canvasWidth;
-    const actualY = (overlay.y / 100) * canvasHeight; // Fixed: use canvasHeight for Y-axis
-    const scaledFontSize = (overlay.fontSize / 100) * canvasWidth;
+    // Use appropriate position based on desktop/mobile mode
+    let effectiveX = overlay.x;
+    let effectiveY = overlay.y;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop') {
+        effectiveX = overlay.desktopX ?? overlay.x;
+        effectiveY = overlay.desktopY ?? overlay.y;
+      } else if (desktopMobileVersion === 'mobile') {
+        effectiveX = overlay.mobileX ?? overlay.x;
+        effectiveY = overlay.mobileY ?? overlay.y;
+      }
+    }
+    
+    const actualX = (effectiveX / 100) * canvasWidth;
+    const actualY = (effectiveY / 100) * canvasHeight; // Fixed: use canvasHeight for Y-axis
+    
+    // Use appropriate font size based on desktop/mobile mode
+    let effectiveFontSize = overlay.fontSize;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop' && overlay.desktopFontSize !== undefined) {
+        effectiveFontSize = overlay.desktopFontSize;
+      } else if (desktopMobileVersion === 'mobile' && overlay.mobileFontSize !== undefined) {
+        effectiveFontSize = overlay.mobileFontSize;
+      }
+    }
+    
+    const scaledFontSize = (effectiveFontSize / 100) * canvasWidth;
     
     // Process text to get proper alignment and bounds
     const processedLines = processText(overlay.text);
@@ -372,10 +669,12 @@ export function CanvasGenerator({
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx) {
           ctx.font = `${partSize}px HelveticaNeue-Condensed`;
-          totalWidth += ctx.measureText(part.text).width;
+          const measureText = overlay.allCaps ? part.text.toUpperCase() : part.text;
+          totalWidth += ctx.measureText(measureText).width;
         } else {
           // Fallback if context not available
-          totalWidth += part.text.length * partSize * 0.6;
+          const measureText = overlay.allCaps ? part.text.toUpperCase() : part.text;
+          totalWidth += measureText.length * partSize * 0.6;
         }
       });
       
@@ -403,8 +702,223 @@ export function CanvasGenerator({
     return false;
   };
 
+  // Check if a point is within an image overlay's bounds
+  const isPointInImageOverlay = (
+    overlay: ImageOverlay,
+    x: number,
+    y: number,
+    canvasWidth: number,
+    canvasHeight: number
+  ): boolean => {
+    // Use appropriate position based on desktop/mobile mode
+    let effectiveX = overlay.x;
+    let effectiveY = overlay.y;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop') {
+        effectiveX = overlay.desktopX ?? overlay.x;
+        effectiveY = overlay.desktopY ?? overlay.y;
+      } else if (desktopMobileVersion === 'mobile') {
+        effectiveX = overlay.mobileX ?? overlay.x;
+        effectiveY = overlay.mobileY ?? overlay.y;
+      }
+    }
+
+    // Use appropriate size based on desktop/mobile mode
+    let effectiveWidth = overlay.width;
+    let effectiveHeight = overlay.height;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop') {
+        effectiveWidth = overlay.desktopWidth ?? overlay.width;
+        effectiveHeight = overlay.desktopHeight ?? overlay.height;
+      } else if (desktopMobileVersion === 'mobile') {
+        effectiveWidth = overlay.mobileWidth ?? overlay.width;
+        effectiveHeight = overlay.mobileHeight ?? overlay.height;
+      }
+    }
+
+    const actualX = (effectiveX / 100) * canvasWidth;
+    const actualY = (effectiveY / 100) * canvasHeight;
+    const actualWidth = (effectiveWidth / 100) * canvasWidth;
+    const actualHeight = (effectiveHeight / 100) * canvasWidth; // Use width for consistent scaling
+
+    // Check if the point is within the bounds of the image
+    return (
+      x >= actualX &&
+      x <= actualX + actualWidth &&
+      y >= actualY && 
+      y <= actualY + actualHeight
+    );
+  };
+
+  // Get text overlay bounding box for resize handle detection
+  const getTextOverlayBounds = (
+    overlay: TextOverlay,
+    canvasWidth: number,
+    canvasHeight: number
+  ) => {
+    // Use appropriate position based on desktop/mobile mode
+    let effectiveX = overlay.x;
+    let effectiveY = overlay.y;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop') {
+        effectiveX = overlay.desktopX ?? overlay.x;
+        effectiveY = overlay.desktopY ?? overlay.y;
+      } else if (desktopMobileVersion === 'mobile') {
+        effectiveX = overlay.mobileX ?? overlay.x;
+        effectiveY = overlay.mobileY ?? overlay.y;
+      }
+    }
+    
+    const actualX = (effectiveX / 100) * canvasWidth;
+    const actualY = (effectiveY / 100) * canvasHeight;
+    
+    // Use appropriate font size based on desktop/mobile mode
+    let effectiveFontSize = overlay.fontSize;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop' && overlay.desktopFontSize !== undefined) {
+        effectiveFontSize = overlay.desktopFontSize;
+      } else if (desktopMobileVersion === 'mobile' && overlay.mobileFontSize !== undefined) {
+        effectiveFontSize = overlay.mobileFontSize;
+      }
+    }
+    
+    const scaledFontSize = (effectiveFontSize / 100) * canvasWidth;
+    
+    // Simplified bounds calculation - use first line for basic bounds
+    const processedLines = processText(overlay.text);
+    if (processedLines.length === 0) return null;
+    
+    const firstLine = processedLines[0];
+    
+    // Calculate approximate width
+    let totalWidth = 0;
+    firstLine.parts.forEach(part => {
+      const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+      const ctx = canvasRef.current?.getContext('2d');
+      if (ctx) {
+        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+        const textForMeasurement = overlay.allCaps ? part.text.toUpperCase() : part.text;
+        totalWidth += ctx.measureText(textForMeasurement).width;
+      } else {
+        const textForMeasurement = overlay.allCaps ? part.text.toUpperCase() : part.text;
+        totalWidth += textForMeasurement.length * partSize * 0.6;
+      }
+    });
+    
+    // Adjust for alignment
+    let lineX = actualX;
+    if (firstLine.align === 'center') {
+      lineX = actualX - totalWidth / 2;
+    } else if (firstLine.align === 'right') {
+      lineX = actualX - totalWidth;
+    }
+    
+    const padding = scaledFontSize * 0.1;
+    
+    return {
+      x: lineX - padding,
+      y: actualY - scaledFontSize - padding,
+      width: totalWidth + (padding * 2),
+      height: scaledFontSize + (padding * 2)
+    };
+  };
+
+  // Check if point is in resize handle
+  const isPointInResizeHandle = (
+    overlay: TextOverlay,
+    x: number,
+    y: number,
+    canvasWidth: number,
+    canvasHeight: number
+  ): boolean => {
+    const bounds = getTextOverlayBounds(overlay, canvasWidth, canvasHeight);
+    if (!bounds) return false;
+    
+    // Use appropriate font size for handle size calculation
+    let effectiveFontSize = overlay.fontSize;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop' && overlay.desktopFontSize !== undefined) {
+        effectiveFontSize = overlay.desktopFontSize;
+      } else if (desktopMobileVersion === 'mobile' && overlay.mobileFontSize !== undefined) {
+        effectiveFontSize = overlay.mobileFontSize;
+      }
+    }
+    
+    const scaledFontSize = (effectiveFontSize / 100) * canvasWidth;
+    const handleSize = Math.max(8, scaledFontSize * 0.15);
+    const handleX = bounds.x + bounds.width - handleSize;
+    const handleY = bounds.y + bounds.height - handleSize;
+    
+    return x >= handleX && x <= handleX + handleSize && y >= handleY && y <= handleY + handleSize;
+  };
+
+  // Get image overlay bounding box for resize handle detection
+  const getImageOverlayBounds = (
+    overlay: ImageOverlay,
+    canvasWidth: number,
+    canvasHeight: number
+  ) => {
+    // Use appropriate position based on desktop/mobile mode
+    let effectiveX = overlay.x;
+    let effectiveY = overlay.y;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop') {
+        effectiveX = overlay.desktopX ?? overlay.x;
+        effectiveY = overlay.desktopY ?? overlay.y;
+      } else if (desktopMobileVersion === 'mobile') {
+        effectiveX = overlay.mobileX ?? overlay.x;
+        effectiveY = overlay.mobileY ?? overlay.y;
+      }
+    }
+
+    // Use appropriate size based on desktop/mobile mode
+    let effectiveWidth = overlay.width;
+    let effectiveHeight = overlay.height;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop') {
+        effectiveWidth = overlay.desktopWidth ?? overlay.width;
+        effectiveHeight = overlay.desktopHeight ?? overlay.height;
+      } else if (desktopMobileVersion === 'mobile') {
+        effectiveWidth = overlay.mobileWidth ?? overlay.width;
+        effectiveHeight = overlay.mobileHeight ?? overlay.height;
+      }
+    }
+
+    const actualX = (effectiveX / 100) * canvasWidth;
+    const actualY = (effectiveY / 100) * canvasHeight;
+    const actualWidth = (effectiveWidth / 100) * canvasWidth;
+    const actualHeight = (effectiveHeight / 100) * canvasWidth; // Use width for consistent scaling
+
+    const padding = 4;
+
+    return {
+      x: actualX - padding,
+      y: actualY - padding,
+      width: actualWidth + (padding * 2),
+      height: actualHeight + (padding * 2)
+    };
+  };
+
+  // Check if point is in image overlay resize handle
+  const isPointInImageResizeHandle = (
+    overlay: ImageOverlay,
+    x: number,
+    y: number,
+    canvasWidth: number,
+    canvasHeight: number
+  ): boolean => {
+    const bounds = getImageOverlayBounds(overlay, canvasWidth, canvasHeight);
+    if (!bounds) return false;
+
+    const handleSize = Math.max(8, bounds.width * 0.05);
+    const handleX = bounds.x + bounds.width - handleSize;
+    const handleY = bounds.y + bounds.height - handleSize;
+
+    return x >= handleX && x <= handleX + handleSize && y >= handleY && y <= handleY + handleSize;
+  };
+
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current || textOverlays.length === 0) return;
+    if (!canvasRef.current || (textOverlays.length === 0 && imageOverlays.length === 0)) return;
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -416,42 +930,161 @@ export function CanvasGenerator({
     const clickX = (e.clientX - rect.left) * scaleFactorX;
     const clickY = (e.clientY - rect.top) * scaleFactorY;
 
-    // Check each overlay (in reverse order to handle overlapping - top one gets priority)
+    // First check image overlays (they are rendered on top)
+    for (let i = imageOverlays.length - 1; i >= 0; i--) {
+      const overlay = imageOverlays[i];
+      
+      // First check if clicking on resize handle
+      if (isPointInImageResizeHandle(overlay, clickX, clickY, canvas.width, canvas.height)) {
+        setIsResizing(true);
+        setResizeOverlayId(overlay.id);
+        
+        // Store initial width
+        let effectiveWidth = overlay.width;
+        if (isDesktopMobileMode && desktopMobileVersion) {
+          if (desktopMobileVersion === 'desktop' && overlay.desktopWidth !== undefined) {
+            effectiveWidth = overlay.desktopWidth;
+          } else if (desktopMobileVersion === 'mobile' && overlay.mobileWidth !== undefined) {
+            effectiveWidth = overlay.mobileWidth;
+          }
+        }
+        setInitialFontSize(effectiveWidth); // Reuse the same state for initial size
+        
+        // Calculate initial distance from image center for resize calculation
+        let effectiveX = overlay.x;
+        let effectiveY = overlay.y;
+        if (isDesktopMobileMode && desktopMobileVersion) {
+          if (desktopMobileVersion === 'desktop') {
+            effectiveX = overlay.desktopX ?? overlay.x;
+            effectiveY = overlay.desktopY ?? overlay.y;
+          } else if (desktopMobileVersion === 'mobile') {
+            effectiveX = overlay.mobileX ?? overlay.x;
+            effectiveY = overlay.mobileY ?? overlay.y;
+          }
+        }
+        
+        const actualX = (effectiveX / 100) * canvas.width;
+        const actualY = (effectiveY / 100) * canvas.height;
+        const distance = Math.sqrt(Math.pow(clickX - actualX, 2) + Math.pow(clickY - actualY, 2));
+        setResizeStartDistance(distance);
+        
+        canvas.style.cursor = 'nw-resize';
+        return;
+      }
+      
+      // Then check if clicking on image for dragging
+      if (isPointInImageOverlay(overlay, clickX, clickY, canvas.width, canvas.height)) {
+        setIsDragging(true);
+        setDraggedOverlayId(overlay.id);
+        
+        // Also make this overlay active for editing
+        if (overlay.id !== activeOverlayId) {
+          const clientAppHandler = onPositionChange;
+          if (clientAppHandler) {
+            clientAppHandler(overlay.id, -1, -1);
+          }
+        }
+        
+        // Store the initial mouse position and overlay position for smooth dragging
+        let effectiveX = overlay.x;
+        let effectiveY = overlay.y;
+        if (isDesktopMobileMode && desktopMobileVersion) {
+          if (desktopMobileVersion === 'desktop') {
+            effectiveX = overlay.desktopX ?? overlay.x;
+            effectiveY = overlay.desktopY ?? overlay.y;
+          } else if (desktopMobileVersion === 'mobile') {
+            effectiveX = overlay.mobileX ?? overlay.x;
+            effectiveY = overlay.mobileY ?? overlay.y;
+          }
+        }
+        
+        setDragOffset({ x: clickX, y: clickY });
+        setInitialDragPosition({ x: effectiveX, y: effectiveY });
+        
+        canvas.style.cursor = 'grabbing';
+        return;
+      }
+    }
+
+    // Then check text overlays
     for (let i = textOverlays.length - 1; i >= 0; i--) {
       const overlay = textOverlays[i];
       
+      // First check if clicking on resize handle
+      if (isPointInResizeHandle(overlay, clickX, clickY, canvas.width, canvas.height)) {
+        setIsResizing(true);
+        setResizeOverlayId(overlay.id);
+        
+        // Store initial font size
+        let effectiveFontSize = overlay.fontSize;
+        if (isDesktopMobileMode && desktopMobileVersion) {
+          if (desktopMobileVersion === 'desktop' && overlay.desktopFontSize !== undefined) {
+            effectiveFontSize = overlay.desktopFontSize;
+          } else if (desktopMobileVersion === 'mobile' && overlay.mobileFontSize !== undefined) {
+            effectiveFontSize = overlay.mobileFontSize;
+          }
+        }
+        setInitialFontSize(effectiveFontSize);
+        
+        // Calculate initial distance from text center for resize calculation
+        let effectiveX = overlay.x;
+        let effectiveY = overlay.y;
+        if (isDesktopMobileMode && desktopMobileVersion) {
+          if (desktopMobileVersion === 'desktop') {
+            effectiveX = overlay.desktopX ?? overlay.x;
+            effectiveY = overlay.desktopY ?? overlay.y;
+          } else if (desktopMobileVersion === 'mobile') {
+            effectiveX = overlay.mobileX ?? overlay.x;
+            effectiveY = overlay.mobileY ?? overlay.y;
+          }
+        }
+        
+        const actualX = (effectiveX / 100) * canvas.width;
+        const actualY = (effectiveY / 100) * canvas.height;
+        const distance = Math.sqrt(Math.pow(clickX - actualX, 2) + Math.pow(clickY - actualY, 2));
+        setResizeStartDistance(distance);
+        
+        canvas.style.cursor = 'nw-resize';
+        return;
+      }
+      
+      // Then check if clicking on text for dragging
       if (isPointInTextOverlay(overlay, clickX, clickY, canvas.width, canvas.height)) {
         setIsDragging(true);
         setDraggedOverlayId(overlay.id);
         
         // Also make this overlay active for editing
         if (overlay.id !== activeOverlayId) {
-          // Find the onPositionChange handler which is provided by ClientApp
           const clientAppHandler = onPositionChange;
           if (clientAppHandler) {
-            // Pass a special value to notify ClientApp to change the active overlay
-            // without changing position - this is a bit of a hack but works
             clientAppHandler(overlay.id, -1, -1);
           }
         }
         
-        // Store percentage position at time of click
-        const overlayXPixels = (overlay.x / 100) * canvas.width;
-        const overlayYPixels = (overlay.y / 100) * canvas.height; // Fixed: use canvas height
+        // Store the initial mouse position and overlay position for smooth dragging
+        let effectiveX = overlay.x;
+        let effectiveY = overlay.y;
+        if (isDesktopMobileMode && desktopMobileVersion) {
+          if (desktopMobileVersion === 'desktop') {
+            effectiveX = overlay.desktopX ?? overlay.x;
+            effectiveY = overlay.desktopY ?? overlay.y;
+          } else if (desktopMobileVersion === 'mobile') {
+            effectiveX = overlay.mobileX ?? overlay.x;
+            effectiveY = overlay.mobileY ?? overlay.y;
+          }
+        }
         
-        setDragOffset({
-          x: clickX - overlayXPixels,
-          y: clickY - overlayYPixels
-        });
+        setDragOffset({ x: clickX, y: clickY });
+        setInitialDragPosition({ x: effectiveX, y: effectiveY });
         
         canvas.style.cursor = 'grabbing';
-        return; // Exit after finding the first match
+        return;
       }
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDragging || !draggedOverlayId || !canvasRef.current) return;
+    if (!canvasRef.current) return;
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -460,19 +1093,150 @@ export function CanvasGenerator({
     const scaleFactorX = canvas.width / rect.width;
     const scaleFactorY = canvas.height / rect.height;
     
-    // Get mouse position in canvas pixel coordinates
+    // Get current mouse position in canvas pixel coordinates
     const mouseX = (e.clientX - rect.left) * scaleFactorX;
     const mouseY = (e.clientY - rect.top) * scaleFactorY;
     
-    // Calculate new position as percentage of canvas dimensions - fixing Y axis to use height
-    const newX = Math.max(0, Math.min(100, ((mouseX - dragOffset.x) / canvas.width) * 100));
-    const newY = Math.max(0, Math.min(100, ((mouseY - dragOffset.y) / canvas.height) * 100));
-    
-    onPositionChange?.(draggedOverlayId, newX, newY);
+    if (isResizing && resizeOverlayId) {
+      // Check if it's a text or image overlay
+      const textOverlay = textOverlays.find(o => o.id === resizeOverlayId);
+      const imageOverlay = imageOverlays.find(o => o.id === resizeOverlayId);
+      
+      if (textOverlay) {
+        // Handle font size resizing for text
+        let effectiveX = textOverlay.x;
+        let effectiveY = textOverlay.y;
+        if (isDesktopMobileMode && desktopMobileVersion) {
+          if (desktopMobileVersion === 'desktop') {
+            effectiveX = textOverlay.desktopX ?? textOverlay.x;
+            effectiveY = textOverlay.desktopY ?? textOverlay.y;
+          } else if (desktopMobileVersion === 'mobile') {
+            effectiveX = textOverlay.mobileX ?? textOverlay.x;
+            effectiveY = textOverlay.mobileY ?? textOverlay.y;
+          }
+        }
+        
+        const actualX = (effectiveX / 100) * canvas.width;
+        const actualY = (effectiveY / 100) * canvas.height;
+        
+        // Calculate current distance from text center
+        const currentDistance = Math.sqrt(Math.pow(mouseX - actualX, 2) + Math.pow(mouseY - actualY, 2));
+        
+        // Calculate font size change based on distance change
+        const distanceRatio = currentDistance / resizeStartDistance;
+        const newFontSize = Math.max(1, Math.min(50, initialFontSize * distanceRatio));
+        
+        onFontSizeChange?.(resizeOverlayId, newFontSize);
+      } else if (imageOverlay) {
+        // Handle size resizing for image
+        let effectiveX = imageOverlay.x;
+        let effectiveY = imageOverlay.y;
+        if (isDesktopMobileMode && desktopMobileVersion) {
+          if (desktopMobileVersion === 'desktop') {
+            effectiveX = imageOverlay.desktopX ?? imageOverlay.x;
+            effectiveY = imageOverlay.desktopY ?? imageOverlay.y;
+          } else if (desktopMobileVersion === 'mobile') {
+            effectiveX = imageOverlay.mobileX ?? imageOverlay.x;
+            effectiveY = imageOverlay.mobileY ?? imageOverlay.y;
+          }
+        }
+        
+        const actualX = (effectiveX / 100) * canvas.width;
+        const actualY = (effectiveY / 100) * canvas.height;
+        
+        // Calculate current distance from image center
+        const currentDistance = Math.sqrt(Math.pow(mouseX - actualX, 2) + Math.pow(mouseY - actualY, 2));
+        
+        // Calculate size change based on distance change
+        const distanceRatio = currentDistance / resizeStartDistance;
+        const newWidth = Math.max(1, Math.min(100, initialFontSize * distanceRatio)); // Reusing initialFontSize for initial width
+        
+        onImageSizeChange?.(resizeOverlayId, newWidth);
+      }
+    } else if (isDragging && draggedOverlayId) {
+      // Handle dragging
+      const deltaX = mouseX - dragOffset.x;
+      const deltaY = mouseY - dragOffset.y;
+      
+      // Convert delta to percentage and add to initial position
+      const deltaXPercent = (deltaX / canvas.width) * 100;
+      const deltaYPercent = (deltaY / canvas.height) * 100;
+      
+      const newX = Math.max(0, Math.min(100, initialDragPosition.x + deltaXPercent));
+      const newY = Math.max(0, Math.min(100, initialDragPosition.y + deltaYPercent));
+      
+      onPositionChange?.(draggedOverlayId, newX, newY);
+    } else if (textOverlays.length > 0 || imageOverlays.length > 0) {
+      // Handle hover detection when not dragging or resizing
+      let foundHover = false;
+      let cursorType = 'default';
+      
+      // First check image overlays (they are rendered on top)
+      for (let i = imageOverlays.length - 1; i >= 0; i--) {
+        const overlay = imageOverlays[i];
+        
+        // Check resize handle first
+        if (isPointInImageResizeHandle(overlay, mouseX, mouseY, canvas.width, canvas.height)) {
+          if (hoveredOverlayId !== overlay.id) {
+            setHoveredOverlayId(overlay.id);
+          }
+          cursorType = 'nw-resize';
+          foundHover = true;
+          break;
+        }
+        
+        // Then check image area
+        if (isPointInImageOverlay(overlay, mouseX, mouseY, canvas.width, canvas.height)) {
+          if (hoveredOverlayId !== overlay.id) {
+            setHoveredOverlayId(overlay.id);
+          }
+          cursorType = 'grab';
+          foundHover = true;
+          break;
+        }
+      }
+
+      // Then check text overlays if no image overlay was found
+      if (!foundHover) {
+        for (let i = textOverlays.length - 1; i >= 0; i--) {
+          const overlay = textOverlays[i];
+          
+          // Check resize handle first
+          if (isPointInResizeHandle(overlay, mouseX, mouseY, canvas.width, canvas.height)) {
+            if (hoveredOverlayId !== overlay.id) {
+              setHoveredOverlayId(overlay.id);
+            }
+            cursorType = 'nw-resize';
+            foundHover = true;
+            break;
+          }
+          
+          // Then check text area
+          if (isPointInTextOverlay(overlay, mouseX, mouseY, canvas.width, canvas.height)) {
+            if (hoveredOverlayId !== overlay.id) {
+              setHoveredOverlayId(overlay.id);
+            }
+            cursorType = 'grab';
+            foundHover = true;
+            break;
+          }
+        }
+      }
+      
+      // Update cursor and hover state
+      canvas.style.cursor = cursorType;
+      if (!foundHover && hoveredOverlayId !== null) {
+        setHoveredOverlayId(null);
+      }
+    }
   };
 
   const handleMouseUp = () => {
-    if (isDragging && canvasRef.current) {
+    if (isResizing && canvasRef.current) {
+      canvasRef.current.style.cursor = 'nw-resize';
+      setIsResizing(false);
+      setResizeOverlayId(null);
+    } else if (isDragging && canvasRef.current) {
       canvasRef.current.style.cursor = 'grab';
       setIsDragging(false);
       setDraggedOverlayId(null);
@@ -480,17 +1244,24 @@ export function CanvasGenerator({
   };
 
   const handleMouseLeave = () => {
-    if (isDragging && canvasRef.current) {
-      canvasRef.current.style.cursor = 'grab';
+    if (canvasRef.current) {
+      canvasRef.current.style.cursor = 'default';
+    }
+    if (isDragging) {
       setIsDragging(false);
       setDraggedOverlayId(null);
     }
+    if (isResizing) {
+      setIsResizing(false);
+      setResizeOverlayId(null);
+    }
     setShowDragHint(false);
     setIsHovering(false);
+    setHoveredOverlayId(null);
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current || e.touches.length !== 1 || textOverlays.length === 0) return;
+    if (!canvasRef.current || e.touches.length !== 1 || (textOverlays.length === 0 && imageOverlays.length === 0)) return;
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();

@@ -2828,6 +2828,37 @@ main,
   padding-left: 12px;
 }
 
+/* Enhanced image overlay item styles */
+.overlay-item-content {
+  padding: 0.75rem;
+}
+
+.overlay-item-content .slds-grid {
+  align-items: center;
+}
+
+.overlay-item-content img {
+  border: 1px solid var(--ui-border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.overlay-item:hover .overlay-item-content img {
+  transform: scale(1.05);
+}
+
+.overlay-meta {
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+/* Dark theme adjustments for image overlays */
+:root[class~="slds-theme_dark"] .overlay-item-content img {
+  border-color: var(--slds-g-color-neutral-base-30, #444444);
+}
+
 /* Font size percentage input styling - remove spinner arrows */
 input.font-size-percentage-input::-webkit-outer-spin-button,
 input.font-size-percentage-input::-webkit-inner-spin-button {

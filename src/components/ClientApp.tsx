@@ -13,19 +13,49 @@ export interface TextOverlay {
   id: string;
   text: string;
   fontSize: number;
-  desktopFontSize?: number; // Optional: for desktop-mobile mode
-  mobileFontSize?: number;  // Optional: for desktop-mobile mode
+  desktopFontSize?: number;
+  mobileFontSize?: number;
   fontColor: string;
   x: number;
   y: number;
+  desktopX?: number;
+  desktopY?: number;
+  mobileX?: number;
+  mobileY?: number;
+  allCaps?: boolean;
+}
+
+export interface ImageOverlay {
+  id: string;
+  imageUrl: string;
+  originalImageUrl: string; // Store original URL for sharing
+  width: number; // Percentage of canvas width
+  height: number; // Percentage of canvas height (auto-calculated from aspect ratio)
+  x: number; // Position percentage
+  y: number; // Position percentage
+  desktopX?: number;
+  desktopY?: number;
+  mobileX?: number;
+  mobileY?: number;
+  desktopWidth?: number;
+  desktopHeight?: number;
+  mobileWidth?: number;
+  mobileHeight?: number;
+  aspectRatio: number; // Width/height ratio for maintaining proportions
 }
 
 interface FormState {
   textOverlays: TextOverlay[];
+  imageOverlays: ImageOverlay[];
   activeOverlayId: string | null;
+  activeOverlayType: 'text' | 'image' | null;
   imageUrl: string;
   width: number;
   height: number;
+  desktopWidth: number;
+  desktopHeight: number;
+  mobileWidth: number;
+  mobileHeight: number;
   brightness: number;
   imageZoom: number;
   imageX: number;
@@ -33,16 +63,30 @@ interface FormState {
 }
 
 type FormStateKey = keyof Omit<FormState, 'textOverlays' | 'activeOverlayId'>;
-type NumericKeys = Extract<FormStateKey, 'width' | 'height' | 'brightness' | 'imageX' | 'imageY' | 'imageZoom'>;
+type NumericKeys = Extract<FormStateKey, 'width' | 'height' | 'desktopWidth' | 'desktopHeight' | 'mobileWidth' | 'mobileHeight' | 'brightness' | 'imageX' | 'imageY' | 'imageZoom'>;
 type StringKeys = Extract<FormStateKey, 'imageUrl'>;
+
+// Validation constants
+const DIMENSION_CONSTRAINTS = {
+  MIN_WIDTH: 100,
+  MAX_WIDTH: 5000,
+  MIN_HEIGHT: 350,
+  MAX_HEIGHT: 5000
+};
 
 export function ClientApp() {
   const [formState, setFormState] = useState<FormState>({
     textOverlays: [],
+    imageOverlays: [],
     activeOverlayId: null,
+    activeOverlayType: null,
     imageUrl: '',
     width: 800,
     height: 600,
+    desktopWidth: 1240,
+    desktopHeight: 968,
+    mobileWidth: 1240,
+    mobileHeight: 1400,
     brightness: 100, // normal brightness (100%)
     imageZoom: 1,
     imageX: 0,
@@ -64,19 +108,74 @@ export function ClientApp() {
 
   // Add new overlay input state
   const [newOverlayText, setNewOverlayText] = useState('');
+  const [newImageOverlayUrl, setNewImageOverlayUrl] = useState('');
 
   // Add state for accordion sections
   const [openAccordions, setOpenAccordions] = useState({
     imageSource: true,
     imageAdjustments: false,
     textOverlays: true,
+    imageOverlays: true,
     textContent: true, 
-    textStyle: false
+    textStyle: false,
+    imageSettings: false
   });
 
   // State for desktop/mobile mode
   const [desktopMobileVersion, setDesktopMobileVersion] = useState<'desktop' | 'mobile'>('desktop');
   const [desktopMobileImageUrl, setDesktopMobileImageUrl] = useState<string>('');
+
+  // Validation function for dimensions
+  const validateDimension = (value: number, type: 'width' | 'height'): { isValid: boolean; message?: string } => {
+    const isWidth = type === 'width';
+    const min = isWidth ? DIMENSION_CONSTRAINTS.MIN_WIDTH : DIMENSION_CONSTRAINTS.MIN_HEIGHT;
+    const max = isWidth ? DIMENSION_CONSTRAINTS.MAX_WIDTH : DIMENSION_CONSTRAINTS.MAX_HEIGHT;
+    
+    if (value < min) {
+      return { 
+        isValid: false, 
+        message: `${isWidth ? 'Width' : 'Height'} must be at least ${min}px for proper image generation.` 
+      };
+    }
+    if (value > max) {
+      return { 
+        isValid: false, 
+        message: `${isWidth ? 'Width' : 'Height'} cannot exceed ${max}px due to memory constraints.` 
+      };
+    }
+    return { isValid: true };
+  };
+
+  // Helper to check if current dimensions have errors (only for height since width is disabled)
+  const getDimensionErrorClass = (fieldType: 'width' | 'height') => {
+    if (fieldType === 'width') {
+      return 'slds-input'; // Width is always valid since it's disabled
+    }
+    
+    const currentHeight = desktopMobileVersion === 'desktop' ? formState.desktopHeight : formState.mobileHeight;
+    const validation = validateDimension(currentHeight, 'height');
+    
+    return validation.isValid ? 'slds-input' : 'slds-input slds-has-error';
+  };
+
+  // Effect to handle dimension changes and regenerate preview
+  useEffect(() => {
+    if (activeImageSourceTab === 'desktop-mobile' && desktopMobileImageUrl) {
+      // Validate current dimensions before generating preview
+      const currentWidth = desktopMobileVersion === 'desktop' ? formState.desktopWidth : formState.mobileWidth;
+      const currentHeight = desktopMobileVersion === 'desktop' ? formState.desktopHeight : formState.mobileHeight;
+      
+      const widthValidation = validateDimension(currentWidth, 'width');
+      const heightValidation = validateDimension(currentHeight, 'height');
+      
+      if (widthValidation.isValid && heightValidation.isValid) {
+        const timer = setTimeout(() => {
+          generateDesktopMobilePreview(desktopMobileImageUrl, desktopMobileVersion);
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [formState.desktopHeight, formState.mobileHeight, desktopMobileVersion]);
   
   // Function to handle image source tab changes
   const handleImageSourceTabChange = (tab: 'url' | 'upload' | 'transparent' | 'desktop-mobile') => {
@@ -125,8 +224,6 @@ export function ClientApp() {
       id: generateId(),
       text: text.trim(),
       fontSize: 5, // Default font size (5% of image width)
-      desktopFontSize: 5, // Default desktop font size for desktop-mobile mode
-      mobileFontSize: 5,  // Default mobile font size for desktop-mobile mode
       fontColor: '#FFFFFF', // Default color (white)
       x: 10, // Default position (10% from left)
       y: 10 + (formState.textOverlays.length * 10) % 80 // Staggered positioning
@@ -142,7 +239,7 @@ export function ClientApp() {
   };
   
   // Function to update an active text overlay
-  const updateActiveOverlay = (field: keyof TextOverlay, value: string | number) => {
+  const updateActiveOverlay = (field: keyof TextOverlay, value: string | number | boolean) => {
     if (!formState.activeOverlayId) return;
     
     setFormState(prev => ({
@@ -156,22 +253,53 @@ export function ClientApp() {
   };
   
   // Function to select an overlay as active
-  const setActiveOverlay = (id: string | null) => {
-    setFormState(prev => ({
-      ...prev,
-      activeOverlayId: id
-    }));
-  };
-  
-  // Function to delete an overlay
-  const deleteOverlay = (id: string) => {
+  const setActiveOverlay = (id: string | null, type?: 'text' | 'image' | null) => {
     setFormState(prev => {
-      const updatedOverlays = prev.textOverlays.filter(overlay => overlay.id !== id);
+      // If id is provided, determine type if not specified
+      let overlayType = type;
+      if (id && !type) {
+        // Check if it's a text overlay
+        if (prev.textOverlays.find(overlay => overlay.id === id)) {
+          overlayType = 'text';
+        }
+        // Check if it's an image overlay
+        else if (prev.imageOverlays.find(overlay => overlay.id === id)) {
+          overlayType = 'image';
+        }
+      }
+      
       return {
         ...prev,
-        textOverlays: updatedOverlays,
-        activeOverlayId: prev.activeOverlayId === id ? (updatedOverlays.length > 0 ? updatedOverlays[0].id : null) : prev.activeOverlayId
+        activeOverlayId: id,
+        activeOverlayType: id ? (overlayType || null) : null
       };
+    });
+  };
+  
+  // Function to delete an overlay (text or image)
+  const deleteOverlay = (id: string) => {
+    setFormState(prev => {
+      // Check if it's a text overlay
+      const isTextOverlay = prev.textOverlays.some(overlay => overlay.id === id);
+      
+      if (isTextOverlay) {
+        const updatedTextOverlays = prev.textOverlays.filter(overlay => overlay.id !== id);
+        return {
+          ...prev,
+          textOverlays: updatedTextOverlays,
+          activeOverlayId: prev.activeOverlayId === id ? null : prev.activeOverlayId,
+          activeOverlayType: prev.activeOverlayId === id ? null : prev.activeOverlayType
+        };
+      } else {
+        // It's an image overlay
+        const updatedImageOverlays = prev.imageOverlays.filter(overlay => overlay.id !== id);
+        return {
+          ...prev,
+          imageOverlays: updatedImageOverlays,
+          activeOverlayId: prev.activeOverlayId === id ? null : prev.activeOverlayId,
+          activeOverlayType: prev.activeOverlayId === id ? null : prev.activeOverlayType
+        };
+      }
     });
   };
   
@@ -192,7 +320,92 @@ export function ClientApp() {
       setPendingDeleteId(null);
     }
   };
-  
+
+  // Function to add a new image overlay
+  const addImageOverlay = async (imageUrl: string) => {
+    if (!imageUrl.trim()) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Load the image to get dimensions and convert to base64
+      const response = await fetch('/api/load-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: [imageUrl] })
+      });
+      
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      
+      // Create a temporary image to get dimensions
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = data.images[0];
+      });
+      
+      const aspectRatio = img.width / img.height;
+      const defaultWidth = 20; // 20% of canvas width
+      const defaultHeight = defaultWidth / aspectRatio;
+      
+      const newOverlay: ImageOverlay = {
+        id: generateId(),
+        imageUrl: data.images[0], // Base64 image
+        originalImageUrl: imageUrl, // Original URL for sharing
+        width: defaultWidth,
+        height: defaultHeight,
+        x: 10, // Default position (10% from left)
+        y: 10 + (formState.imageOverlays.length * 15) % 70, // Staggered positioning
+        aspectRatio
+      };
+      
+      setFormState(prev => ({
+        ...prev,
+        imageOverlays: [...prev.imageOverlays, newOverlay],
+        activeOverlayId: newOverlay.id,
+        activeOverlayType: 'image'
+      }));
+      
+      setNewImageOverlayUrl(''); // Clear input field
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error adding image overlay:', error);
+      setError('Failed to load image overlay');
+      setIsLoading(false);
+    }
+  };
+
+  // Function to update an active image overlay
+  const updateActiveImageOverlay = (field: keyof ImageOverlay, value: string | number) => {
+    if (!formState.activeOverlayId || formState.activeOverlayType !== 'image') return;
+    
+    setFormState(prev => ({
+      ...prev,
+      imageOverlays: prev.imageOverlays.map(overlay => 
+        overlay.id === prev.activeOverlayId 
+          ? { ...overlay, [field]: value }
+          : overlay
+      )
+    }));
+  };
+
+  // Function to delete an image overlay
+  const deleteImageOverlay = (id: string) => {
+    setFormState(prev => {
+      const updatedOverlays = prev.imageOverlays.filter(overlay => overlay.id !== id);
+      return {
+        ...prev,
+        imageOverlays: updatedOverlays,
+        activeOverlayId: prev.activeOverlayId === id ? null : prev.activeOverlayId,
+        activeOverlayType: prev.activeOverlayId === id ? null : prev.activeOverlayType
+      };
+    });
+  };
+
   // Function to handle text change for an overlay
   const handleOverlayTextChange = (value: string) => {
     if (formState.activeOverlayId) {
@@ -201,9 +414,14 @@ export function ClientApp() {
   };
   
   // Get currently active overlay
-  const activeOverlay = formState.activeOverlayId 
+  const activeTextOverlay = formState.activeOverlayId && formState.activeOverlayType === 'text'
     ? formState.textOverlays.find(overlay => overlay.id === formState.activeOverlayId) 
     : null;
+  const activeImageOverlay = formState.activeOverlayId && formState.activeOverlayType === 'image'
+    ? formState.imageOverlays.find(overlay => overlay.id === formState.activeOverlayId) 
+    : null;
+  // Keep activeOverlay for backward compatibility with text overlays
+  const activeOverlay = activeTextOverlay;
 
   // Function to toggle accordion sections
   const toggleAccordion = (section: keyof typeof openAccordions) => {
@@ -223,6 +441,19 @@ export function ClientApp() {
     const mode = params.get('mode') as 'url' | 'upload' | 'transparent' | 'desktop-mobile' | null;
     if (mode && ['url', 'upload', 'transparent', 'desktop-mobile'].includes(mode)) {
       setActiveImageSourceTab(mode);
+    }
+    
+    // Handle desktop/mobile specific parameters
+    if (mode === 'desktop-mobile') {
+      const dmVersion = params.get('desktopMobileVersion') as 'desktop' | 'mobile' | null;
+      if (dmVersion && ['desktop', 'mobile'].includes(dmVersion)) {
+        setDesktopMobileVersion(dmVersion);
+      }
+      
+      const dmImageUrl = params.get('desktopMobileImageUrl');
+      if (dmImageUrl) {
+        setDesktopMobileImageUrl(dmImageUrl);
+      }
     }
     
     numericKeys.forEach(key => {
@@ -248,12 +479,57 @@ export function ClientApp() {
           urlState.textOverlays = decodedOverlays;
           // Set the first overlay as active
           urlState.activeOverlayId = decodedOverlays[0].id;
+          urlState.activeOverlayType = 'text';
         }
       } catch (error) {
         console.error('Failed to parse text overlays from URL:', error);
         // Continue with other parameters even if overlay parsing fails
       }
-    } else {
+    }
+    
+    // Handle image overlays if present in URL
+    const imageOverlaysParam = params.get('imageOverlays');
+    if (imageOverlaysParam) {
+      try {
+        const decodedImageOverlays = JSON.parse(decodeURIComponent(imageOverlaysParam)) as ImageOverlay[];
+        if (Array.isArray(decodedImageOverlays) && decodedImageOverlays.length > 0) {
+          // Load the images and convert to base64
+          const imageUrls = decodedImageOverlays.map(overlay => overlay.originalImageUrl).filter(Boolean);
+          if (imageUrls.length > 0) {
+            fetch('/api/load-images', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ images: imageUrls })
+            })
+            .then(response => response.json())
+            .then(data => {
+              const updatedImageOverlays = decodedImageOverlays.map((overlay, index) => ({
+                ...overlay,
+                imageUrl: data.images[index] || overlay.imageUrl
+              }));
+              
+              setFormState(prev => ({
+                ...prev,
+                imageOverlays: updatedImageOverlays
+              }));
+            })
+            .catch(error => {
+              console.error('Error loading shared image overlays:', error);
+              // Still set the overlays with original URLs as fallback
+              urlState.imageOverlays = decodedImageOverlays;
+            });
+          } else {
+            urlState.imageOverlays = decodedImageOverlays;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to parse image overlays from URL:', error);
+        // Continue with other parameters even if overlay parsing fails
+      }
+    }
+    
+    // Handle legacy text overlay format only if no new overlays found
+    if (!overlaysParam && !imageOverlaysParam) {
       // Handle legacy URL format (individual text parameters)
       const legacyText = params.get('text');
       const legacyFontSize = params.get('fontSize');
@@ -284,9 +560,9 @@ export function ClientApp() {
       }
     }
 
-    // Handle imageUrl separately - skip for transparent mode
+    // Handle imageUrl separately - skip for transparent mode and desktop-mobile mode (handled separately)
     const imageUrl = params.get('imageUrl');
-    if (imageUrl && mode !== 'transparent') {
+    if (imageUrl && mode !== 'transparent' && mode !== 'desktop-mobile') {
       setIsLoading(true);
       setOriginalImageUrl(imageUrl); // Store the original URL from params
       fetch('/api/load-images', {
@@ -319,6 +595,20 @@ export function ClientApp() {
         imageUrl: 'transparent'
       }));
       setOriginalImageUrl('transparent');
+    } else if (mode === 'desktop-mobile') {
+      // Handle desktop-mobile mode
+      const dmImageUrl = params.get('desktopMobileImageUrl');
+      const dmVersion = params.get('desktopMobileVersion') as 'desktop' | 'mobile' || 'desktop';
+      
+      if (dmImageUrl) {
+        // Generate the desktop-mobile preview
+        generateDesktopMobilePreview(dmImageUrl, dmVersion);
+      }
+      
+      // Apply other URL state
+      if (Object.keys(urlState).length) {
+        setFormState(prev => ({ ...prev, ...urlState }));
+      }
     } else if (Object.keys(urlState).length) {
       setFormState(prev => ({ ...prev, ...urlState }));
     }
@@ -385,7 +675,29 @@ export function ClientApp() {
         setIsLoading(false);
       }
     } else {
-      setFormState(prev => ({ ...prev, [name]: value }));
+      // Check if this is a dimension change in desktop-mobile mode (only height fields now)
+      const isDimensionField = ['desktopHeight', 'mobileHeight'].includes(name);
+      
+      if (isDimensionField) {
+        const numValue = Number(value);
+        const dimensionType = name.includes('Width') ? 'width' : 'height';
+        const validation = validateDimension(numValue, dimensionType);
+        
+        if (!validation.isValid && value !== '') {
+          // Show validation error
+          setError(validation.message || 'Invalid dimension value');
+          // Still update the state to reflect user input, but don't trigger preview
+          setFormState(prev => ({ ...prev, [name]: numValue }));
+        } else {
+          // Clear any previous errors and update state
+          if (error && error.includes('must be at least') || error?.includes('cannot exceed')) {
+            setError(null);
+          }
+          setFormState(prev => ({ ...prev, [name]: numValue }));
+        }
+      } else {
+        setFormState(prev => ({ ...prev, [name]: value }));
+      }
     }
   };
 
@@ -431,9 +743,17 @@ export function ClientApp() {
       }
 
       let response;
-      // Use POST for upload mode, transparent mode, or base64 data URLs
-      if (activeImageSourceTab === 'upload' || activeImageSourceTab === 'transparent' || formState.imageUrl.startsWith('data:image/')) {
-        const payload = { ...formState, download: true };
+      // Use POST for upload mode, transparent mode, desktop-mobile mode, or base64 data URLs
+      if (activeImageSourceTab === 'upload' || activeImageSourceTab === 'transparent' || activeImageSourceTab === 'desktop-mobile' || formState.imageUrl.startsWith('data:image/')) {
+        const payload = { 
+          ...formState, 
+          download: true,
+          ...(activeImageSourceTab === 'desktop-mobile' && {
+            desktopMobileVersion,
+            desktopMobileImageUrl,
+            isDesktopMobileMode: true
+          })
+        };
         response = await fetch('/api/overlay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -531,6 +851,19 @@ export function ClientApp() {
     // Add the image source mode
     url.searchParams.set('mode', activeImageSourceTab);
     
+    // Add desktop/mobile specific parameters
+    if (activeImageSourceTab === 'desktop-mobile') {
+      url.searchParams.set('desktopMobileVersion', desktopMobileVersion);
+      if (desktopMobileImageUrl) {
+        url.searchParams.set('desktopMobileImageUrl', desktopMobileImageUrl);
+      }
+      // Add custom dimensions for desktop/mobile mode
+      url.searchParams.set('desktopWidth', String(formState.desktopWidth));
+      url.searchParams.set('desktopHeight', String(formState.desktopHeight));
+      url.searchParams.set('mobileWidth', String(formState.mobileWidth));
+      url.searchParams.set('mobileHeight', String(formState.mobileHeight));
+    }
+    
     // Add the basic parameters
     const baseParams: (keyof Omit<FormState, 'textOverlays' | 'activeOverlayId' | 'imageUrl'>)[] = 
       ['width', 'height', 'brightness', 'imageZoom', 'imageX', 'imageY'];
@@ -539,8 +872,8 @@ export function ClientApp() {
       url.searchParams.set(key, String(formState[key]));
     });
     
-    // Add the image URL (using original URL, not base64) - skip for transparent mode
-    if (activeImageSourceTab !== 'transparent') {
+    // Add the image URL (using original URL, not base64) - skip for transparent mode and desktop-mobile mode
+    if (activeImageSourceTab !== 'transparent' && activeImageSourceTab !== 'desktop-mobile') {
       url.searchParams.set('imageUrl', originalImageUrl);
     }
     
@@ -548,6 +881,12 @@ export function ClientApp() {
     if (formState.textOverlays.length > 0) {
       const overlaysJson = JSON.stringify(formState.textOverlays);
       url.searchParams.set('overlays', encodeURIComponent(overlaysJson));
+    }
+    
+    // Encode image overlays as JSON in the URL
+    if (formState.imageOverlays.length > 0) {
+      const imageOverlaysJson = JSON.stringify(formState.imageOverlays);
+      url.searchParams.set('imageOverlays', encodeURIComponent(imageOverlaysJson));
     }
 
     navigator.clipboard.writeText(url.toString());
@@ -586,7 +925,7 @@ export function ClientApp() {
     setFormState(prev => ({ ...prev, fontColor: color }));
   };
 
-  // Handle position change for a text overlay
+  // Handle position change for a text or image overlay
   const handlePositionChange = (overlayId: string, newX: number, newY: number) => {
     // Special case: If newX and newY are both -1, this is a signal to just select the overlay
     if (newX === -1 && newY === -1) {
@@ -595,15 +934,103 @@ export function ClientApp() {
     }
     
     // Normal case: Update the position of the overlay
+    setFormState(prev => {
+      // Check if it's a text overlay
+      const isTextOverlay = prev.textOverlays.some(overlay => overlay.id === overlayId);
+      
+      if (isTextOverlay) {
+        return {
+          ...prev,
+          textOverlays: prev.textOverlays.map(overlay => {
+            if (overlay.id === overlayId) {
+              // In desktop-mobile mode, update the appropriate version-specific position
+              if (activeImageSourceTab === 'desktop-mobile') {
+                if (desktopMobileVersion === 'desktop') {
+                  return { ...overlay, desktopX: Math.round(newX), desktopY: Math.round(newY) };
+                } else if (desktopMobileVersion === 'mobile') {
+                  return { ...overlay, mobileX: Math.round(newX), mobileY: Math.round(newY) };
+                }
+              }
+              // Default behavior: update generic x, y
+              return { ...overlay, x: Math.round(newX), y: Math.round(newY) };
+            }
+            return overlay;
+          }),
+          // Also make this the active overlay when dragging it
+          activeOverlayId: overlayId,
+          activeOverlayType: 'text'
+        };
+      } else {
+        // It's an image overlay
+        return {
+          ...prev,
+          imageOverlays: prev.imageOverlays.map(overlay => {
+            if (overlay.id === overlayId) {
+              // In desktop-mobile mode, update the appropriate version-specific position
+              if (activeImageSourceTab === 'desktop-mobile') {
+                if (desktopMobileVersion === 'desktop') {
+                  return { ...overlay, desktopX: Math.round(newX), desktopY: Math.round(newY) };
+                } else if (desktopMobileVersion === 'mobile') {
+                  return { ...overlay, mobileX: Math.round(newX), mobileY: Math.round(newY) };
+                }
+              }
+              // Default behavior: update generic x, y
+              return { ...overlay, x: Math.round(newX), y: Math.round(newY) };
+            }
+            return overlay;
+          }),
+          // Also make this the active overlay when dragging it
+          activeOverlayId: overlayId,
+          activeOverlayType: 'image'
+        };
+      }
+    });
+  };
+
+  // Handle font size change for a text overlay
+  const handleFontSizeChange = (overlayId: string, newFontSize: number) => {
     setFormState(prev => ({
       ...prev,
-      textOverlays: prev.textOverlays.map(overlay => 
-        overlay.id === overlayId
-          ? { ...overlay, x: Math.round(newX), y: Math.round(newY) }
-          : overlay
-      ),
-      // Also make this the active overlay when dragging it
-      activeOverlayId: overlayId
+      textOverlays: prev.textOverlays.map(overlay => {
+        if (overlay.id === overlayId) {
+          // In desktop-mobile mode, update the appropriate version-specific font size
+          if (activeImageSourceTab === 'desktop-mobile') {
+            if (desktopMobileVersion === 'desktop') {
+              return { ...overlay, desktopFontSize: Math.round(newFontSize * 10) / 10 };
+            } else if (desktopMobileVersion === 'mobile') {
+              return { ...overlay, mobileFontSize: Math.round(newFontSize * 10) / 10 };
+            }
+          }
+          // Default behavior: update generic fontSize
+          return { ...overlay, fontSize: Math.round(newFontSize * 10) / 10 };
+        }
+        return overlay;
+      })
+    }));
+  };
+
+  // Handle size change for an image overlay
+  const handleImageSizeChange = (overlayId: string, newWidth: number) => {
+    setFormState(prev => ({
+      ...prev,
+      imageOverlays: prev.imageOverlays.map(overlay => {
+        if (overlay.id === overlayId) {
+          // Calculate height based on aspect ratio
+          const newHeight = newWidth / overlay.aspectRatio;
+          
+          // In desktop-mobile mode, update the appropriate version-specific size
+          if (activeImageSourceTab === 'desktop-mobile') {
+            if (desktopMobileVersion === 'desktop') {
+              return { ...overlay, desktopWidth: Math.round(newWidth * 10) / 10, desktopHeight: Math.round(newHeight * 10) / 10 };
+            } else if (desktopMobileVersion === 'mobile') {
+              return { ...overlay, mobileWidth: Math.round(newWidth * 10) / 10, mobileHeight: Math.round(newHeight * 10) / 10 };
+            }
+          }
+          // Default behavior: update generic width/height
+          return { ...overlay, width: Math.round(newWidth * 10) / 10, height: Math.round(newHeight * 10) / 10 };
+        }
+        return overlay;
+      })
     }));
   };
 
@@ -640,12 +1067,15 @@ export function ClientApp() {
     
     try {
       setIsLoading(true);
-      const dimensions = versionToUse === 'desktop' ? { width: 1240, height: 968 } : { width: 1240, height: 1400 };
+      const dimensions = versionToUse === 'desktop' 
+        ? { width: Number(formState.desktopWidth), height: Number(formState.desktopHeight) } 
+        : { width: Number(formState.mobileWidth), height: Number(formState.mobileHeight) };
       const payload = {
         ...formState,
         ...dimensions,
         imageUrl: backgroundUrl,
         textOverlays: [], // Empty for preview, we'll add text overlays in the canvas
+        imageOverlays: [], // Empty for preview, we'll add image overlays in the canvas
         isDesktopMobileMode: true,
         desktopMobileVersion: versionToUse,
         download: false
@@ -677,6 +1107,71 @@ export function ClientApp() {
     } catch (error) {
       console.error('Preview generation failed:', error);
       setError('Failed to generate preview. Please check the background image URL.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Generate desktop/mobile preview with explicit dimensions (for dimension changes)
+  const generateDesktopMobilePreviewWithDimensions = async (backgroundUrl: string, version: 'desktop' | 'mobile', state: FormState) => {
+    if (!backgroundUrl) {
+      console.log('No background URL provided');
+      return;
+    }
+    
+    console.log('Generating preview with custom dimensions for version:', version, 'URL:', backgroundUrl);
+    
+    try {
+      setIsLoading(true);
+      const dimensions = version === 'desktop' 
+        ? { width: Number(state.desktopWidth), height: Number(state.desktopHeight) } 
+        : { width: Number(state.mobileWidth), height: Number(state.mobileHeight) };
+      const payload = {
+        ...state,
+        ...dimensions,
+        imageUrl: backgroundUrl,
+        textOverlays: [], // Empty for preview, we'll add text overlays in the canvas
+        imageOverlays: [], // Empty for preview, we'll add image overlays in the canvas
+        isDesktopMobileMode: true,
+        desktopMobileVersion: version,
+        download: false
+      };
+      
+      console.log('Sending API request with custom dimensions:', {
+        ...payload,
+        imageUrl: payload.imageUrl.substring(0, 50) + '...' // Truncate URL for readability
+      });
+      const response = await fetch('/api/overlay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      console.log('Response status:', response.status, response.statusText);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('Error response:', errorText);
+        throw new Error(`Failed to generate preview: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+      
+      const blob = await response.blob();
+      console.log('Blob received:', blob.size, 'bytes, type:', blob.type);
+      const previewUrl = URL.createObjectURL(blob);
+      console.log('Preview with custom dimensions generated successfully:', previewUrl);
+      
+      setFormState(prev => ({ 
+        ...prev, 
+        imageUrl: previewUrl,
+        width: dimensions.width,
+        height: dimensions.height
+      }));
+    } catch (error) {
+      console.error('Preview generation with custom dimensions failed:', error);
+      setError('Failed to generate preview. Please check the background image URL and dimensions.');
     } finally {
       setIsLoading(false);
     }
@@ -723,7 +1218,7 @@ export function ClientApp() {
                     <div className="form-section">
                       <div className="slds-form-element slds-form-element_stacked">
                         <div className="slds-tabs_scoped">
-                          <ul className="slds-tabs_scoped__nav" role="tablist">
+                          <ul className="slds-tabs_scoped__nav" role="tablist" style={{ flexWrap: 'wrap', rowGap: '0.25rem' }}>
                             <li className={`slds-tabs_scoped__item ${activeImageSourceTab === 'url' ? 'slds-is-active' : ''}`} role="presentation">
                               <button
                                 className="slds-tabs_scoped__link"
@@ -908,23 +1403,8 @@ export function ClientApp() {
                             </div>
                           </div>
                           <div id="desktop-mobile-tab-content" className={`slds-tabs_scoped__content ${activeImageSourceTab === 'desktop-mobile' ? '' : 'slds-hide'}`} role="tabpanel" aria-labelledby="desktop-mobile-tab">
-                            <div className="slds-notify slds-notify_alert slds-theme_info slds-m-bottom_small" role="alert">
-                              <div className="slds-notify__content">
-                                <div className="slds-media slds-media_center">
-                                  <div className="slds-media__figure">
-                                    <svg className="slds-icon slds-icon_small" aria-hidden="true">
-                                      <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#multi_select_checkbox"></use>
-                                    </svg>
-                                  </div>
-                                  <div className="slds-media__body">
-                                    <p>Create desktop (1240x968) and mobile (1240x1400) versions with automatic logo placement and text positioning.</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
                             {/* Version Selection */}
-                            <div className="slds-form-element slds-m-bottom_medium">
+                            <div className="slds-form-element slds-m-bottom_large">
                               <fieldset className="slds-form-element__legend">
                                 <legend className="slds-form-element__legend slds-form-element__label">
                                   Version
@@ -942,7 +1422,7 @@ export function ClientApp() {
                                       }}
                                       style={{ pointerEvents: 'auto', zIndex: 10 }}
                                     >
-                                      Desktop (1240x968)
+                                      Desktop
                                     </button>
                                     <button
                                       type="button"
@@ -955,8 +1435,65 @@ export function ClientApp() {
                                       }}
                                       style={{ pointerEvents: 'auto', zIndex: 10 }}
                                     >
-                                      Mobile (1240x1400)
+                                      Mobile
                                     </button>
+                                  </div>
+                                </div>
+                              </fieldset>
+                            </div>
+
+                            {/* Canvas Dimensions - Separate Row */}
+                            <div className="slds-form-element slds-m-bottom_medium slds-m-top_x-large" style={{ clear: 'both', width: '100%' }}>
+                              <fieldset className="slds-form-element">
+                                <legend className="slds-form-element__legend slds-form-element__label">
+                                  {desktopMobileVersion === 'desktop' ? 'Desktop' : 'Mobile'} Canvas Dimensions
+                                </legend>
+                                <div className="slds-form-element__control">
+                                  <div className="slds-grid slds-gutters_small">
+                                    <div className="slds-col slds-size_1-of-2">
+                                      <div className="slds-form-element">
+                                        <label className="slds-form-element__label" htmlFor={`${desktopMobileVersion}Width`}>
+                                          Width (px)
+                                        </label>
+                                        <div className="slds-form-element__control">
+                                          <input
+                                            type="number"
+                                            id={`${desktopMobileVersion}Width`}
+                                            name={`${desktopMobileVersion}Width`}
+                                            value={desktopMobileVersion === 'desktop' ? formState.desktopWidth : formState.mobileWidth}
+                                            className="slds-input"
+                                            min="100"
+                                            max="5000"
+                                            step="1"
+                                            disabled
+                                            style={{ backgroundColor: '#f3f2f2', color: '#706e6b', cursor: 'not-allowed' }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="slds-col slds-size_1-of-2">
+                                      <div className="slds-form-element">
+                                        <label className="slds-form-element__label" htmlFor={`${desktopMobileVersion}Height`}>
+                                          Height (px)
+                                        </label>
+                                        <div className="slds-form-element__control">
+                                          <input
+                                            type="number"
+                                            id={`${desktopMobileVersion}Height`}
+                                            name={`${desktopMobileVersion}Height`}
+                                            value={desktopMobileVersion === 'desktop' ? formState.desktopHeight : formState.mobileHeight}
+                                            onChange={handleInputChange}
+                                            className={getDimensionErrorClass('height')}
+                                            min="350"
+                                            max="5000"
+                                            step="1"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="slds-form-element__help slds-text-color_weak slds-text-body_small slds-m-top_x-small">
+                                    Width is fixed • Height: {DIMENSION_CONSTRAINTS.MIN_HEIGHT}px - {DIMENSION_CONSTRAINTS.MAX_HEIGHT}px
                                   </div>
                                 </div>
                               </fieldset>
@@ -1208,7 +1745,7 @@ export function ClientApp() {
                                 key={overlay.id} 
                                 className={`slds-item overlay-item ${formState.activeOverlayId === overlay.id ? 'slds-is-selected active-overlay-item' : ''}`}
                               >
-                                <div className="slds-grid slds-grid_align-spread slds-p-around_xx-small">
+                                <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-p-around_xx-small">
                                   <button 
                                     className="slds-media slds-media_center overlay-select-button" 
                                     onClick={() => setActiveOverlay(overlay.id)}
@@ -1255,6 +1792,163 @@ export function ClientApp() {
                                         <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#delete"></use>
                                       </svg>
                                       <span className="slds-assistive-text">Delete this overlay</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Image Overlays Accordion */}
+                <div className={`slds-accordion__section ${openAccordions.imageOverlays ? 'slds-is-open' : ''}`}>
+                  <div className="slds-accordion__summary">
+                    <h3 className="slds-accordion__summary-heading">
+                      <button
+                        aria-controls="image-overlays-content"
+                        aria-expanded={openAccordions.imageOverlays}
+                        className="slds-button slds-button_reset slds-accordion__summary-action"
+                        onClick={() => toggleAccordion('imageOverlays')}
+                      >
+                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#image"></use>
+                        </svg>
+                        <span className="slds-accordion__summary-content">Image Overlays</span>
+                      </button>
+                    </h3>
+                  </div>
+                  <div 
+                    className="slds-accordion__content" 
+                    id="image-overlays-content"
+                    hidden={!openAccordions.imageOverlays}
+                  >
+                    <div className="form-section">
+                      {/* Add Image Overlay Input */}
+                      <div className="slds-form-element slds-m-bottom_medium">
+                        <label className="slds-form-element__label" htmlFor="new-image-overlay-url">
+                          Add Image Overlay
+                        </label>
+                        <div className="slds-form-element__control">
+                          <div className="slds-input-has-icon slds-input-has-icon_right">
+                            <input
+                              type="url"
+                              id="new-image-overlay-url"
+                              className="slds-input"
+                              placeholder="Enter image URL..."
+                              value={newImageOverlayUrl}
+                              onChange={(e) => setNewImageOverlayUrl(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  addImageOverlay(newImageOverlayUrl);
+                                }
+                              }}
+                            />
+                            <button
+                              className="slds-input__icon slds-input__icon_right slds-button slds-button_icon"
+                              onClick={() => addImageOverlay(newImageOverlayUrl)}
+                              disabled={!newImageOverlayUrl.trim() || isLoading}
+                              title="Add image overlay"
+                            >
+                              <svg className="slds-button__icon" aria-hidden="true">
+                                <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#add"></use>
+                              </svg>
+                              <span className="slds-assistive-text">Add image overlay</span>
+                            </button>
+                          </div>
+                        </div>
+                        <div className="slds-form-element__help">
+                          Enter a URL for an image (PNG, JPG, etc.) to add as an overlay
+                        </div>
+                      </div>
+
+                      {/* Image Overlays List */}
+                      <div className="overlays-section">
+                        <h4 className="slds-text-title_caps slds-m-bottom_x-small">Image Overlays</h4>
+                        {formState.imageOverlays.length === 0 ? (
+                          <div className="slds-box slds-box_xx-small slds-theme_shade slds-text-align_center">
+                            <p className="slds-text-body_small slds-text-color_weak">
+                              No image overlays added yet. Add your first one above!
+                            </p>
+                          </div>
+                        ) : (
+                          <ul className="slds-has-dividers_around-space">
+                            {formState.imageOverlays.map((overlay, index) => (
+                              <li 
+                                key={overlay.id} 
+                                className={`slds-item overlay-item ${formState.activeOverlayId === overlay.id && formState.activeOverlayType === 'image' ? 'slds-is-selected active-overlay-item' : ''}`}
+                              >
+                                <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-p-around_xx-small">
+                                  <button
+                                    className="slds-media slds-media_center overlay-select-button"
+                                    onClick={() => setActiveOverlay(overlay.id, 'image')}
+                                    title={`Select image overlay ${index + 1}`}
+                                    style={{ 
+                                      width: 'calc(100% - 44px)',
+                                      textAlign: 'left',
+                                      cursor: 'pointer',
+                                      border: 'none',
+                                      background: 'transparent',
+                                      padding: '0.5rem',
+                                      position: 'relative'
+                                    }}
+                                    aria-pressed={formState.activeOverlayId === overlay.id && formState.activeOverlayType === 'image'}
+                                  >
+                                    <div className="slds-media__figure">
+                                      <img 
+                                        src={overlay.imageUrl} 
+                                        alt={`Image overlay ${index + 1} preview`}
+                                        style={{ 
+                                          width: '40px', 
+                                          height: '40px', 
+                                          objectFit: 'cover',
+                                          borderRadius: '4px',
+                                          border: '1px solid var(--ui-border-color)',
+                                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="slds-media__body slds-truncate">
+                                      <span className={`slds-text-body_regular ${formState.activeOverlayId === overlay.id && formState.activeOverlayType === 'image' ? 'slds-text-color_default' : 'slds-text-color_weak'}`}>
+                                        Image {index + 1}
+                                      </span>
+                                      <span className="overlay-meta slds-text-body_small slds-text-color_weak slds-m-left_small">
+                                        ({Math.round(
+                                          activeImageSourceTab === 'desktop-mobile' 
+                                            ? (desktopMobileVersion === 'desktop' 
+                                                ? (overlay.desktopX ?? overlay.x) 
+                                                : (overlay.mobileX ?? overlay.x))
+                                            : overlay.x
+                                        )}%, {Math.round(
+                                          activeImageSourceTab === 'desktop-mobile' 
+                                            ? (desktopMobileVersion === 'desktop' 
+                                                ? (overlay.desktopY ?? overlay.y) 
+                                                : (overlay.mobileY ?? overlay.y))
+                                            : overlay.y
+                                        )}%) • {Math.round(
+                                          activeImageSourceTab === 'desktop-mobile' 
+                                            ? (desktopMobileVersion === 'desktop' 
+                                                ? (overlay.desktopWidth ?? overlay.width) 
+                                                : (overlay.mobileWidth ?? overlay.width))
+                                            : overlay.width
+                                        )}%
+                                      </span>
+                                    </div>
+                                  </button>
+                                  <div className="slds-no-flex">
+                                    <button 
+                                      className="slds-button slds-button_icon" 
+                                      onClick={() => deleteImageOverlay(overlay.id)}
+                                      title="Delete this image overlay"
+                                    >
+                                      <svg className="slds-button__icon" aria-hidden="true">
+                                        <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#delete"></use>
+                                      </svg>
+                                      <span className="slds-assistive-text">Delete this image overlay</span>
                                     </button>
                                   </div>
                                 </div>
@@ -1347,127 +2041,88 @@ export function ClientApp() {
                             <div className="slds-grid slds-gutters_medium">
                               <div className="slds-col slds-size_2-of-3">
                                 {activeImageSourceTab === 'desktop-mobile' ? (
-                                  // Desktop & Mobile mode: separate font size controls
-                                  <div>
-                                    {/* Desktop Font Size */}
-                                    <div className="slds-form-element slds-m-bottom_small">
-                                      <label className="slds-form-element__label" htmlFor="desktopFontSize">
-                                        Desktop Font Size
-                                      </label>
-                                      <div className="slds-form-element__control">
-                                        <div className="slds-grid slds-gutters_small slds-grid_vertical-align-center">
-                                          <div className="slds-col slds-size_4-of-5">
-                                            <div className="slds-slider custom-slider">
-                                              <input
-                                                type="range"
-                                                id="desktopFontSize"
-                                                min={1}
-                                                max={20}
-                                                step={0.1}
-                                                value={activeOverlay?.desktopFontSize || activeOverlay?.fontSize || 5}
-                                                onChange={(e) => updateActiveOverlay('desktopFontSize', Number(parseFloat(e.target.value).toFixed(1)))}
-                                                className="slds-slider__range"
-                                                aria-valuemin={1}
-                                                aria-valuemax={20}
-                                                aria-valuenow={activeOverlay?.desktopFontSize || activeOverlay?.fontSize || 5}
-                                                aria-valuetext={`${activeOverlay?.desktopFontSize || activeOverlay?.fontSize || 5}% of image width`}
-                                              />
-                                            </div>
+                                  /* Desktop & Mobile Font Size Controls - Show only current version */
+                                  <div className="slds-form-element">
+                                    <label className="slds-form-element__label" htmlFor={`${desktopMobileVersion}FontSize`}>
+                                      Font Size
+                                    </label>
+                                    <div className="slds-form-element__control">
+                                      <div className="slds-grid slds-gutters_small slds-grid_vertical-align-center">
+                                        <div className="slds-col slds-size_4-of-5">
+                                          <div className="slds-slider custom-slider">
+                                            <input
+                                              type="range"
+                                              id={`${desktopMobileVersion}FontSize`}
+                                              min={1}
+                                              max={20}
+                                              step={0.1}
+                                              value={desktopMobileVersion === 'desktop' 
+                                                ? (activeOverlay?.desktopFontSize ?? (activeOverlay?.fontSize || 5))
+                                                : (activeOverlay?.mobileFontSize ?? (activeOverlay?.fontSize || 5))
+                                              }
+                                              onChange={(e) => updateActiveOverlay(
+                                                desktopMobileVersion === 'desktop' ? 'desktopFontSize' : 'mobileFontSize', 
+                                                Number(parseFloat(e.target.value).toFixed(1))
+                                              )}
+                                              className="slds-slider__range"
+                                              aria-valuemin={1}
+                                              aria-valuemax={20}
+                                              aria-valuenow={desktopMobileVersion === 'desktop' 
+                                                ? (activeOverlay?.desktopFontSize ?? (activeOverlay?.fontSize || 5))
+                                                : (activeOverlay?.mobileFontSize ?? (activeOverlay?.fontSize || 5))
+                                              }
+                                              aria-valuetext={`${desktopMobileVersion === 'desktop' 
+                                                ? (activeOverlay?.desktopFontSize ?? (activeOverlay?.fontSize || 5))
+                                                : (activeOverlay?.mobileFontSize ?? (activeOverlay?.fontSize || 5))
+                                              }% of ${desktopMobileVersion} width`}
+                                            />
                                           </div>
-                                          <div className="slds-col slds-size_1-of-5">
-                                            <div className="slds-form-element__control">
-                                              <input
-                                                type="number"
-                                                className="slds-input font-size-percentage-input"
-                                                min={1}
-                                                max={20}
-                                                step={0.1}
-                                                value={activeOverlay?.desktopFontSize || activeOverlay?.fontSize || 5}
-                                                onChange={(e) => {
-                                                  const value = parseFloat(e.target.value);
-                                                  if (!isNaN(value) && value >= 1 && value <= 20) {
-                                                    updateActiveOverlay('desktopFontSize', Number(value.toFixed(1)));
-                                                  }
-                                                }}
-                                                onBlur={(e) => {
-                                                  let value = parseFloat(e.target.value);
-                                                  if (isNaN(value)) value = 5;
-                                                  if (value < 1) value = 1;
-                                                  if (value > 20) value = 20;
-                                                  updateActiveOverlay('desktopFontSize', Number(value.toFixed(1)));
-                                                }}
-                                                aria-label="Desktop font size percentage"
-                                                style={{ width: "100%", minWidth: "60px" }}
-                                              />
-                                            </div>
-                                            <div className="slds-form-element__help slds-text-align_center">%</div>
+                                        </div>
+                                        <div className="slds-col slds-size_1-of-5">
+                                          <div className="slds-form-element__control">
+                                            <input
+                                              type="number"
+                                              className="slds-input font-size-percentage-input"
+                                              min={1}
+                                              max={20}
+                                              step={0.1}
+                                              value={desktopMobileVersion === 'desktop' 
+                                                ? (activeOverlay?.desktopFontSize ?? (activeOverlay?.fontSize || 5))
+                                                : (activeOverlay?.mobileFontSize ?? (activeOverlay?.fontSize || 5))
+                                              }
+                                              onChange={(e) => {
+                                                const value = parseFloat(e.target.value);
+                                                if (!isNaN(value) && value >= 1 && value <= 20) {
+                                                  updateActiveOverlay(
+                                                    desktopMobileVersion === 'desktop' ? 'desktopFontSize' : 'mobileFontSize', 
+                                                    Number(value.toFixed(1))
+                                                  );
+                                                }
+                                              }}
+                                              onBlur={(e) => {
+                                                let value = parseFloat(e.target.value);
+                                                if (isNaN(value)) value = 5;
+                                                if (value < 1) value = 1;
+                                                if (value > 20) value = 20;
+                                                updateActiveOverlay(
+                                                  desktopMobileVersion === 'desktop' ? 'desktopFontSize' : 'mobileFontSize', 
+                                                  Number(value.toFixed(1))
+                                                );
+                                              }}
+                                              aria-label={`${desktopMobileVersion} font size percentage`}
+                                              style={{ width: "100%", minWidth: "60px" }}
+                                            />
                                           </div>
+                                          <div className="slds-form-element__help slds-text-align_center">%</div>
                                         </div>
                                       </div>
-                                    </div>
-
-                                    {/* Mobile Font Size */}
-                                    <div className="slds-form-element">
-                                      <label className="slds-form-element__label" htmlFor="mobileFontSize">
-                                        Mobile Font Size
-                                      </label>
-                                      <div className="slds-form-element__control">
-                                        <div className="slds-grid slds-gutters_small slds-grid_vertical-align-center">
-                                          <div className="slds-col slds-size_4-of-5">
-                                            <div className="slds-slider custom-slider">
-                                              <input
-                                                type="range"
-                                                id="mobileFontSize"
-                                                min={1}
-                                                max={20}
-                                                step={0.1}
-                                                value={activeOverlay?.mobileFontSize || activeOverlay?.fontSize || 5}
-                                                onChange={(e) => updateActiveOverlay('mobileFontSize', Number(parseFloat(e.target.value).toFixed(1)))}
-                                                className="slds-slider__range"
-                                                aria-valuemin={1}
-                                                aria-valuemax={20}
-                                                aria-valuenow={activeOverlay?.mobileFontSize || activeOverlay?.fontSize || 5}
-                                                aria-valuetext={`${activeOverlay?.mobileFontSize || activeOverlay?.fontSize || 5}% of image width`}
-                                              />
-                                            </div>
-                                          </div>
-                                          <div className="slds-col slds-size_1-of-5">
-                                            <div className="slds-form-element__control">
-                                              <input
-                                                type="number"
-                                                className="slds-input font-size-percentage-input"
-                                                min={1}
-                                                max={20}
-                                                step={0.1}
-                                                value={activeOverlay?.mobileFontSize || activeOverlay?.fontSize || 5}
-                                                onChange={(e) => {
-                                                  const value = parseFloat(e.target.value);
-                                                  if (!isNaN(value) && value >= 1 && value <= 20) {
-                                                    updateActiveOverlay('mobileFontSize', Number(value.toFixed(1)));
-                                                  }
-                                                }}
-                                                onBlur={(e) => {
-                                                  let value = parseFloat(e.target.value);
-                                                  if (isNaN(value)) value = 5;
-                                                  if (value < 1) value = 1;
-                                                  if (value > 20) value = 20;
-                                                  updateActiveOverlay('mobileFontSize', Number(value.toFixed(1)));
-                                                }}
-                                                aria-label="Mobile font size percentage"
-                                                style={{ width: "100%", minWidth: "60px" }}
-                                              />
-                                            </div>
-                                            <div className="slds-form-element__help slds-text-align_center">%</div>
-                                          </div>
-                                        </div>
-                                        <div className="slds-form-element__help">
-                                          Percent of image width
-                                        </div>
+                                      <div className="slds-form-element__help">
+                                        Percent of image width (1240px). Switch to {desktopMobileVersion === 'desktop' ? 'Mobile' : 'Desktop'} to adjust that version.
                                       </div>
                                     </div>
                                   </div>
                                 ) : (
-                                  // Standard mode: single font size control
+                                  /* Regular Font Size Control */
                                   <div className="slds-form-element">
                                     <label className="slds-form-element__label" htmlFor="fontSize">
                                       Font Size
@@ -1580,6 +2235,28 @@ export function ClientApp() {
                                 </div>
                               </div>
                             </div>
+                            
+                            {/* All Caps Toggle */}
+                            <div className="slds-grid slds-gutters_medium slds-m-top_medium">
+                              <div className="slds-col">
+                                <div className="slds-form-element">
+                                  <label className="slds-form-element__label" htmlFor="allCapsToggle">
+                                    All Caps
+                                  </label>
+                                  <div className="slds-form-element__control">
+                                    <button
+                                      type="button"
+                                      id="allCapsToggle"
+                                      className={`slds-button ${activeOverlay?.allCaps ? 'slds-button_brand' : 'slds-button_neutral'}`}
+                                      onClick={() => updateActiveOverlay('allCaps', !activeOverlay?.allCaps)}
+                                      style={{ minWidth: '80px' }}
+                                    >
+                                      {activeOverlay?.allCaps ? 'Enabled' : 'Disabled'}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </fieldset>
                       )}
@@ -1597,59 +2274,350 @@ export function ClientApp() {
                         <fieldset className="slds-form-element">
                           <legend className="slds-form-element__label slds-form-element__legend">Position</legend>
                           <div className="slds-form-element_compound">
-                            <div className="slds-grid slds-gutters_medium">
-                              <div className="slds-col">
-                                <div className="slds-form-element">
-                                  <label className="slds-form-element__label" htmlFor="x-position">
-                                    X Position: {formatSliderLabel(activeOverlay?.x || 0, 'x')}
-                                  </label>
-                                  <div className="slds-form-element__control">
-                                    <div className="slds-slider custom-slider">
-                                      <input
-                                        type="range"
-                                        id="x-position"
-                                        min={0}
-                                        max={100}
-                                        value={activeOverlay?.x || 0}
-                                        onChange={(e) => updateActiveOverlay('x', Number(e.target.value))}
-                                        className="slds-slider__range"
-                                        aria-valuemin={0}
-                                        aria-valuemax={100}
-                                        aria-valuenow={activeOverlay?.x || 0}
-                                        aria-valuetext={`${activeOverlay?.x || 0}% from left`}
-                                      />
+                            {activeImageSourceTab === 'desktop-mobile' ? (
+                              /* Desktop & Mobile Position Controls - Show only current version */
+                              <div className="slds-grid slds-gutters_medium">
+                                <div className="slds-col">
+                                  <div className="slds-form-element">
+                                    <label className="slds-form-element__label" htmlFor={`${desktopMobileVersion}-x-position`}>
+                                      X Position: {formatSliderLabel(
+                                        desktopMobileVersion === 'desktop' 
+                                          ? (activeOverlay?.desktopX ?? (activeOverlay?.x || 0))
+                                          : (activeOverlay?.mobileX ?? (activeOverlay?.x || 0)), 
+                                        'x'
+                                      )}
+                                    </label>
+                                    <div className="slds-form-element__control">
+                                      <div className="slds-slider custom-slider">
+                                        <input
+                                          type="range"
+                                          id={`${desktopMobileVersion}-x-position`}
+                                          min={0}
+                                          max={100}
+                                          value={desktopMobileVersion === 'desktop' 
+                                            ? (activeOverlay?.desktopX ?? (activeOverlay?.x || 0))
+                                            : (activeOverlay?.mobileX ?? (activeOverlay?.x || 0))
+                                          }
+                                          onChange={(e) => updateActiveOverlay(
+                                            desktopMobileVersion === 'desktop' ? 'desktopX' : 'mobileX', 
+                                            Number(e.target.value)
+                                          )}
+                                          className="slds-slider__range"
+                                          aria-valuemin={0}
+                                          aria-valuemax={100}
+                                          aria-valuenow={desktopMobileVersion === 'desktop' 
+                                            ? (activeOverlay?.desktopX ?? (activeOverlay?.x || 0))
+                                            : (activeOverlay?.mobileX ?? (activeOverlay?.x || 0))
+                                          }
+                                          aria-valuetext={`${desktopMobileVersion === 'desktop' 
+                                            ? (activeOverlay?.desktopX ?? (activeOverlay?.x || 0))
+                                            : (activeOverlay?.mobileX ?? (activeOverlay?.x || 0))
+                                          }% from left (${desktopMobileVersion})`}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="slds-col">
+                                  <div className="slds-form-element">
+                                    <label className="slds-form-element__label" htmlFor={`${desktopMobileVersion}-y-position`}>
+                                      Y Position: {formatSliderLabel(
+                                        desktopMobileVersion === 'desktop' 
+                                          ? (activeOverlay?.desktopY ?? (activeOverlay?.y || 0))
+                                          : (activeOverlay?.mobileY ?? (activeOverlay?.y || 0)), 
+                                        'y'
+                                      )}
+                                    </label>
+                                    <div className="slds-form-element__control">
+                                      <div className="slds-slider custom-slider">
+                                        <input
+                                          type="range"
+                                          id={`${desktopMobileVersion}-y-position`}
+                                          min={0}
+                                          max={100}
+                                          value={desktopMobileVersion === 'desktop' 
+                                            ? (activeOverlay?.desktopY ?? (activeOverlay?.y || 0))
+                                            : (activeOverlay?.mobileY ?? (activeOverlay?.y || 0))
+                                          }
+                                          onChange={(e) => updateActiveOverlay(
+                                            desktopMobileVersion === 'desktop' ? 'desktopY' : 'mobileY', 
+                                            Number(e.target.value)
+                                          )}
+                                          className="slds-slider__range"
+                                          aria-valuemin={0}
+                                          aria-valuemax={100}
+                                          aria-valuenow={desktopMobileVersion === 'desktop' 
+                                            ? (activeOverlay?.desktopY ?? (activeOverlay?.y || 0))
+                                            : (activeOverlay?.mobileY ?? (activeOverlay?.y || 0))
+                                          }
+                                          aria-valuetext={`${desktopMobileVersion === 'desktop' 
+                                            ? (activeOverlay?.desktopY ?? (activeOverlay?.y || 0))
+                                            : (activeOverlay?.mobileY ?? (activeOverlay?.y || 0))
+                                          }% from top (${desktopMobileVersion})`}
+                                        />
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
                               </div>
-                              <div className="slds-col">
-                                <div className="slds-form-element">
-                                  <label className="slds-form-element__label" htmlFor="y-position">
-                                    Y Position: {formatSliderLabel(activeOverlay?.y || 0, 'y')}
-                                  </label>
-                                  <div className="slds-form-element__control">
-                                    <div className="slds-slider custom-slider">
-                                      <input
-                                        type="range"
-                                        id="y-position"
-                                        min={0}
-                                        max={100}
-                                        value={activeOverlay?.y || 0}
-                                        onChange={(e) => updateActiveOverlay('y', Number(e.target.value))}
-                                        className="slds-slider__range"
-                                        aria-valuemin={0}
-                                        aria-valuemax={100}
-                                        aria-valuenow={activeOverlay?.y || 0}
-                                        aria-valuetext={`${activeOverlay?.y || 0}% from top`}
-                                      />
+                            ) : (
+                              /* Regular Position Controls */
+                              <div className="slds-grid slds-gutters_medium">
+                                <div className="slds-col">
+                                  <div className="slds-form-element">
+                                    <label className="slds-form-element__label" htmlFor="x-position">
+                                      X Position: {formatSliderLabel(activeOverlay?.x || 0, 'x')}
+                                    </label>
+                                    <div className="slds-form-element__control">
+                                      <div className="slds-slider custom-slider">
+                                        <input
+                                          type="range"
+                                          id="x-position"
+                                          min={0}
+                                          max={100}
+                                          value={activeOverlay?.x || 0}
+                                          onChange={(e) => updateActiveOverlay('x', Number(e.target.value))}
+                                          className="slds-slider__range"
+                                          aria-valuemin={0}
+                                          aria-valuemax={100}
+                                          aria-valuenow={activeOverlay?.x || 0}
+                                          aria-valuetext={`${activeOverlay?.x || 0}% from left`}
+                                        />
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
+                                <div className="slds-col">
+                                  <div className="slds-form-element">
+                                    <label className="slds-form-element__label" htmlFor="y-position">
+                                      Y Position: {formatSliderLabel(activeOverlay?.y || 0, 'y')}
+                                    </label>
+                                    <div className="slds-form-element__control">
+                                      <div className="slds-slider custom-slider">
+                                        <input
+                                          type="range"
+                                          id="y-position"
+                                          min={0}
+                                          max={100}
+                                          value={activeOverlay?.y || 0}
+                                          onChange={(e) => updateActiveOverlay('y', Number(e.target.value))}
+                                          className="slds-slider__range"
+                                          aria-valuemin={0}
+                                          aria-valuemax={100}
+                                          aria-valuenow={activeOverlay?.y || 0}
+                                          aria-valuetext={`${activeOverlay?.y || 0}% from top`}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            <div className="slds-form-element__help slds-m-top_x-small">
+                              <p className="position-tip">
+                                <strong>Tip:</strong> You can also click and drag the text directly on the preview image to position it.
+                                {activeImageSourceTab === 'desktop-mobile' && (
+                                  <>
+                                    <br /><strong>Desktop & Mobile:</strong> Switch between Desktop and Mobile buttons above to adjust positioning for each version independently.
+                                  </>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        </fieldset>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Image Settings Accordion */}
+                <div className={`slds-accordion__section ${openAccordions.imageSettings ? 'slds-is-open' : ''}`}>
+                  <div className="slds-accordion__summary">
+                    <h3 className="slds-accordion__summary-heading">
+                      <button
+                        aria-controls="image-settings-content"
+                        aria-expanded={openAccordions.imageSettings}
+                        className="slds-button slds-button_reset slds-accordion__summary-action"
+                        onClick={() => toggleAccordion('imageSettings')}
+                      >
+                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#settings"></use>
+                        </svg>
+                        <span className="slds-accordion__summary-content">Image Settings</span>
+                      </button>
+                    </h3>
+                  </div>
+                  <div 
+                    className="slds-accordion__content" 
+                    id="image-settings-content"
+                    hidden={!openAccordions.imageSettings}
+                  >
+                    {/* Image Settings Section */}
+                    <div className="form-section">
+                      {!formState.activeOverlayId || formState.activeOverlayType !== 'image' ? (
+                        <div className="slds-box slds-box_xx-small slds-theme_shade slds-text-align_center">
+                          <p className="slds-text-body_small slds-text-color_weak">
+                            Please select an image overlay to edit its settings
+                          </p>
+                        </div>
+                      ) : (
+                        <fieldset className="slds-form-element">
+                          <legend className="slds-form-element__label slds-form-element__legend">Image Settings</legend>
+                          <div className="slds-form-element_compound">
+                            <div className="slds-grid slds-gutters_medium">
+                              <div className="slds-col slds-size_2-of-3">
+                                {activeImageSourceTab === 'desktop-mobile' ? (
+                                  /* Desktop & Mobile Image Size Controls - Show only current version */
+                                  <div className="slds-form-element">
+                                    <label className="slds-form-element__label" htmlFor={`${desktopMobileVersion}ImageSize`}>
+                                      Image Size
+                                    </label>
+                                    <div className="slds-form-element__control">
+                                      <div className="slds-grid slds-gutters_small slds-grid_vertical-align-center">
+                                        <div className="slds-col slds-size_4-of-5">
+                                          <div className="slds-slider custom-slider">
+                                            <input
+                                              type="range"
+                                              id={`${desktopMobileVersion}ImageSize`}
+                                              min={1}
+                                              max={100}
+                                              step={0.1}
+                                              value={desktopMobileVersion === 'desktop' 
+                                                ? (activeImageOverlay?.desktopWidth ?? (activeImageOverlay?.width || 20))
+                                                : (activeImageOverlay?.mobileWidth ?? (activeImageOverlay?.width || 20))
+                                              }
+                                              onChange={(e) => updateActiveImageOverlay(
+                                                desktopMobileVersion === 'desktop' ? 'desktopWidth' : 'mobileWidth', 
+                                                Number(parseFloat(e.target.value).toFixed(1))
+                                              )}
+                                              className="slds-slider__range"
+                                              aria-valuemin={1}
+                                              aria-valuemax={100}
+                                              aria-valuenow={desktopMobileVersion === 'desktop' 
+                                                ? (activeImageOverlay?.desktopWidth ?? (activeImageOverlay?.width || 20))
+                                                : (activeImageOverlay?.mobileWidth ?? (activeImageOverlay?.width || 20))
+                                              }
+                                              aria-valuetext={`${desktopMobileVersion === 'desktop' 
+                                                ? (activeImageOverlay?.desktopWidth ?? (activeImageOverlay?.width || 20))
+                                                : (activeImageOverlay?.mobileWidth ?? (activeImageOverlay?.width || 20))
+                                              }% of ${desktopMobileVersion} width`}
+                                            />
+                                          </div>
+                                        </div>
+                                        <div className="slds-col slds-size_1-of-5">
+                                          <div className="slds-form-element__control">
+                                            <input
+                                              type="number"
+                                              className="slds-input font-size-percentage-input"
+                                              min={1}
+                                              max={100}
+                                              step={0.1}
+                                              value={desktopMobileVersion === 'desktop' 
+                                                ? (activeImageOverlay?.desktopWidth ?? (activeImageOverlay?.width || 20))
+                                                : (activeImageOverlay?.mobileWidth ?? (activeImageOverlay?.width || 20))
+                                              }
+                                              onChange={(e) => {
+                                                const value = parseFloat(e.target.value);
+                                                if (!isNaN(value) && value >= 1 && value <= 100) {
+                                                  updateActiveImageOverlay(
+                                                    desktopMobileVersion === 'desktop' ? 'desktopWidth' : 'mobileWidth', 
+                                                    Number(value.toFixed(1))
+                                                  );
+                                                }
+                                              }}
+                                              onBlur={(e) => {
+                                                let value = parseFloat(e.target.value);
+                                                if (isNaN(value)) value = 20;
+                                                if (value < 1) value = 1;
+                                                if (value > 100) value = 100;
+                                                updateActiveImageOverlay(
+                                                  desktopMobileVersion === 'desktop' ? 'desktopWidth' : 'mobileWidth', 
+                                                  Number(value.toFixed(1))
+                                                );
+                                              }}
+                                              aria-label={`${desktopMobileVersion} image size percentage`}
+                                              style={{ width: "100%", minWidth: "60px" }}
+                                            />
+                                          </div>
+                                          <div className="slds-form-element__help slds-text-align_center">%</div>
+                                        </div>
+                                      </div>
+                                      <div className="slds-form-element__help">
+                                        Percent of image width. Switch to {desktopMobileVersion === 'desktop' ? 'Mobile' : 'Desktop'} to adjust that version.
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  /* Standard Image Size Control */
+                                  <div className="slds-form-element">
+                                    <label className="slds-form-element__label" htmlFor="imageSize">
+                                      Image Size
+                                    </label>
+                                    <div className="slds-form-element__control">
+                                      <div className="slds-grid slds-gutters_small slds-grid_vertical-align-center">
+                                        <div className="slds-col slds-size_4-of-5">
+                                          <div className="slds-slider custom-slider">
+                                            <input
+                                              type="range"
+                                              id="imageSize"
+                                              min={1}
+                                              max={100}
+                                              step={0.1}
+                                              value={activeImageOverlay?.width || 20}
+                                              onChange={(e) => updateActiveImageOverlay('width', Number(parseFloat(e.target.value).toFixed(1)))}
+                                              className="slds-slider__range"
+                                              aria-valuemin={1}
+                                              aria-valuemax={100}
+                                              aria-valuenow={activeImageOverlay?.width || 20}
+                                              aria-valuetext={`${activeImageOverlay?.width || 20}% of image width`}
+                                            />
+                                          </div>
+                                        </div>
+                                        <div className="slds-col slds-size_1-of-5">
+                                          <div className="slds-form-element__control">
+                                            <input
+                                              type="number"
+                                              className="slds-input font-size-percentage-input"
+                                              min={1}
+                                              max={100}
+                                              step={0.1}
+                                              value={activeImageOverlay?.width || 20}
+                                              onChange={(e) => {
+                                                const value = parseFloat(e.target.value);
+                                                if (!isNaN(value) && value >= 1 && value <= 100) {
+                                                  updateActiveImageOverlay('width', Number(value.toFixed(1)));
+                                                }
+                                              }}
+                                              onBlur={(e) => {
+                                                let value = parseFloat(e.target.value);
+                                                if (isNaN(value)) value = 20;
+                                                if (value < 1) value = 1;
+                                                if (value > 100) value = 100;
+                                                updateActiveImageOverlay('width', Number(value.toFixed(1)));
+                                              }}
+                                              aria-label="Image size percentage"
+                                              style={{ width: "100%", minWidth: "60px" }}
+                                            />
+                                          </div>
+                                          <div className="slds-form-element__help slds-text-align_center">%</div>
+                                        </div>
+                                      </div>
+                                      <div className="slds-form-element__help">
+                                        Percent of image width
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="slds-form-element__help slds-m-top_x-small">
                               <p className="position-tip">
-                                <strong>Tip:</strong> You can also click and drag the text directly on the preview image to position it.
+                                <strong>Tip:</strong> You can also drag the resize handle on the image overlay in the preview to change its size.
+                                {activeImageSourceTab === 'desktop-mobile' && (
+                                  <>
+                                    <br /><strong>Desktop & Mobile:</strong> Switch between Desktop and Mobile buttons above to adjust size for each version independently.
+                                  </>
+                                )}
                               </p>
                             </div>
                           </div>
@@ -1922,6 +2890,8 @@ export function ClientApp() {
                     onError={handleError}
                     onImageLoad={handleImageLoad}
                     onPositionChange={handlePositionChange}
+                    onFontSizeChange={handleFontSizeChange}
+                    onImageSizeChange={handleImageSizeChange}
                     className="preview-canvas"
                     isDesktopMobileMode={activeImageSourceTab === 'desktop-mobile'}
                     desktopMobileVersion={desktopMobileVersion}
