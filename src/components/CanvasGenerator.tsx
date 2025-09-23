@@ -292,44 +292,12 @@ export function CanvasGenerator({
       // Apply brightness filter
       applyBrightnessFilter(displayCtx, imageWidth, imageHeight, brightness);
 
-      // If in desktop-mobile mode, draw the logo
-      if (isDesktopMobileMode) {
-        const logoUrl = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
-        const logo = new Image();
-        logo.crossOrigin = 'anonymous';
-        
-        logo.onload = () => {
-          const logoWidth = desktopMobileVersion === 'desktop' ? 360 : 484;
-          const logoHeight = (logo.height / logo.width) * logoWidth;
-          
-          // Draw logo in top-left corner
-          displayCtx.drawImage(logo, 0, 0, logoWidth, logoHeight);
-          
-          // Draw all text overlays after logo
-          textOverlays.forEach(overlay => {
-            drawTextOverlay(displayCtx, overlay, imageWidth, imageHeight);
-          });
-          
-          onLoad();
-        };
-        
-        logo.onerror = () => {
-          // If logo fails to load, continue without it
-          textOverlays.forEach(overlay => {
-            drawTextOverlay(displayCtx, overlay, imageWidth, imageHeight);
-          });
-          onLoad();
-        };
-        
-        logo.src = logoUrl;
-      } else {
-        // Draw all text overlays normally
-        textOverlays.forEach(overlay => {
-          drawTextOverlay(displayCtx, overlay, imageWidth, imageHeight);
-        });
-        
-        onLoad();
-      }
+      // Draw all text overlays (logo is handled server-side for desktop-mobile mode)
+      textOverlays.forEach(overlay => {
+        drawTextOverlay(displayCtx, overlay, imageWidth, imageHeight);
+      });
+      
+      onLoad();
     };
     
     image.onerror = () => {

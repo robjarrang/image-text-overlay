@@ -86,14 +86,18 @@ export function ClientApp() {
       setFormState(prev => ({ ...prev, imageUrl: 'transparent' }));
       setOriginalImageUrl('transparent');
     } else if (tab === 'desktop-mobile') {
-      // Set dimensions and logo URL for desktop/mobile mode
-      const isDesktop = desktopMobileVersion === 'desktop';
-      setFormState(prev => ({ 
-        ...prev, 
-        imageUrl: desktopMobileImageUrl,
-        width: 1240,
-        height: isDesktop ? 968 : 1400
-      }));
+      // Set dimensions and generate preview for desktop/mobile mode
+      if (desktopMobileImageUrl) {
+        generateDesktopMobilePreview(desktopMobileImageUrl);
+      } else {
+        const isDesktop = desktopMobileVersion === 'desktop';
+        setFormState(prev => ({ 
+          ...prev, 
+          imageUrl: '',
+          width: 1240,
+          height: isDesktop ? 968 : 1400
+        }));
+      }
       setOriginalImageUrl(desktopMobileImageUrl);
     } else if (tab === 'url' && (formState.imageUrl === 'transparent' || activeImageSourceTab === 'desktop-mobile')) {
       // Clear special modes when switching to URL
@@ -602,9 +606,9 @@ export function ClientApp() {
   // Handle desktop/mobile version change
   const handleDesktopMobileVersionChange = (version: 'desktop' | 'mobile') => {
     setDesktopMobileVersion(version);
-    if (activeImageSourceTab === 'desktop-mobile') {
-      const newHeight = version === 'desktop' ? 968 : 1400;
-      setFormState(prev => ({ ...prev, height: newHeight }));
+    if (activeImageSourceTab === 'desktop-mobile' && desktopMobileImageUrl) {
+      // Regenerate preview with new dimensions
+      generateDesktopMobilePreview(desktopMobileImageUrl);
     }
   };
 
@@ -612,8 +616,55 @@ export function ClientApp() {
   const handleDesktopMobileImageUrlChange = (url: string) => {
     setDesktopMobileImageUrl(url);
     if (activeImageSourceTab === 'desktop-mobile') {
-      setFormState(prev => ({ ...prev, imageUrl: url }));
+      // Generate preview with logo for desktop-mobile mode
+      generateDesktopMobilePreview(url);
       setOriginalImageUrl(url);
+    }
+  };
+
+  // Generate desktop/mobile preview with logo
+  const generateDesktopMobilePreview = async (backgroundUrl: string) => {
+    if (!backgroundUrl) return;
+    
+    try {
+      setIsLoading(true);
+      const dimensions = desktopMobileVersion === 'desktop' ? { width: 1240, height: 968 } : { width: 1240, height: 1400 };
+      const payload = {
+        ...formState,
+        ...dimensions,
+        imageUrl: backgroundUrl,
+        textOverlays: [], // Empty for preview, we'll add text overlays in the canvas
+        isDesktopMobileMode: true,
+        desktopMobileVersion: desktopMobileVersion,
+        download: false
+      };
+      
+      const response = await fetch('/api/overlay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate preview');
+      }
+      
+      const blob = await response.blob();
+      const previewUrl = URL.createObjectURL(blob);
+      
+      setFormState(prev => ({ 
+        ...prev, 
+        imageUrl: previewUrl,
+        width: dimensions.width,
+        height: dimensions.height
+      }));
+    } catch (error) {
+      console.error('Preview generation failed:', error);
+      setError('Failed to generate preview. Please check the background image URL.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
