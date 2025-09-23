@@ -285,13 +285,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       // Fetch logo
       const logoUrl = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
+      console.log('Fetching logo from:', logoUrl);
       const logoResponse = await fetch(logoUrl);
       if (!logoResponse.ok) {
         console.warn('Logo fetch failed, continuing without logo:', logoResponse.status, logoResponse.statusText);
         transformedImage = backgroundImage;
       } else {
+        console.log('Logo fetch successful, response status:', logoResponse.status);
         const logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
+        console.log('Logo buffer size:', logoBuffer.length);
         const logoWidth = desktopMobileVersion === 'desktop' ? 360 : 484;
+        console.log('Resizing logo to width:', logoWidth);
         
         // Resize logo and composite it on the background
         const resizedLogo = await sharp(logoBuffer)
@@ -299,11 +303,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .png()
           .toBuffer();
         
+        console.log('Resized logo buffer size:', resizedLogo.length);
+        
         transformedImage = backgroundImage.composite([{
           input: resizedLogo,
           top: 0,
           left: 0
         }]);
+        
+        console.log('Logo composited successfully at top-left corner');
       }
       
       hasAlpha = false;
