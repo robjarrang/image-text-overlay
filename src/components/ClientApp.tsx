@@ -88,7 +88,7 @@ export function ClientApp() {
     } else if (tab === 'desktop-mobile') {
       // Set dimensions and generate preview for desktop/mobile mode
       if (desktopMobileImageUrl) {
-        generateDesktopMobilePreview(desktopMobileImageUrl);
+        generateDesktopMobilePreview(desktopMobileImageUrl, desktopMobileVersion);
       } else {
         const isDesktop = desktopMobileVersion === 'desktop';
         setFormState(prev => ({ 
@@ -605,10 +605,12 @@ export function ClientApp() {
 
   // Handle desktop/mobile version change
   const handleDesktopMobileVersionChange = (version: 'desktop' | 'mobile') => {
+    console.log('Version change requested:', version, 'Current tab:', activeImageSourceTab, 'Background URL:', desktopMobileImageUrl);
     setDesktopMobileVersion(version);
     if (activeImageSourceTab === 'desktop-mobile' && desktopMobileImageUrl) {
+      console.log('Regenerating preview for version:', version);
       // Regenerate preview with new dimensions
-      generateDesktopMobilePreview(desktopMobileImageUrl);
+      generateDesktopMobilePreview(desktopMobileImageUrl, version);
     }
   };
 
@@ -617,28 +619,35 @@ export function ClientApp() {
     setDesktopMobileImageUrl(url);
     if (activeImageSourceTab === 'desktop-mobile') {
       // Generate preview with logo for desktop-mobile mode
-      generateDesktopMobilePreview(url);
+      generateDesktopMobilePreview(url, desktopMobileVersion);
       setOriginalImageUrl(url);
     }
   };
 
   // Generate desktop/mobile preview with logo
-  const generateDesktopMobilePreview = async (backgroundUrl: string) => {
-    if (!backgroundUrl) return;
+  const generateDesktopMobilePreview = async (backgroundUrl: string, version?: 'desktop' | 'mobile') => {
+    if (!backgroundUrl) {
+      console.log('No background URL provided');
+      return;
+    }
+    
+    const versionToUse = version || desktopMobileVersion;
+    console.log('Generating preview for version:', versionToUse, 'URL:', backgroundUrl);
     
     try {
       setIsLoading(true);
-      const dimensions = desktopMobileVersion === 'desktop' ? { width: 1240, height: 968 } : { width: 1240, height: 1400 };
+      const dimensions = versionToUse === 'desktop' ? { width: 1240, height: 968 } : { width: 1240, height: 1400 };
       const payload = {
         ...formState,
         ...dimensions,
         imageUrl: backgroundUrl,
         textOverlays: [], // Empty for preview, we'll add text overlays in the canvas
         isDesktopMobileMode: true,
-        desktopMobileVersion: desktopMobileVersion,
+        desktopMobileVersion: versionToUse,
         download: false
       };
       
+      console.log('Sending API request with payload:', payload);
       const response = await fetch('/api/overlay', {
         method: 'POST',
         headers: {
@@ -648,11 +657,12 @@ export function ClientApp() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to generate preview');
+        throw new Error(`Failed to generate preview: ${response.status} ${response.statusText}`);
       }
       
       const blob = await response.blob();
       const previewUrl = URL.createObjectURL(blob);
+      console.log('Preview generated successfully:', previewUrl);
       
       setFormState(prev => ({ 
         ...prev, 
@@ -916,35 +926,21 @@ export function ClientApp() {
                                   Version
                                 </legend>
                                 <div className="slds-form-element__control">
-                                  <div className="slds-radio_button-group">
-                                    <span className="slds-button slds-radio_button">
-                                      <input
-                                        type="radio"
-                                        name="desktop-mobile-version"
-                                        id="version-desktop"
-                                        value="desktop"
-                                        checked={desktopMobileVersion === 'desktop'}
-                                        onChange={(e) => handleDesktopMobileVersionChange(e.target.value as 'desktop' | 'mobile')}
-                                        className="slds-assistive-text"
-                                      />
-                                      <label className="slds-radio_button__label" htmlFor="version-desktop">
-                                        <span className="slds-radio_faux">Desktop (1240x968)</span>
-                                      </label>
-                                    </span>
-                                    <span className="slds-button slds-radio_button">
-                                      <input
-                                        type="radio"
-                                        name="desktop-mobile-version"
-                                        id="version-mobile"
-                                        value="mobile"
-                                        checked={desktopMobileVersion === 'mobile'}
-                                        onChange={(e) => handleDesktopMobileVersionChange(e.target.value as 'desktop' | 'mobile')}
-                                        className="slds-assistive-text"
-                                      />
-                                      <label className="slds-radio_button__label" htmlFor="version-mobile">
-                                        <span className="slds-radio_faux">Mobile (1240x1400)</span>
-                                      </label>
-                                    </span>
+                                  <div className="slds-button-group" role="group">
+                                    <button
+                                      type="button"
+                                      className={`slds-button ${desktopMobileVersion === 'desktop' ? 'slds-button_brand' : 'slds-button_neutral'}`}
+                                      onClick={() => handleDesktopMobileVersionChange('desktop')}
+                                    >
+                                      Desktop (1240x968)
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={`slds-button ${desktopMobileVersion === 'mobile' ? 'slds-button_brand' : 'slds-button_neutral'}`}
+                                      onClick={() => handleDesktopMobileVersionChange('mobile')}
+                                    >
+                                      Mobile (1240x1400)
+                                    </button>
                                   </div>
                                 </div>
                               </fieldset>
