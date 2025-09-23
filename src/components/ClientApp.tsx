@@ -930,14 +930,26 @@ export function ClientApp() {
                                     <button
                                       type="button"
                                       className={`slds-button ${desktopMobileVersion === 'desktop' ? 'slds-button_brand' : 'slds-button_neutral'}`}
-                                      onClick={() => handleDesktopMobileVersionChange('desktop')}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        console.log('Desktop button clicked!');
+                                        handleDesktopMobileVersionChange('desktop');
+                                      }}
+                                      style={{ pointerEvents: 'auto', zIndex: 10 }}
                                     >
                                       Desktop (1240x968)
                                     </button>
                                     <button
                                       type="button"
                                       className={`slds-button ${desktopMobileVersion === 'mobile' ? 'slds-button_brand' : 'slds-button_neutral'}`}
-                                      onClick={() => handleDesktopMobileVersionChange('mobile')}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        console.log('Mobile button clicked!');
+                                        handleDesktopMobileVersionChange('mobile');
+                                      }}
+                                      style={{ pointerEvents: 'auto', zIndex: 10 }}
                                     >
                                       Mobile (1240x1400)
                                     </button>
