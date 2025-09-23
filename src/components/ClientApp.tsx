@@ -13,6 +13,8 @@ export interface TextOverlay {
   id: string;
   text: string;
   fontSize: number;
+  desktopFontSize?: number; // Optional: for desktop-mobile mode
+  mobileFontSize?: number;  // Optional: for desktop-mobile mode
   fontColor: string;
   x: number;
   y: number;
@@ -123,6 +125,8 @@ export function ClientApp() {
       id: generateId(),
       text: text.trim(),
       fontSize: 5, // Default font size (5% of image width)
+      desktopFontSize: 5, // Default desktop font size for desktop-mobile mode
+      mobileFontSize: 5,  // Default mobile font size for desktop-mobile mode
       fontColor: '#FFFFFF', // Default color (white)
       x: 10, // Default position (10% from left)
       y: 10 + (formState.textOverlays.length * 10) % 80 // Staggered positioning
@@ -984,27 +988,6 @@ export function ClientApp() {
                                 The background image will be resized to fit the selected dimensions (1240x968 for desktop, 1240x1400 for mobile)
                               </div>
                             </div>
-
-                            {/* Logo Information */}
-                            <div className="slds-box slds-theme_shade slds-m-bottom_medium">
-                              <h4 className="slds-text-heading_small slds-m-bottom_small">Logo Settings</h4>
-                              <div className="slds-grid slds-gutters_small">
-                                <div className="slds-col slds-size_1-of-2">
-                                  <p><strong>Logo URL:</strong></p>
-                                  <p className="slds-text-body_small">https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png</p>
-                                </div>
-                                <div className="slds-col slds-size_1-of-2">
-                                  <p><strong>Logo Size:</strong></p>
-                                  <p className="slds-text-body_small">
-                                    Desktop: 360px width<br/>
-                                    Mobile: 484px width
-                                  </p>
-                                </div>
-                              </div>
-                              <p className="slds-text-body_small slds-m-top_small">
-                                The logo will be automatically positioned in the top-left corner of the image.
-                              </p>
-                            </div>
                           </div>
                         </div>
                       </div>
@@ -1363,64 +1346,187 @@ export function ClientApp() {
                           <div className="slds-form-element_compound">
                             <div className="slds-grid slds-gutters_medium">
                               <div className="slds-col slds-size_2-of-3">
-                                <div className="slds-form-element">
-                                  <label className="slds-form-element__label" htmlFor="fontSize">
-                                    Font Size
-                                  </label>
-                                  <div className="slds-form-element__control">
-                                    <div className="slds-grid slds-gutters_small slds-grid_vertical-align-center">
-                                      <div className="slds-col slds-size_4-of-5">
-                                        <div className="slds-slider custom-slider">
-                                          <input
-                                            type="range"
-                                            id="fontSize"
-                                            min={1}
-                                            max={20}
-                                            step={0.1}
-                                            value={activeOverlay?.fontSize || 5}
-                                            onChange={(e) => updateActiveOverlay('fontSize', Number(parseFloat(e.target.value).toFixed(1)))}
-                                            className="slds-slider__range"
-                                            aria-valuemin={1}
-                                            aria-valuemax={20}
-                                            aria-valuenow={activeOverlay?.fontSize || 5}
-                                            aria-valuetext={`${activeOverlay?.fontSize || 5}% of image width`}
-                                          />
+                                {activeImageSourceTab === 'desktop-mobile' ? (
+                                  // Desktop & Mobile mode: separate font size controls
+                                  <div>
+                                    {/* Desktop Font Size */}
+                                    <div className="slds-form-element slds-m-bottom_small">
+                                      <label className="slds-form-element__label" htmlFor="desktopFontSize">
+                                        Desktop Font Size
+                                      </label>
+                                      <div className="slds-form-element__control">
+                                        <div className="slds-grid slds-gutters_small slds-grid_vertical-align-center">
+                                          <div className="slds-col slds-size_4-of-5">
+                                            <div className="slds-slider custom-slider">
+                                              <input
+                                                type="range"
+                                                id="desktopFontSize"
+                                                min={1}
+                                                max={20}
+                                                step={0.1}
+                                                value={activeOverlay?.desktopFontSize || activeOverlay?.fontSize || 5}
+                                                onChange={(e) => updateActiveOverlay('desktopFontSize', Number(parseFloat(e.target.value).toFixed(1)))}
+                                                className="slds-slider__range"
+                                                aria-valuemin={1}
+                                                aria-valuemax={20}
+                                                aria-valuenow={activeOverlay?.desktopFontSize || activeOverlay?.fontSize || 5}
+                                                aria-valuetext={`${activeOverlay?.desktopFontSize || activeOverlay?.fontSize || 5}% of image width`}
+                                              />
+                                            </div>
+                                          </div>
+                                          <div className="slds-col slds-size_1-of-5">
+                                            <div className="slds-form-element__control">
+                                              <input
+                                                type="number"
+                                                className="slds-input font-size-percentage-input"
+                                                min={1}
+                                                max={20}
+                                                step={0.1}
+                                                value={activeOverlay?.desktopFontSize || activeOverlay?.fontSize || 5}
+                                                onChange={(e) => {
+                                                  const value = parseFloat(e.target.value);
+                                                  if (!isNaN(value) && value >= 1 && value <= 20) {
+                                                    updateActiveOverlay('desktopFontSize', Number(value.toFixed(1)));
+                                                  }
+                                                }}
+                                                onBlur={(e) => {
+                                                  let value = parseFloat(e.target.value);
+                                                  if (isNaN(value)) value = 5;
+                                                  if (value < 1) value = 1;
+                                                  if (value > 20) value = 20;
+                                                  updateActiveOverlay('desktopFontSize', Number(value.toFixed(1)));
+                                                }}
+                                                aria-label="Desktop font size percentage"
+                                                style={{ width: "100%", minWidth: "60px" }}
+                                              />
+                                            </div>
+                                            <div className="slds-form-element__help slds-text-align_center">%</div>
+                                          </div>
                                         </div>
-                                      </div>
-                                      <div className="slds-col slds-size_1-of-5">
-                                        <div className="slds-form-element__control">
-                                          <input
-                                            type="number"
-                                            className="slds-input font-size-percentage-input"
-                                            min={1}
-                                            max={20}
-                                            step={0.1}
-                                            value={activeOverlay?.fontSize || 5}
-                                            onChange={(e) => {
-                                              const value = parseFloat(e.target.value);
-                                              if (!isNaN(value) && value >= 1 && value <= 20) {
-                                                updateActiveOverlay('fontSize', Number(value.toFixed(1)));
-                                              }
-                                            }}
-                                            onBlur={(e) => {
-                                              let value = parseFloat(e.target.value);
-                                              if (isNaN(value)) value = 5;
-                                              if (value < 1) value = 1;
-                                              if (value > 20) value = 20;
-                                              updateActiveOverlay('fontSize', Number(value.toFixed(1)));
-                                            }}
-                                            aria-label="Font size percentage"
-                                            style={{ width: "100%", minWidth: "60px" }}
-                                          />
-                                        </div>
-                                        <div className="slds-form-element__help slds-text-align_center">%</div>
                                       </div>
                                     </div>
-                                    <div className="slds-form-element__help">
-                                      Percent of image width
+
+                                    {/* Mobile Font Size */}
+                                    <div className="slds-form-element">
+                                      <label className="slds-form-element__label" htmlFor="mobileFontSize">
+                                        Mobile Font Size
+                                      </label>
+                                      <div className="slds-form-element__control">
+                                        <div className="slds-grid slds-gutters_small slds-grid_vertical-align-center">
+                                          <div className="slds-col slds-size_4-of-5">
+                                            <div className="slds-slider custom-slider">
+                                              <input
+                                                type="range"
+                                                id="mobileFontSize"
+                                                min={1}
+                                                max={20}
+                                                step={0.1}
+                                                value={activeOverlay?.mobileFontSize || activeOverlay?.fontSize || 5}
+                                                onChange={(e) => updateActiveOverlay('mobileFontSize', Number(parseFloat(e.target.value).toFixed(1)))}
+                                                className="slds-slider__range"
+                                                aria-valuemin={1}
+                                                aria-valuemax={20}
+                                                aria-valuenow={activeOverlay?.mobileFontSize || activeOverlay?.fontSize || 5}
+                                                aria-valuetext={`${activeOverlay?.mobileFontSize || activeOverlay?.fontSize || 5}% of image width`}
+                                              />
+                                            </div>
+                                          </div>
+                                          <div className="slds-col slds-size_1-of-5">
+                                            <div className="slds-form-element__control">
+                                              <input
+                                                type="number"
+                                                className="slds-input font-size-percentage-input"
+                                                min={1}
+                                                max={20}
+                                                step={0.1}
+                                                value={activeOverlay?.mobileFontSize || activeOverlay?.fontSize || 5}
+                                                onChange={(e) => {
+                                                  const value = parseFloat(e.target.value);
+                                                  if (!isNaN(value) && value >= 1 && value <= 20) {
+                                                    updateActiveOverlay('mobileFontSize', Number(value.toFixed(1)));
+                                                  }
+                                                }}
+                                                onBlur={(e) => {
+                                                  let value = parseFloat(e.target.value);
+                                                  if (isNaN(value)) value = 5;
+                                                  if (value < 1) value = 1;
+                                                  if (value > 20) value = 20;
+                                                  updateActiveOverlay('mobileFontSize', Number(value.toFixed(1)));
+                                                }}
+                                                aria-label="Mobile font size percentage"
+                                                style={{ width: "100%", minWidth: "60px" }}
+                                              />
+                                            </div>
+                                            <div className="slds-form-element__help slds-text-align_center">%</div>
+                                          </div>
+                                        </div>
+                                        <div className="slds-form-element__help">
+                                          Percent of image width
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
+                                ) : (
+                                  // Standard mode: single font size control
+                                  <div className="slds-form-element">
+                                    <label className="slds-form-element__label" htmlFor="fontSize">
+                                      Font Size
+                                    </label>
+                                    <div className="slds-form-element__control">
+                                      <div className="slds-grid slds-gutters_small slds-grid_vertical-align-center">
+                                        <div className="slds-col slds-size_4-of-5">
+                                          <div className="slds-slider custom-slider">
+                                            <input
+                                              type="range"
+                                              id="fontSize"
+                                              min={1}
+                                              max={20}
+                                              step={0.1}
+                                              value={activeOverlay?.fontSize || 5}
+                                              onChange={(e) => updateActiveOverlay('fontSize', Number(parseFloat(e.target.value).toFixed(1)))}
+                                              className="slds-slider__range"
+                                              aria-valuemin={1}
+                                              aria-valuemax={20}
+                                              aria-valuenow={activeOverlay?.fontSize || 5}
+                                              aria-valuetext={`${activeOverlay?.fontSize || 5}% of image width`}
+                                            />
+                                          </div>
+                                        </div>
+                                        <div className="slds-col slds-size_1-of-5">
+                                          <div className="slds-form-element__control">
+                                            <input
+                                              type="number"
+                                              className="slds-input font-size-percentage-input"
+                                              min={1}
+                                              max={20}
+                                              step={0.1}
+                                              value={activeOverlay?.fontSize || 5}
+                                              onChange={(e) => {
+                                                const value = parseFloat(e.target.value);
+                                                if (!isNaN(value) && value >= 1 && value <= 20) {
+                                                  updateActiveOverlay('fontSize', Number(value.toFixed(1)));
+                                                }
+                                              }}
+                                              onBlur={(e) => {
+                                                let value = parseFloat(e.target.value);
+                                                if (isNaN(value)) value = 5;
+                                                if (value < 1) value = 1;
+                                                if (value > 20) value = 20;
+                                                updateActiveOverlay('fontSize', Number(value.toFixed(1)));
+                                              }}
+                                              aria-label="Font size percentage"
+                                              style={{ width: "100%", minWidth: "60px" }}
+                                            />
+                                          </div>
+                                          <div className="slds-form-element__help slds-text-align_center">%</div>
+                                        </div>
+                                      </div>
+                                      <div className="slds-form-element__help">
+                                        Percent of image width
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                               <div className="slds-col slds-size_1-of-3">
                                 <div className="slds-form-element">

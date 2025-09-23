@@ -308,7 +308,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         transformedImage = backgroundImage.composite([{
           input: resizedLogo,
           top: 0,
-          left: 0
+          left: 20
         }]);
         
         console.log('Logo composited successfully at top-left corner');
@@ -390,9 +390,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Skip empty overlays
         if (!text || text.trim() === '') continue;
         
+        // Determine which font size to use based on mode
+        let effectiveFontSize = fontSize;
+        if (isDesktopMobileMode && desktopMobileVersion) {
+          if (desktopMobileVersion === 'desktop' && overlay.desktopFontSize !== undefined) {
+            effectiveFontSize = overlay.desktopFontSize;
+          } else if (desktopMobileVersion === 'mobile' && overlay.mobileFontSize !== undefined) {
+            effectiveFontSize = overlay.mobileFontSize;
+          }
+        }
+        
         const actualX = (x / 100) * imageWidth;
         const actualY = (y / 100) * imageHeight;
-        const actualFontSize = Math.round((fontSize / 100) * imageWidth);
+        const actualFontSize = Math.round((effectiveFontSize / 100) * imageWidth);
         const maxWidth = imageWidth * 0.8; // 80% of image width for wrapping
         const lines = processText(text);
 
@@ -449,22 +459,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let contentType: string;
       let fileExtension: string;
       
-      if (hasAlpha) {
-        console.log('Source has transparency, outputting PNG...');
-        finalImage = await transformedImage
-          .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
-          .png({ quality: 90 })
-          .toBuffer();
-        contentType = 'image/png';
-        fileExtension = 'png';
+      // Only composite SVG if there are text overlays
+      if (svgPaths.trim() !== '') {
+        console.log('Compositing with text overlays...');
+        if (hasAlpha) {
+          console.log('Source has transparency, outputting PNG...');
+          finalImage = await transformedImage
+            .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
+            .png({ quality: 90 })
+            .toBuffer();
+          contentType = 'image/png';
+          fileExtension = 'png';
+        } else {
+          console.log('Source has no transparency, outputting JPEG...');
+          finalImage = await transformedImage
+            .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
+            .jpeg({ quality: 90 })
+            .toBuffer();
+          contentType = 'image/jpeg';
+          fileExtension = 'jpg';
+        }
       } else {
-        console.log('Source has no transparency, outputting JPEG...');
-        finalImage = await transformedImage
-          .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
-          .jpeg({ quality: 90 })
-          .toBuffer();
-        contentType = 'image/jpeg';
-        fileExtension = 'jpg';
+        console.log('No text overlays, using image as-is...');
+        if (hasAlpha) {
+          console.log('Source has transparency, outputting PNG...');
+          finalImage = await transformedImage
+            .png({ quality: 90 })
+            .toBuffer();
+          contentType = 'image/png';
+          fileExtension = 'png';
+        } else {
+          console.log('Source has no transparency, outputting JPEG...');
+          finalImage = await transformedImage
+            .jpeg({ quality: 90 })
+            .toBuffer();
+          contentType = 'image/jpeg';
+          fileExtension = 'jpg';
+        }
       }
 
       console.log('Image processing complete, sending response...');
