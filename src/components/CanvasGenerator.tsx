@@ -18,6 +18,8 @@ interface CanvasGeneratorProps {
   onPositionChange?: (overlayId: string, newX: number, newY: number) => void;
   onImageTransformChange?: (transform: { zoom: number; x: number; y: number }) => void;
   className?: string;
+  isDesktopMobileMode?: boolean;
+  desktopMobileVersion?: 'desktop' | 'mobile';
 }
 
 export function CanvasGenerator({
@@ -35,7 +37,9 @@ export function CanvasGenerator({
   onImageLoad,
   onPositionChange,
   onImageTransformChange,
-  className = ''
+  className = '',
+  isDesktopMobileMode = false,
+  desktopMobileVersion = 'desktop'
 }: CanvasGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imageAspectRatio, setImageAspectRatio] = useState<number>(1);
@@ -288,12 +292,44 @@ export function CanvasGenerator({
       // Apply brightness filter
       applyBrightnessFilter(displayCtx, imageWidth, imageHeight, brightness);
 
-      // Draw all text overlays
-      textOverlays.forEach(overlay => {
-        drawTextOverlay(displayCtx, overlay, imageWidth, imageHeight);
-      });
-      
-      onLoad();
+      // If in desktop-mobile mode, draw the logo
+      if (isDesktopMobileMode) {
+        const logoUrl = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
+        const logo = new Image();
+        logo.crossOrigin = 'anonymous';
+        
+        logo.onload = () => {
+          const logoWidth = desktopMobileVersion === 'desktop' ? 360 : 484;
+          const logoHeight = (logo.height / logo.width) * logoWidth;
+          
+          // Draw logo in top-left corner
+          displayCtx.drawImage(logo, 0, 0, logoWidth, logoHeight);
+          
+          // Draw all text overlays after logo
+          textOverlays.forEach(overlay => {
+            drawTextOverlay(displayCtx, overlay, imageWidth, imageHeight);
+          });
+          
+          onLoad();
+        };
+        
+        logo.onerror = () => {
+          // If logo fails to load, continue without it
+          textOverlays.forEach(overlay => {
+            drawTextOverlay(displayCtx, overlay, imageWidth, imageHeight);
+          });
+          onLoad();
+        };
+        
+        logo.src = logoUrl;
+      } else {
+        // Draw all text overlays normally
+        textOverlays.forEach(overlay => {
+          drawTextOverlay(displayCtx, overlay, imageWidth, imageHeight);
+        });
+        
+        onLoad();
+      }
     };
     
     image.onerror = () => {
@@ -336,7 +372,7 @@ export function CanvasGenerator({
       ctx.textAlign = 'center';
       ctx.fillText('Please enter an image URL', canvas.width / 2, canvas.height / 2);
     }
-  }, [textOverlays, imageUrl, brightness, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded]);
+  }, [textOverlays, imageUrl, brightness, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion]);
 
   // Check if a point is within a text overlay's bounds
   const isPointInTextOverlay = (

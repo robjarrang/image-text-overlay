@@ -28,6 +28,8 @@ interface OverlayParams {
   imageX?: number;
   imageY?: number;
   download?: boolean;
+  isDesktopMobileMode?: boolean;
+  desktopMobileVersion?: 'desktop' | 'mobile';
 }
 
 async function loadFont(): Promise<opentype.Font> {
@@ -209,8 +211,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       textOverlays = params.textOverlays as TextOverlay[];
     }
     
-    // Check if this is transparent mode or regular image mode
+    // Check if this is transparent mode, desktop/mobile mode, or regular image mode
     const isTransparentMode = imageUrl === 'transparent';
+    const isDesktopMobileMode = params.isDesktopMobileMode;
+    const desktopMobileVersion = params.desktopMobileVersion || 'desktop';
     
     if (!imageUrl && !isTransparentMode) {
       return res.status(400).json({ error: 'Image URL is required' });
@@ -220,6 +224,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       overlayCount: textOverlays.length, 
       imageUrl, 
       isTransparentMode,
+      isDesktopMobileMode,
+      desktopMobileVersion,
       width,
       height,
       brightness, 
@@ -259,6 +265,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       hasAlpha = true;
       console.log('Transparent canvas created:', { width: imageWidth, height: imageHeight });
+    } else if (isDesktopMobileMode) {
+      // Handle desktop/mobile mode with fixed dimensions and logo
+      console.log('Processing desktop/mobile mode...');
+      imageWidth = 1240;
+      imageHeight = desktopMobileVersion === 'desktop' ? 968 : 1400;
+      
+      // Fetch background image
+      const imageResponse = await fetch(imageUrl as string);
+      if (!imageResponse.ok) {
+        console.error('Background image fetch failed:', imageResponse.status, imageResponse.statusText);
+        return res.status(400).json({ error: `Failed to fetch background image: ${imageResponse.statusText}` });
+      }
+      const backgroundBuffer = Buffer.from(await imageResponse.arrayBuffer());
+      
+      // Resize background image to fit the fixed dimensions
+      const backgroundImage = sharp(backgroundBuffer)
+        .resize(imageWidth, imageHeight, { fit: 'cover' });
+      
+      // Fetch logo
+      const logoUrl = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
+      const logoResponse = await fetch(logoUrl);
+      if (!logoResponse.ok) {
+        console.warn('Logo fetch failed, continuing without logo:', logoResponse.status, logoResponse.statusText);
+        transformedImage = backgroundImage;
+      } else {
+        const logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
+        const logoWidth = desktopMobileVersion === 'desktop' ? 360 : 484;
+        
+        // Resize logo and composite it on the background
+        const resizedLogo = await sharp(logoBuffer)
+          .resize(logoWidth, null, { withoutEnlargement: false })
+          .png()
+          .toBuffer();
+        
+        transformedImage = backgroundImage.composite([{
+          input: resizedLogo,
+          top: 0,
+          left: 0
+        }]);
+      }
+      
+      hasAlpha = false;
+      console.log('Desktop/mobile image prepared:', { width: imageWidth, height: imageHeight, version: desktopMobileVersion });
     } else {
       // Fetch and process image
       console.log('Fetching image from URL...');

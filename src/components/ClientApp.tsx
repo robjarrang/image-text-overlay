@@ -47,7 +47,7 @@ export function ClientApp() {
     imageY: 0
   });
   const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
-  const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload' | 'transparent'>('url');
+  const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload' | 'transparent' | 'desktop-mobile'>('url');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,9 +71,13 @@ export function ClientApp() {
     textContent: true, 
     textStyle: false
   });
+
+  // State for desktop/mobile mode
+  const [desktopMobileVersion, setDesktopMobileVersion] = useState<'desktop' | 'mobile'>('desktop');
+  const [desktopMobileImageUrl, setDesktopMobileImageUrl] = useState<string>('');
   
   // Function to handle image source tab changes
-  const handleImageSourceTabChange = (tab: 'url' | 'upload' | 'transparent') => {
+  const handleImageSourceTabChange = (tab: 'url' | 'upload' | 'transparent' | 'desktop-mobile') => {
     setActiveImageSourceTab(tab);
     setError(null);
     
@@ -81,12 +85,22 @@ export function ClientApp() {
       // Set a special imageUrl to indicate transparent mode
       setFormState(prev => ({ ...prev, imageUrl: 'transparent' }));
       setOriginalImageUrl('transparent');
-    } else if (tab === 'url' && formState.imageUrl === 'transparent') {
-      // Clear transparent mode when switching to URL
+    } else if (tab === 'desktop-mobile') {
+      // Set dimensions and logo URL for desktop/mobile mode
+      const isDesktop = desktopMobileVersion === 'desktop';
+      setFormState(prev => ({ 
+        ...prev, 
+        imageUrl: desktopMobileImageUrl,
+        width: 1240,
+        height: isDesktop ? 968 : 1400
+      }));
+      setOriginalImageUrl(desktopMobileImageUrl);
+    } else if (tab === 'url' && (formState.imageUrl === 'transparent' || activeImageSourceTab === 'desktop-mobile')) {
+      // Clear special modes when switching to URL
       setFormState(prev => ({ ...prev, imageUrl: '' }));
       setOriginalImageUrl('');
-    } else if (tab === 'upload' && formState.imageUrl === 'transparent') {
-      // Clear transparent mode when switching to upload
+    } else if (tab === 'upload' && (formState.imageUrl === 'transparent' || activeImageSourceTab === 'desktop-mobile')) {
+      // Clear special modes when switching to upload
       setFormState(prev => ({ ...prev, imageUrl: '' }));
       setOriginalImageUrl('');
     }
@@ -198,8 +212,8 @@ export function ClientApp() {
     const urlState: Partial<FormState> = {};
     
     // Handle mode parameter
-    const mode = params.get('mode') as 'url' | 'upload' | 'transparent' | null;
-    if (mode && ['url', 'upload', 'transparent'].includes(mode)) {
+    const mode = params.get('mode') as 'url' | 'upload' | 'transparent' | 'desktop-mobile' | null;
+    if (mode && ['url', 'upload', 'transparent', 'desktop-mobile'].includes(mode)) {
       setActiveImageSourceTab(mode);
     }
     
@@ -453,6 +467,56 @@ export function ClientApp() {
     }
   };
 
+  const handleDesktopMobileDownload = async (version: 'desktop' | 'mobile') => {
+    setIsLoading(true);
+    try {
+      // Create payload with desktop/mobile specific dimensions and settings
+      const dimensions = version === 'desktop' ? { width: 1240, height: 968 } : { width: 1240, height: 1400 };
+      const payload = { 
+        ...formState, 
+        ...dimensions,
+        imageUrl: desktopMobileImageUrl,
+        download: true,
+        isDesktopMobileMode: true,
+        desktopMobileVersion: version
+      };
+      
+      const response = await fetch('/api/overlay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) throw new Error('Failed to generate image');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      
+      // Get file extension from response headers or default to png
+      const contentType = response.headers.get('content-type') || 'image/png';
+      const fileExtension = contentType.includes('jpeg') ? 'jpg' : 'png';
+      
+      a.download = `overlay-${version}-${Date.now()}.${fileExtension}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('An unknown error occurred');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleShare = () => {
     const url = new URL(window.location.href);
     
@@ -535,6 +599,24 @@ export function ClientApp() {
     }));
   };
 
+  // Handle desktop/mobile version change
+  const handleDesktopMobileVersionChange = (version: 'desktop' | 'mobile') => {
+    setDesktopMobileVersion(version);
+    if (activeImageSourceTab === 'desktop-mobile') {
+      const newHeight = version === 'desktop' ? 968 : 1400;
+      setFormState(prev => ({ ...prev, height: newHeight }));
+    }
+  };
+
+  // Handle desktop/mobile image URL change
+  const handleDesktopMobileImageUrlChange = (url: string) => {
+    setDesktopMobileImageUrl(url);
+    if (activeImageSourceTab === 'desktop-mobile') {
+      setFormState(prev => ({ ...prev, imageUrl: url }));
+      setOriginalImageUrl(url);
+    }
+  };
+
   return (
     <div className="slds-grid slds-wrap slds-gutters_large slds-p-around_medium preview-container-parent">
       {/* Left column - Controls */}
@@ -611,6 +693,18 @@ export function ClientApp() {
                                 onClick={() => handleImageSourceTabChange('transparent')}
                               >
                                 Transparent Canvas
+                              </button>
+                            </li>
+                            <li className={`slds-tabs_scoped__item ${activeImageSourceTab === 'desktop-mobile' ? 'slds-is-active' : ''}`} role="presentation">
+                              <button
+                                className="slds-tabs_scoped__link"
+                                role="tab"
+                                aria-selected={activeImageSourceTab === 'desktop-mobile'}
+                                aria-controls="desktop-mobile-tab-content"
+                                id="desktop-mobile-tab"
+                                onClick={() => handleImageSourceTabChange('desktop-mobile')}
+                              >
+                                Desktop & Mobile
                               </button>
                             </li>
                           </ul>
@@ -748,14 +842,119 @@ export function ClientApp() {
                               Set custom dimensions for your transparent canvas. Common sizes: 800x600, 1200x630 (social media), 1920x1080 (HD)
                             </div>
                           </div>
+                          <div id="desktop-mobile-tab-content" className={`slds-tabs_scoped__content ${activeImageSourceTab === 'desktop-mobile' ? '' : 'slds-hide'}`} role="tabpanel" aria-labelledby="desktop-mobile-tab">
+                            <div className="slds-notify slds-notify_alert slds-theme_info slds-m-bottom_small" role="alert">
+                              <div className="slds-notify__content">
+                                <div className="slds-media slds-media_center">
+                                  <div className="slds-media__figure">
+                                    <svg className="slds-icon slds-icon_small" aria-hidden="true">
+                                      <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#multi_select_checkbox"></use>
+                                    </svg>
+                                  </div>
+                                  <div className="slds-media__body">
+                                    <p>Create desktop (1240x968) and mobile (1240x1400) versions with automatic logo placement and text positioning.</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Version Selection */}
+                            <div className="slds-form-element slds-m-bottom_medium">
+                              <fieldset className="slds-form-element__legend">
+                                <legend className="slds-form-element__legend slds-form-element__label">
+                                  Version
+                                </legend>
+                                <div className="slds-form-element__control">
+                                  <div className="slds-radio_button-group">
+                                    <span className="slds-button slds-radio_button">
+                                      <input
+                                        type="radio"
+                                        name="desktop-mobile-version"
+                                        id="version-desktop"
+                                        value="desktop"
+                                        checked={desktopMobileVersion === 'desktop'}
+                                        onChange={(e) => handleDesktopMobileVersionChange(e.target.value as 'desktop' | 'mobile')}
+                                        className="slds-assistive-text"
+                                      />
+                                      <label className="slds-radio_button__label" htmlFor="version-desktop">
+                                        <span className="slds-radio_faux">Desktop (1240x968)</span>
+                                      </label>
+                                    </span>
+                                    <span className="slds-button slds-radio_button">
+                                      <input
+                                        type="radio"
+                                        name="desktop-mobile-version"
+                                        id="version-mobile"
+                                        value="mobile"
+                                        checked={desktopMobileVersion === 'mobile'}
+                                        onChange={(e) => handleDesktopMobileVersionChange(e.target.value as 'desktop' | 'mobile')}
+                                        className="slds-assistive-text"
+                                      />
+                                      <label className="slds-radio_button__label" htmlFor="version-mobile">
+                                        <span className="slds-radio_faux">Mobile (1240x1400)</span>
+                                      </label>
+                                    </span>
+                                  </div>
+                                </div>
+                              </fieldset>
+                            </div>
+
+                            {/* Background Image URL */}
+                            <div className="slds-form-element slds-m-bottom_medium">
+                              <label className="slds-form-element__label" htmlFor="desktopMobileImageUrl">
+                                <abbr className="slds-required" title="required">*</abbr>
+                                Background Image URL
+                              </label>
+                              <div className="slds-form-element__control slds-input-has-icon slds-input-has-icon_left">
+                                <div className="slds-icon_container">
+                                  <svg className="slds-icon slds-input__icon slds-icon-text-default" aria-hidden="true">
+                                    <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#link"></use>
+                                  </svg>
+                                </div>
+                                <input
+                                  type="url"
+                                  id="desktopMobileImageUrl"
+                                  value={desktopMobileImageUrl}
+                                  onChange={(e) => handleDesktopMobileImageUrlChange(e.target.value)}
+                                  className="slds-input"
+                                  placeholder="https://example.com/background-image.jpg"
+                                  required
+                                />
+                              </div>
+                              <div className="slds-form-element__help">
+                                The background image will be resized to fit the selected dimensions (1240x968 for desktop, 1240x1400 for mobile)
+                              </div>
+                            </div>
+
+                            {/* Logo Information */}
+                            <div className="slds-box slds-theme_shade slds-m-bottom_medium">
+                              <h4 className="slds-text-heading_small slds-m-bottom_small">Logo Settings</h4>
+                              <div className="slds-grid slds-gutters_small">
+                                <div className="slds-col slds-size_1-of-2">
+                                  <p><strong>Logo URL:</strong></p>
+                                  <p className="slds-text-body_small">https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png</p>
+                                </div>
+                                <div className="slds-col slds-size_1-of-2">
+                                  <p><strong>Logo Size:</strong></p>
+                                  <p className="slds-text-body_small">
+                                    Desktop: 360px width<br/>
+                                    Mobile: 484px width
+                                  </p>
+                                </div>
+                              </div>
+                              <p className="slds-text-body_small slds-m-top_small">
+                                The logo will be automatically positioned in the top-left corner of the image.
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
               
-                {/* Image Adjustments Accordion - hidden for transparent mode */}
-                {activeImageSourceTab !== 'transparent' && (
+                {/* Image Adjustments Accordion - hidden for transparent and desktop-mobile modes */}
+                {activeImageSourceTab !== 'transparent' && activeImageSourceTab !== 'desktop-mobile' && (
                 <div className={`slds-accordion__section ${openAccordions.imageAdjustments ? 'slds-is-open' : ''}`}>
                   <div className="slds-accordion__summary">
                     <h3 className="slds-accordion__summary-heading">
@@ -1328,50 +1527,149 @@ export function ClientApp() {
                   </div>
                 )}
               </div>
-              <button
-                className="slds-button slds-button_brand download-button"
-                onClick={(e) => {
-                  // Create ripple effect
-                  const button = e.currentTarget;
-                  const ripple = button.querySelector('.button-ripple-effect') as HTMLElement;
-                  if (ripple) {
-                    ripple.style.opacity = '1';
-                    ripple.style.transform = 'translate(-50%, -50%) scale(2.5)';
-                    setTimeout(() => {
-                      ripple.style.opacity = '0';
-                      ripple.style.transform = 'translate(-50%, -50%) scale(0)';
-                    }, 600);
-                  }
-                  
-                  // Process download
-                  handleDownload();
-                }}
-                disabled={isLoading}
-                aria-label="Download image with overlay"
-                style={{
-                  position: 'relative', 
-                  overflow: 'hidden',
-                  transition: 'transform 0.2s ease, background-color 0.3s ease'
-                }}
-              >
-                <svg className="slds-button__icon slds-button__icon_left download-icon" aria-hidden="true">
-                  <Icons.Download />
-                </svg>
-                Download
-                <span className="button-ripple-effect" style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  width: '120%',
-                  height: '120%',
-                  transform: 'translate(-50%, -50%) scale(0)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                  borderRadius: '50%',
-                  opacity: '0',
-                  pointerEvents: 'none',
-                  transition: 'transform 0.5s ease-out, opacity 0.5s ease-out'
-                }} />
-              </button>
+              {activeImageSourceTab === 'desktop-mobile' ? (
+                <div className="slds-grid slds-gutters_small">
+                  <div className="slds-col">
+                    <button
+                      className="slds-button slds-button_brand download-button"
+                      onClick={(e) => {
+                        // Create ripple effect
+                        const button = e.currentTarget;
+                        const ripple = button.querySelector('.button-ripple-effect') as HTMLElement;
+                        if (ripple) {
+                          ripple.style.opacity = '1';
+                          ripple.style.transform = 'translate(-50%, -50%) scale(2.5)';
+                          setTimeout(() => {
+                            ripple.style.opacity = '0';
+                            ripple.style.transform = 'translate(-50%, -50%) scale(0)';
+                          }, 600);
+                        }
+                        
+                        // Download desktop version
+                        handleDesktopMobileDownload('desktop');
+                      }}
+                      disabled={isLoading}
+                      aria-label="Download desktop version (1240x968)"
+                      style={{
+                        position: 'relative', 
+                        overflow: 'hidden',
+                        transition: 'transform 0.2s ease, background-color 0.3s ease',
+                        width: '100%'
+                      }}
+                    >
+                      <svg className="slds-button__icon slds-button__icon_left download-icon" aria-hidden="true">
+                        <Icons.Download />
+                      </svg>
+                      Desktop
+                      <span className="button-ripple-effect" style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        width: '120%',
+                        height: '120%',
+                        transform: 'translate(-50%, -50%) scale(0)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                        borderRadius: '50%',
+                        opacity: '0',
+                        pointerEvents: 'none',
+                        transition: 'transform 0.6s ease-out, opacity 0.6s ease-out'
+                      }}></span>
+                    </button>
+                  </div>
+                  <div className="slds-col">
+                    <button
+                      className="slds-button slds-button_brand download-button"
+                      onClick={(e) => {
+                        // Create ripple effect
+                        const button = e.currentTarget;
+                        const ripple = button.querySelector('.button-ripple-effect') as HTMLElement;
+                        if (ripple) {
+                          ripple.style.opacity = '1';
+                          ripple.style.transform = 'translate(-50%, -50%) scale(2.5)';
+                          setTimeout(() => {
+                            ripple.style.opacity = '0';
+                            ripple.style.transform = 'translate(-50%, -50%) scale(0)';
+                          }, 600);
+                        }
+                        
+                        // Download mobile version
+                        handleDesktopMobileDownload('mobile');
+                      }}
+                      disabled={isLoading}
+                      aria-label="Download mobile version (1240x1400)"
+                      style={{
+                        position: 'relative', 
+                        overflow: 'hidden',
+                        transition: 'transform 0.2s ease, background-color 0.3s ease',
+                        width: '100%'
+                      }}
+                    >
+                      <svg className="slds-button__icon slds-button__icon_left download-icon" aria-hidden="true">
+                        <Icons.Download />
+                      </svg>
+                      Mobile
+                      <span className="button-ripple-effect" style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        width: '120%',
+                        height: '120%',
+                        transform: 'translate(-50%, -50%) scale(0)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                        borderRadius: '50%',
+                        opacity: '0',
+                        pointerEvents: 'none',
+                        transition: 'transform 0.6s ease-out, opacity 0.6s ease-out'
+                      }}></span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  className="slds-button slds-button_brand download-button"
+                  onClick={(e) => {
+                    // Create ripple effect
+                    const button = e.currentTarget;
+                    const ripple = button.querySelector('.button-ripple-effect') as HTMLElement;
+                    if (ripple) {
+                      ripple.style.opacity = '1';
+                      ripple.style.transform = 'translate(-50%, -50%) scale(2.5)';
+                      setTimeout(() => {
+                        ripple.style.opacity = '0';
+                        ripple.style.transform = 'translate(-50%, -50%) scale(0)';
+                      }, 600);
+                    }
+                    
+                    // Process download
+                    handleDownload();
+                  }}
+                  disabled={isLoading}
+                  aria-label="Download image with overlay"
+                  style={{
+                    position: 'relative', 
+                    overflow: 'hidden',
+                    transition: 'transform 0.2s ease, background-color 0.3s ease'
+                  }}
+                >
+                  <svg className="slds-button__icon slds-button__icon_left download-icon" aria-hidden="true">
+                    <Icons.Download />
+                  </svg>
+                  Download
+                  <span className="button-ripple-effect" style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    width: '120%',
+                    height: '120%',
+                    transform: 'translate(-50%, -50%) scale(0)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                    borderRadius: '50%',
+                    opacity: '0',
+                    pointerEvents: 'none',
+                    transition: 'transform 0.5s ease-out, opacity 0.5s ease-out'
+                  }}></span>
+                </button>
+              )}
             </div>
           </footer>
         </article>
@@ -1460,6 +1758,8 @@ export function ClientApp() {
                     onImageLoad={handleImageLoad}
                     onPositionChange={handlePositionChange}
                     className="preview-canvas"
+                    isDesktopMobileMode={activeImageSourceTab === 'desktop-mobile'}
+                    desktopMobileVersion={desktopMobileVersion}
                   />
                 </div>
               </div>
