@@ -352,14 +352,31 @@ export function ClientApp() {
       const defaultWidth = 20; // 20% of canvas width
       const defaultHeight = defaultWidth / aspectRatio;
       
+      // Calculate logo bottom position for alignment
+      // Built-in logo dimensions: Desktop 360px width, Mobile 484px width
+      // Logo aspect ratio is approximately 4.9:1 based on the PNG
+      const isDesktopMode = activeImageSourceTab === 'desktop-mobile' && desktopMobileVersion === 'desktop';
+      const logoWidthPx = isDesktopMode ? 360 : 484;
+      const logoAspectRatio = 4.9; // Approximate aspect ratio of the logo
+      const logoHeightPx = logoWidthPx / logoAspectRatio;
+      
+      // Convert logo bottom position to percentage (logo is at top: 0, so bottom = logoHeight)
+      // Assuming standard canvas dimensions for percentage calculation
+      const canvasHeight = isDesktopMode ? 968 : 1400;
+      const logoBottomPercent = (logoHeightPx / canvasHeight) * 100;
+      
+      // Position image overlay so its bottom aligns with logo's bottom
+      const overlayBottomY = logoBottomPercent;
+      const overlayTopY = Math.max(2, overlayBottomY - defaultHeight); // Ensure minimum 2% top margin
+      
       const newOverlay: ImageOverlay = {
         id: generateId(),
         imageUrl: data.images[0], // Base64 image
         originalImageUrl: imageUrl, // Original URL for sharing
         width: defaultWidth,
         height: defaultHeight,
-        x: 10, // Default position (10% from left)
-        y: 10 + (formState.imageOverlays.length * 15) % 70, // Staggered positioning
+        x: 78 - (formState.imageOverlays.length * 3) % 10, // Top right with smaller margin (78% from left, staggered left)
+        y: overlayTopY + (formState.imageOverlays.length * 2) % 8, // Align with logo bottom, small stagger
         aspectRatio
       };
       
