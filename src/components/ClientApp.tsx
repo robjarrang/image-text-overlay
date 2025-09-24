@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Icons } from './Icons';
+import { getPresetLogoOptions } from '../utils/presetLogos';
 
 const CanvasGenerator = dynamic(() => import('./CanvasGenerator').then(mod => ({ default: mod.CanvasGenerator })), {
   ssr: false
@@ -124,6 +125,10 @@ export function ClientApp() {
   // State for desktop/mobile mode
   const [desktopMobileVersion, setDesktopMobileVersion] = useState<'desktop' | 'mobile'>('desktop');
   const [desktopMobileImageUrl, setDesktopMobileImageUrl] = useState<string>('');
+
+  // Preset logo options
+  const presetLogoOptions = getPresetLogoOptions();
+  const [selectedPresetLogo, setSelectedPresetLogo] = useState<string>('');
 
   // Validation function for dimensions
   const validateDimension = (value: number, type: 'width' | 'height'): { isValid: boolean; message?: string } => {
@@ -779,7 +784,7 @@ export function ClientApp() {
       } else {
         const downloadParams = new URLSearchParams();
         Object.entries(formState).forEach(([key, value]) => {
-          if (key === 'imageUrl') return; // Skip the base64 imageUrl
+          if (key === 'imageUrl') return; // Skip the base64 image
           downloadParams.set(key, String(value));
         });
         downloadParams.set('imageUrl', originalImageUrl);
@@ -1880,6 +1885,39 @@ export function ClientApp() {
                         </div>
                         <div className="slds-form-element__help">
                           Enter a URL for an image (PNG, JPG, etc.) to add as an overlay
+                        </div>
+                      </div>
+
+                      {/* Preset Logo Dropdown */}
+                      <div className="slds-form-element slds-m-bottom_small">
+                        <label className="slds-form-element__label" htmlFor="preset-logo-select">
+                          Or select a preset logo
+                        </label>
+                        <div className="slds-form-element__control slds-grid">
+                          <select
+                            id="preset-logo-select"
+                            className="slds-select"
+                            value={selectedPresetLogo}
+                            onChange={e => setSelectedPresetLogo(e.target.value)}
+                            style={{ maxWidth: 300 }}
+                          >
+                            <option value="">-- Choose a preset logo --</option>
+                            {presetLogoOptions.map(opt => (
+                              <option key={opt.imageUrl} value={opt.imageUrl}>{opt.label}</option>
+                            ))}
+                          </select>
+                          <button
+                            className="slds-button slds-button_neutral slds-m-left_x-small"
+                            disabled={!selectedPresetLogo || isLoading}
+                            onClick={() => {
+                              if (selectedPresetLogo) {
+                                addImageOverlay(selectedPresetLogo);
+                                setSelectedPresetLogo('');
+                              }
+                            }}
+                          >
+                            Add Preset Logo
+                          </button>
                         </div>
                       </div>
 
