@@ -734,6 +734,19 @@ export function ClientApp() {
         } else {
           console.log('🔍 No image in share data, applying state only');
           setFormState(prev => ({ ...prev, ...urlState }));
+          
+          // Check if this is desktop-mobile mode and we need to generate preview
+          if (shareData.mode === 'desktop-mobile' && shareData.dmUrl) {
+            console.log('🔍 Desktop-mobile mode detected, triggering preview generation');
+            console.log('🔍 Desktop-mobile image URL:', shareData.dmUrl);
+            console.log('🔍 Desktop-mobile version:', shareData.dmv);
+            
+            // Small delay to ensure state is applied
+            setTimeout(() => {
+              console.log('🔍 Calling generateDesktopMobilePreview');
+              generateDesktopMobilePreview(shareData.dmUrl, shareData.dmv);
+            }, 100);
+          }
         }
         if (shareData.to && Array.isArray(shareData.to)) {
           const textOverlays = shareData.to.map((overlay: any) => ({
