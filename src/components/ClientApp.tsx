@@ -646,26 +646,36 @@ export function ClientApp() {
   };
 
   useEffect(() => {
+    console.log('🔍 URL Loading Effect - Starting');
     const params = new URLSearchParams(window.location.search);
+    console.log('🔍 URL params:', params.toString());
     
     // Check for compressed data format first
     const compressedData = params.get('d');
+    console.log('🔍 Compressed data found:', !!compressedData);
+    
     if (compressedData) {
+      console.log('🔍 Processing compressed data...');
       try {
         const decompressed = decodeURIComponent(atob(compressedData));
         const shareData = JSON.parse(decompressed);
+        console.log('🔍 Parsed share data:', shareData);
         
         // Handle mode
         if (shareData.mode && ['url', 'upload', 'transparent', 'desktop-mobile'].includes(shareData.mode)) {
+          console.log('🔍 Setting activeImageSourceTab to:', shareData.mode);
           setActiveImageSourceTab(shareData.mode);
         }
         
         // Handle desktop/mobile specific parameters
         if (shareData.mode === 'desktop-mobile') {
+          console.log('🔍 Desktop/mobile mode detected');
           if (shareData.dmv && ['desktop', 'mobile'].includes(shareData.dmv)) {
+            console.log('🔍 Setting desktop/mobile version to:', shareData.dmv);
             setDesktopMobileVersion(shareData.dmv);
           }
           if (shareData.dmUrl) {
+            console.log('🔍 Setting desktop/mobile image URL to:', shareData.dmUrl);
             setDesktopMobileImageUrl(shareData.dmUrl);
           }
         }
@@ -683,39 +693,46 @@ export function ClientApp() {
           ...(shareData.x && { imageX: shareData.x }),
           ...(shareData.y && { imageY: shareData.y })
         };
+        console.log('🔍 URL state to apply:', urlState);
         
         // Handle image URL and trigger loading immediately if needed
         if (shareData.img && shareData.mode === 'url') {
+          console.log('🔍 URL mode with image detected, starting image load:', shareData.img);
           setOriginalImageUrl(shareData.img);
           
           // Trigger image loading immediately for URL mode
-          console.log('Loading image for shared URL:', shareData.img);
           setIsLoading(true);
           fetch('/api/load-images', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ images: [shareData.img] })
           })
-          .then(response => response.json())
+          .then(response => {
+            console.log('🔍 Image API response status:', response.status);
+            return response.json();
+          })
           .then(data => {
-            console.log('Image loaded successfully for shared link');
+            console.log('🔍 Image loaded successfully, data:', data);
             setFormState(prev => ({
               ...prev,
               ...urlState,
               imageUrl: data.images[0]
             }));
+            console.log('🔍 Form state updated with image');
             setIsLoading(false);
           })
           .catch(error => {
-            console.error('Error loading shared image:', error);
+            console.error('❌ Error loading shared image:', error);
             setError('Failed to load shared image');
             setOriginalImageUrl('');
             setIsLoading(false);
           });
         } else if (shareData.img) {
+          console.log('🔍 Non-URL mode with image, setting originalImageUrl:', shareData.img);
           setOriginalImageUrl(shareData.img);
           setFormState(prev => ({ ...prev, ...urlState }));
         } else {
+          console.log('🔍 No image in share data, applying state only');
           setFormState(prev => ({ ...prev, ...urlState }));
         }
         if (shareData.to && Array.isArray(shareData.to)) {
@@ -796,26 +813,30 @@ export function ClientApp() {
         }
         
         setFormState(prev => ({ ...prev, ...urlState }));
+        
         return;
         
       } catch (error) {
-        console.error('Failed to parse compressed data:', error);
+        console.error('❌ Failed to parse compressed data:', error);
         // Fall through to legacy parsing
       }
+    } else {
+      console.log('🔍 No compressed data, checking legacy URL format');
     }
     
     // Legacy URL parsing (existing code)
+    console.log('🔍 Processing legacy URL format...');
     const numericKeys: NumericKeys[] = ['width', 'height', 'brightness', 'imageX', 'imageY', 'imageZoom'];
     const stringKeys: StringKeys[] = [];  // Removed imageUrl
     const urlState: Partial<FormState> = {};
     
     // Handle mode parameter
     const mode = params.get('mode') as 'url' | 'upload' | 'transparent' | 'desktop-mobile' | null;
+    console.log('🔍 Legacy mode parameter:', mode);
     if (mode && ['url', 'upload', 'transparent', 'desktop-mobile'].includes(mode)) {
+      console.log('🔍 Setting activeImageSourceTab to legacy mode:', mode);
       setActiveImageSourceTab(mode);
-    }
-    
-    // Handle desktop/mobile specific parameters
+    }    // Handle desktop/mobile specific parameters
     if (mode === 'desktop-mobile') {
       const dmVersion = params.get('desktopMobileVersion') as 'desktop' | 'mobile' | null;
       if (dmVersion && ['desktop', 'mobile'].includes(dmVersion)) {
@@ -934,7 +955,9 @@ export function ClientApp() {
 
     // Handle imageUrl separately - skip for transparent mode and desktop-mobile mode (handled separately)
     const imageUrl = params.get('imageUrl');
+    console.log('🔍 Legacy imageUrl parameter:', imageUrl, 'mode:', mode);
     if (imageUrl && mode !== 'transparent' && mode !== 'desktop-mobile') {
+      console.log('🔍 Loading legacy image URL:', imageUrl);
       setIsLoading(true);
       setOriginalImageUrl(imageUrl); // Store the original URL from params
       fetch('/api/load-images', {
@@ -944,8 +967,12 @@ export function ClientApp() {
         },
         body: JSON.stringify({ images: [imageUrl] }),
       })
-      .then(response => response.json())
+      .then(response => {
+        console.log('🔍 Legacy image API response status:', response.status);
+        return response.json();
+      })
       .then(data => {
+        console.log('🔍 Legacy image loaded successfully');
         setFormState(prev => ({
           ...prev,
           ...urlState,
@@ -954,12 +981,13 @@ export function ClientApp() {
         setIsLoading(false);
       })
       .catch(error => {
-        console.error('Error loading shared image:', error);
+        console.error('❌ Error loading legacy shared image:', error);
         setError('Failed to load shared image');
         setOriginalImageUrl(''); // Clear original URL on error
         setIsLoading(false);
       });
     } else if (mode === 'transparent') {
+      console.log('🔍 Setting transparent mode');
       // Set transparent mode
       setFormState(prev => ({
         ...prev,
@@ -968,22 +996,31 @@ export function ClientApp() {
       }));
       setOriginalImageUrl('transparent');
     } else if (mode === 'desktop-mobile') {
+      console.log('🔍 Setting desktop-mobile mode');
       // Handle desktop-mobile mode
       const dmImageUrl = params.get('desktopMobileImageUrl');
       const dmVersion = params.get('desktopMobileVersion') as 'desktop' | 'mobile' || 'desktop';
+      console.log('🔍 Desktop-mobile params - URL:', dmImageUrl, 'Version:', dmVersion);
       
       if (dmImageUrl) {
+        console.log('🔍 Generating desktop-mobile preview for:', dmImageUrl);
         // Generate the desktop-mobile preview
         generateDesktopMobilePreview(dmImageUrl, dmVersion);
       }
       
       // Apply other URL state
       if (Object.keys(urlState).length) {
+        console.log('🔍 Applying desktop-mobile URL state:', urlState);
         setFormState(prev => ({ ...prev, ...urlState }));
       }
     } else if (Object.keys(urlState).length) {
+      console.log('🔍 Applying final URL state (no mode):', urlState);
       setFormState(prev => ({ ...prev, ...urlState }));
+    } else {
+      console.log('🔍 No URL state to apply');
     }
+    
+    console.log('🔍 URL Loading Effect - Completed');
   }, []);
 
   const updateSliderProgress = (e: React.ChangeEvent<HTMLInputElement>) => {
