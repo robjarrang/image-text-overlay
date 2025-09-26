@@ -687,9 +687,37 @@ export function ClientApp() {
         // Handle image URL
         if (shareData.img) {
           setOriginalImageUrl(shareData.img);
+          // Trigger image preview generation for compressed data
+          if (shareData.mode !== 'transparent' && shareData.mode !== 'desktop-mobile') {
+            setIsLoading(true);
+            fetch('/api/load-images', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ images: [shareData.img] })
+            })
+            .then(response => response.json())
+            .then(data => {
+              setFormState(prev => ({
+                ...prev,
+                ...urlState,
+                imageUrl: data.images[0]
+              }));
+              setIsLoading(false);
+            })
+            .catch(error => {
+              console.error('Error loading shared image from compressed data:', error);
+              setError('Failed to load shared image');
+              setOriginalImageUrl('');
+              setIsLoading(false);
+            });
+          } else {
+            // Apply state immediately for transparent/desktop-mobile modes
+            setFormState(prev => ({ ...prev, ...urlState }));
+          }
+        } else {
+          // Apply state if no image URL
+          setFormState(prev => ({ ...prev, ...urlState }));
         }
-        
-        // Handle text overlays
         if (shareData.to && Array.isArray(shareData.to)) {
           const textOverlays = shareData.to.map((overlay: any) => ({
             id: overlay.i,
