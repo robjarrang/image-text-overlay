@@ -2720,85 +2720,90 @@ main,
   );
 }
 
-/* Enhanced Accordion Styles */
+/* Enhanced Accordion Styles - SLDS Compliant */
 .slds-accordion__section {
-  transition: background-color 0.2s ease;
+  border: 1px solid var(--slds-g-color-border-base-1, #e5e5e5);
   border-radius: 0.25rem;
   margin-bottom: 0.5rem;
+  background-color: var(--slds-g-color-neutral-base-100, #ffffff);
+}
+
+.slds-theme_dark .slds-accordion__section {
+  border-color: var(--slds-g-color-neutral-base-30, #444444);
+  background-color: var(--slds-g-color-neutral-base-20, #2e2e2e);
 }
 
 .slds-accordion__summary {
   position: relative;
-  overflow: hidden;
+  border-bottom: 1px solid transparent;
+}
+
+.slds-accordion__section.slds-is-open .slds-accordion__summary {
+  border-bottom-color: var(--slds-g-color-border-base-1, #e5e5e5);
+}
+
+.slds-theme_dark .slds-accordion__section.slds-is-open .slds-accordion__summary {
+  border-bottom-color: var(--slds-g-color-neutral-base-30, #444444);
 }
 
 .slds-accordion__summary-action {
   width: 100%;
-  padding: 0.75rem;
-  transition: background-color 0.2s ease, transform 0.2s ease;
-  border-radius: 0.25rem;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  transition: background-color 0.15s ease;
+  border-radius: 0.25rem 0.25rem 0 0;
+  position: relative;
+}
+
+.slds-accordion__summary-content {
+  flex: 1;
+  text-align: left;
+  margin-left: 0.5rem;
 }
 
 .slds-accordion__summary-action:hover {
   background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
-  transform: translateX(2px);
 }
 
-.slds-theme_dark .slds-accordion__summary-action:hover {
-  background-color: var(--slds-g-color-neutral-base-30, #444444);
+.slds-accordion__summary-action:focus {
+  background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
+  outline: 2px solid var(--slds-g-color-brand-base-50, #0176d3);
+  outline-offset: -2px;
 }
 
-.slds-accordion__summary-action:active {
-  transform: translateX(4px);
+.slds-theme_dark .slds-accordion__summary-action:hover,
+.slds-theme_dark .slds-accordion__summary-action:focus {
+  background-color: var(--slds-g-color-neutral-base-25, #3a3a3a);
 }
 
+/* Chevron icon styling - Standard SLDS pattern */
 .slds-accordion__summary-action-icon {
-  transition: transform 0.3s ease;
-  transform: rotate(-90deg); /* Start rotated -90 degrees */
+  transition: transform 0.2s ease;
+  transform: rotate(0deg); /* Down arrow when closed */
+  flex-shrink: 0;
 }
 
 .slds-accordion__section.slds-is-open .slds-accordion__summary-action-icon {
-  transform: rotate(0deg); /* Rotate to 0 degrees when open */
+  transform: rotate(180deg); /* Up arrow when open */
 }
 
 .slds-accordion__content {
-  padding: 1rem;
-  opacity: 0;
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out, padding 0.2s ease-in-out;
+  padding: 0 1rem 1rem 1rem;
+  transition: all 0.2s ease;
+  border-radius: 0 0 0.25rem 0.25rem;
 }
 
-.slds-accordion__section.slds-is-open .slds-accordion__content {
-  opacity: 1;
-  max-height: 1000px; /* Adjust based on your content */
-}
-
-/* Add subtle hover indicator */
-.slds-accordion__summary::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  width: 4px;
-  background-color: var(--slds-g-color-brand-base-50, #0176d3);
-  transform: scaleY(0);
-  transition: transform 0.2s ease;
-  border-radius: 2px;
-}
-
-.slds-accordion__summary:hover::before {
-  transform: scaleY(1);
-}
-
-/* Active state enhancement */
+/* Active state styling */
 .slds-accordion__section.slds-is-open .slds-accordion__summary-action {
   background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
+  border-radius: 0.25rem 0.25rem 0 0;
 }
 
 .slds-theme_dark .slds-accordion__section.slds-is-open .slds-accordion__summary-action {
-  background-color: var(--slds-g-color-neutral-base-30, #444444);
+  background-color: var(--slds-g-color-neutral-base-25, #3a3a3a);
 }
 
 /* Text overlay selection styles */

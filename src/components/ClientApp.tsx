@@ -2146,9 +2146,9 @@ export function ClientApp() {
                               
                               <div className="slds-text-body_small slds-text-color_weak">
                                 <svg className="slds-icon slds-icon_xx-small slds-m-right_xx-small" aria-hidden="true">
-                                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#info"></use>
+                                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#world"></use>
                                 </svg>
-                                🌍 Multi-language logos can be changed using the dropdown in each overlay below
+                                Multi-language logos can be changed using the dropdown in each overlay below
                               </div>
                             </div>
                           )}
@@ -2389,10 +2389,13 @@ export function ClientApp() {
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('textStyle')}
                       >
-                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
+                        <svg className="slds-icon slds-icon_small slds-button__icon slds-button__icon_left" aria-hidden="true">
                           <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#brush"></use>
                         </svg>
                         <span className="slds-accordion__summary-content">Text Style & Position</span>
+                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
+                        </svg>
                       </button>
                     </h3>
                   </div>
@@ -2815,10 +2818,13 @@ export function ClientApp() {
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('imageSettings')}
                       >
-                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
+                        <svg className="slds-icon slds-icon_small slds-button__icon slds-button__icon_left" aria-hidden="true">
                           <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#settings"></use>
                         </svg>
                         <span className="slds-accordion__summary-content">Image Settings</span>
+                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
+                        </svg>
                       </button>
                     </h3>
                   </div>
