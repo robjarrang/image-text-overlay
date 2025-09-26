@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Icons } from './Icons';
-import { getPresetLogoOptions } from '../utils/presetLogos';
 
 const CanvasGenerator = dynamic(() => import('./CanvasGenerator').then(mod => ({ default: mod.CanvasGenerator })), {
   ssr: false
@@ -43,6 +42,21 @@ export interface ImageOverlay {
   mobileWidth?: number;
   mobileHeight?: number;
   aspectRatio: number; // Width/height ratio for maintaining proportions
+}
+
+export interface PresetLogo {
+  id: string;
+  name: string;
+  imageUrl?: string;
+  hasVariants: boolean;
+  variants?: { [languageCode: string]: string };
+  defaultImageUrl?: string;
+  selectedVariant?: string; // Current selected language variant
+}
+
+export interface PresetLogosData {
+  systemLogos: PresetLogo[];
+  tradeLogos: PresetLogo[];
 }
 
 interface FormState {
@@ -111,6 +125,11 @@ export function ClientApp() {
   const [newOverlayText, setNewOverlayText] = useState('');
   const [newImageOverlayUrl, setNewImageOverlayUrl] = useState('');
 
+  // Preset logos state
+  const [presetLogos, setPresetLogos] = useState<PresetLogosData | null>(null);
+  const [loadingPresetLogos, setLoadingPresetLogos] = useState(false);
+  const [selectedPresetLogo, setSelectedPresetLogo] = useState<PresetLogo | null>(null);
+
   // Add state for accordion sections
   const [openAccordions, setOpenAccordions] = useState({
     imageSource: true,
@@ -125,10 +144,6 @@ export function ClientApp() {
   // State for desktop/mobile mode
   const [desktopMobileVersion, setDesktopMobileVersion] = useState<'desktop' | 'mobile'>('desktop');
   const [desktopMobileImageUrl, setDesktopMobileImageUrl] = useState<string>('');
-
-  // Preset logo options
-  const presetLogoOptions = getPresetLogoOptions();
-  const [selectedPresetLogo, setSelectedPresetLogo] = useState<string>('');
 
   // Validation function for dimensions
   const validateDimension = (value: number, type: 'width' | 'height'): { isValid: boolean; message?: string } => {
@@ -397,6 +412,107 @@ export function ClientApp() {
     } catch (error) {
       console.error('Error adding image overlay:', error);
       setError('Failed to load image overlay');
+      setIsLoading(false);
+    }
+  };
+
+  // Function to load preset logos
+  const loadPresetLogos = async () => {
+    if (presetLogos) return; // Already loaded
+    
+    try {
+      setLoadingPresetLogos(true);
+      const response = await fetch('/api/preset-logos');
+      if (!response.ok) throw new Error('Failed to load preset logos');
+      
+      const data: PresetLogosData = await response.json();
+      setPresetLogos(data);
+    } catch (error) {
+      console.error('Error loading preset logos:', error);
+      setError('Failed to load preset logos');
+    } finally {
+      setLoadingPresetLogos(false);
+    }
+  };
+
+  // Function to add a preset logo as an image overlay
+  const addPresetLogo = async (logo: PresetLogo, languageVariant?: string) => {
+    try {
+      setIsLoading(true);
+      
+      // Determine the image URL to use
+      let imageUrl: string;
+      if (logo.hasVariants && logo.variants && languageVariant) {
+        imageUrl = logo.variants[languageVariant] || logo.defaultImageUrl || '';
+      } else if (logo.imageUrl) {
+        imageUrl = logo.imageUrl;
+      } else {
+        imageUrl = logo.defaultImageUrl || '';
+      }
+      
+      if (!imageUrl) {
+        throw new Error('No image URL available for this logo');
+      }
+      
+      // Load the image to get dimensions and convert to base64
+      const response = await fetch('/api/load-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: [imageUrl] })
+      });
+      
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      
+      // Create a temporary image to get dimensions
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = data.images[0];
+      });
+      
+      const aspectRatio = img.width / img.height;
+      const defaultWidth = 20; // 20% of canvas width
+      const defaultHeight = defaultWidth / aspectRatio;
+      
+      // Use the same positioning logic as regular image overlays
+      const isDesktopMode = activeImageSourceTab === 'desktop-mobile' && desktopMobileVersion === 'desktop';
+      const logoWidthPx = isDesktopMode ? 360 : 484;
+      const logoAspectRatio = 4.9;
+      const logoHeightPx = logoWidthPx / logoAspectRatio;
+      
+      const canvasHeight = isDesktopMode ? 968 : 1400;
+      const logoBottomPercent = (logoHeightPx / canvasHeight) * 100;
+      
+      const overlayBottomY = logoBottomPercent;
+      const overlayTopY = Math.max(2, overlayBottomY - defaultHeight);
+      
+      const newOverlay: ImageOverlay = {
+        id: generateId(),
+        imageUrl: data.images[0], // Base64 image
+        originalImageUrl: imageUrl, // Original URL for sharing
+        width: defaultWidth,
+        height: defaultHeight,
+        x: 78 - (formState.imageOverlays.length * 3) % 10,
+        y: overlayTopY + (formState.imageOverlays.length * 2) % 8,
+        aspectRatio
+      };
+      
+      setFormState(prev => ({
+        ...prev,
+        imageOverlays: [...prev.imageOverlays, newOverlay],
+        activeOverlayId: newOverlay.id,
+        activeOverlayType: 'image'
+      }));
+      
+      setSelectedPresetLogo(null); // Clear selection
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error adding preset logo:', error);
+      setError('Failed to add preset logo');
       setIsLoading(false);
     }
   };
@@ -784,7 +900,7 @@ export function ClientApp() {
       } else {
         const downloadParams = new URLSearchParams();
         Object.entries(formState).forEach(([key, value]) => {
-          if (key === 'imageUrl') return; // Skip the base64 image
+          if (key === 'imageUrl') return; // Skip the base64 imageUrl
           downloadParams.set(key, String(value));
         });
         downloadParams.set('imageUrl', originalImageUrl);
@@ -1888,36 +2004,102 @@ export function ClientApp() {
                         </div>
                       </div>
 
-                      {/* Preset Logo Dropdown */}
-                      <div className="slds-form-element slds-m-bottom_small">
-                        <label className="slds-form-element__label" htmlFor="preset-logo-select">
-                          Or select a preset logo
+                      {/* Preset Logos Section */}
+                      <div className="slds-form-element slds-m-bottom_medium">
+                        <label className="slds-form-element__label">
+                          Or Select from Preset Logos
                         </label>
-                        <div className="slds-form-element__control slds-grid">
-                          <select
-                            id="preset-logo-select"
-                            className="slds-select"
-                            value={selectedPresetLogo}
-                            onChange={e => setSelectedPresetLogo(e.target.value)}
-                            style={{ maxWidth: 300 }}
-                          >
-                            <option value="">-- Choose a preset logo --</option>
-                            {presetLogoOptions.map(opt => (
-                              <option key={opt.imageUrl} value={opt.imageUrl}>{opt.label}</option>
-                            ))}
-                          </select>
+                        <div className="slds-form-element__control">
                           <button
-                            className="slds-button slds-button_neutral slds-m-left_x-small"
-                            disabled={!selectedPresetLogo || isLoading}
-                            onClick={() => {
-                              if (selectedPresetLogo) {
-                                addImageOverlay(selectedPresetLogo);
-                                setSelectedPresetLogo('');
-                              }
-                            }}
+                            type="button"
+                            className="slds-button slds-button_neutral slds-m-bottom_x-small"
+                            onClick={loadPresetLogos}
+                            disabled={loadingPresetLogos}
                           >
-                            Add Preset Logo
+                            {loadingPresetLogos ? 'Loading...' : 'Load Preset Logos'}
                           </button>
+                          
+                          {presetLogos && (
+                            <div className="slds-m-top_small">
+                              {/* System Logos */}
+                              {presetLogos.systemLogos.length > 0 && (
+                                <div className="slds-m-bottom_medium">
+                                  <h5 className="slds-text-title_caps slds-m-bottom_x-small">System Logos</h5>
+                                  <div className="slds-grid slds-wrap slds-gutters_x-small">
+                                    {presetLogos.systemLogos.map((logo) => (
+                                      <div key={logo.id} className="slds-col slds-size_1-of-4 slds-m-bottom_x-small">
+                                        <button
+                                          type="button"
+                                          className="slds-button slds-button_outline-brand"
+                                          onClick={() => addPresetLogo(logo)}
+                                          disabled={isLoading}
+                                          style={{ width: '100%', fontSize: '0.75rem' }}
+                                        >
+                                          {logo.name}
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Trade Logos */}
+                              {presetLogos.tradeLogos.length > 0 && (
+                                <div className="slds-m-bottom_medium">
+                                  <h5 className="slds-text-title_caps slds-m-bottom_x-small">Trade Logos</h5>
+                                  <div className="slds-grid slds-wrap slds-gutters_x-small">
+                                    {presetLogos.tradeLogos.map((logo) => (
+                                      <div key={logo.id} className="slds-col slds-size_1-of-3 slds-m-bottom_x-small">
+                                        <button
+                                          type="button"
+                                          className={`slds-button ${selectedPresetLogo?.id === logo.id ? 'slds-button_brand' : 'slds-button_outline-brand'}`}
+                                          onClick={() => setSelectedPresetLogo(selectedPresetLogo?.id === logo.id ? null : logo)}
+                                          style={{ width: '100%', fontSize: '0.75rem' }}
+                                        >
+                                          {logo.name}
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Language Variants for Selected Trade Logo */}
+                              {selectedPresetLogo && selectedPresetLogo.hasVariants && selectedPresetLogo.variants && (
+                                <div className="slds-m-bottom_medium">
+                                  <h5 className="slds-text-title_caps slds-m-bottom_x-small">
+                                    Language Variants for {selectedPresetLogo.name}
+                                  </h5>
+                                  <div className="slds-grid slds-wrap slds-gutters_x-small">
+                                    {Object.entries(selectedPresetLogo.variants)
+                                      .filter(([key]) => key !== 'default')
+                                      .sort(([a], [b]) => a.localeCompare(b))
+                                      .map(([languageCode, imageUrl]) => (
+                                      <div key={languageCode} className="slds-col slds-size_1-of-4 slds-m-bottom_x-small">
+                                        <button
+                                          type="button"
+                                          className="slds-button slds-button_success"
+                                          onClick={() => addPresetLogo(selectedPresetLogo, languageCode)}
+                                          disabled={isLoading}
+                                          style={{ width: '100%', fontSize: '0.65rem' }}
+                                        >
+                                          {languageCode}
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="slds-button slds-button_success slds-m-top_x-small"
+                                    onClick={() => addPresetLogo(selectedPresetLogo, 'default')}
+                                    disabled={isLoading}
+                                  >
+                                    Add Default Version
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
 
