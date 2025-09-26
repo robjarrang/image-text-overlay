@@ -2043,7 +2043,7 @@ export function ClientApp() {
                     <div className="form-section">
                       {/* Primary Action: Add Image */}
                       <div className="slds-form-element slds-m-bottom_medium">
-                        <label className="slds-form-element__label slds-text-heading_small" htmlFor="new-image-overlay-url">
+                        <label className="slds-form-element__label" htmlFor="new-image-overlay-url">
                           Add Image Overlay
                         </label>
                         
@@ -2091,17 +2091,19 @@ export function ClientApp() {
                                 </svg>
                               </div>
                               <div className="slds-media__body">
-                                <span className="slds-text-body_small slds-text-color_default">
+                                <span className="slds-text-body_regular">
                                   Quick Add: Preset Logos
                                 </span>
                               </div>
                             </div>
                             {loadingPresetLogos && (
                               <div className="slds-text-body_small slds-text-color_weak">
-                                <svg className="slds-button__icon slds-button__icon_small" aria-hidden="true">
-                                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#spinner"></use>
-                                </svg>
-                                Loading...
+                                <div className="slds-spinner slds-spinner_xx-small slds-spinner_inline" role="status" style={{ marginRight: '0.25rem' }}>
+                                  <span className="slds-assistive-text">Loading</span>
+                                  <div className="slds-spinner__dot-a"></div>
+                                  <div className="slds-spinner__dot-b"></div>
+                                </div>
+                                Loading presets...
                               </div>
                             )}
                           </div>
@@ -2109,25 +2111,21 @@ export function ClientApp() {
                           {presetLogos && (
                             <div>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
-                                {/* System Logos */}
+                                {/* System Logos - Secondary Actions */}
                                 {presetLogos.systemLogos.map((logo) => (
                                   <button
                                     key={logo.id}
                                     type="button"
-                                    className="slds-button slds-button_outline-brand slds-button_small"
+                                    className="slds-button slds-button_neutral slds-button_small"
                                     onClick={() => addPresetLogo(logo)}
                                     disabled={isLoading}
-                                    style={{ 
-                                      fontSize: '0.65rem', 
-                                      padding: '4px 8px',
-                                      borderRadius: '12px'
-                                    }}
+                                    style={{ borderRadius: '12px' }}
                                   >
                                     {logo.name}
                                   </button>
                                 ))}
                                 
-                                {/* Trade Logos - Pill style with icon */}
+                                {/* Trade Logos - Primary Preset Actions */}
                                 {presetLogos.tradeLogos.map((logo) => (
                                   <button
                                     key={logo.id}
@@ -2135,12 +2133,8 @@ export function ClientApp() {
                                     className="slds-button slds-button_brand slds-button_small"
                                     onClick={() => addPresetLogo(logo)}
                                     disabled={isLoading}
-                                    style={{ 
-                                      fontSize: '0.65rem', 
-                                      padding: '4px 8px',
-                                      borderRadius: '12px'
-                                    }}
-                                    title={`Add ${logo.name} logo (multilingual - change language after adding)`}
+                                    style={{ borderRadius: '12px' }}
+                                    title={`Add ${logo.name} logo with multiple language options`}
                                   >
                                     <svg className="slds-button__icon slds-button__icon_left slds-button__icon_xx-small" aria-hidden="true">
                                       <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#world"></use>
@@ -2150,11 +2144,11 @@ export function ClientApp() {
                                 ))}
                               </div>
                               
-                              <div className="slds-text-body_small slds-text-color_weak" style={{ fontSize: '0.6rem', marginTop: '2px' }}>
+                              <div className="slds-text-body_small slds-text-color_weak">
                                 <svg className="slds-icon slds-icon_xx-small slds-m-right_xx-small" aria-hidden="true">
                                   <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#info"></use>
                                 </svg>
-                                🌍 logos support multiple languages - use dropdown in overlay list to switch
+                                🌍 Multi-language logos can be changed using the dropdown in each overlay below
                               </div>
                             </div>
                           )}
@@ -2163,18 +2157,18 @@ export function ClientApp() {
 
                       {/* Image Overlays List - Improved */}
                       <div className="overlays-section">
-                        <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_x-small">
-                          <h4 className="slds-text-title_caps">Your Image Overlays</h4>
+                        <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_small">
+                          <h4 className="slds-text-heading_small slds-m-bottom_none">Your Image Overlays</h4>
                           {formState.imageOverlays.length > 0 && (
-                            <span className="slds-badge slds-badge_lightest">
-                              {formState.imageOverlays.length}
+                            <span className="slds-badge slds-badge_lightest slds-text-body_small">
+                              {formState.imageOverlays.length} overlay{formState.imageOverlays.length !== 1 ? 's' : ''}
                             </span>
                           )}
                         </div>
                         
                         {formState.imageOverlays.length === 0 ? (
-                          <div className="slds-illustration slds-illustration_small" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-                            <svg className="slds-illustration__svg" viewBox="0 0 454 218" style={{ width: '80px', height: 'auto', opacity: 0.5 }}>
+                          <div className="slds-illustration slds-illustration_small" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                            <svg className="slds-illustration__svg" viewBox="0 0 454 218" style={{ width: '100px', height: 'auto', opacity: 0.4, marginBottom: '1rem' }}>
                               <g>
                                 <rect x="227" y="129" width="40" height="40" rx="4" fill="#c9c9c9"/>
                                 <rect x="187" y="89" width="40" height="40" rx="4" fill="#e8e8e8"/>
@@ -2182,9 +2176,9 @@ export function ClientApp() {
                               </g>
                             </svg>
                             <div className="slds-text-longform">
-                              <h3 className="slds-text-heading_small slds-text-color_weak">No overlays yet</h3>
-                              <p className="slds-text-body_small slds-text-color_weak">
-                                Add your first image overlay using the options above
+                              <h3 className="slds-text-heading_medium slds-m-bottom_small">No image overlays yet</h3>
+                              <p className="slds-text-body_regular slds-text-color_weak">
+                                Add your first overlay using the URL input or preset logos above
                               </p>
                             </div>
                           </div>
@@ -2291,17 +2285,12 @@ export function ClientApp() {
                                         <div className="slds-col" onClick={(e) => e.stopPropagation()}>
                                           <div className="slds-form-element" style={{ marginBottom: 0 }}>
                                             <div className="slds-form-element__control">
-                                              <div className="slds-select_container" style={{ width: '85px' }}>
+                                              <div className="slds-select_container" style={{ minWidth: '90px' }}>
                                                 <select
                                                   className="slds-select slds-select_small"
                                                   value={overlay.selectedLanguage || 'default'}
                                                   onChange={(e) => changeTradeLogoLanguage(overlay.id, e.target.value)}
                                                   disabled={isLoading}
-                                                  style={{ 
-                                                    fontSize: '0.7rem',
-                                                    height: '24px',
-                                                    padding: '0 6px'
-                                                  }}
                                                   title="Change language variant"
                                                 >
                                                   {overlay.availableLanguages
