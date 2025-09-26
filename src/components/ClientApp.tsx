@@ -2207,63 +2207,38 @@ export function ClientApp() {
                                         )}
                                       </span>
                                       
-                                      {/* Compact language variant controls for trade logos */}
+                                      {/* Compact language variant dropdown for trade logos */}
                                       {overlay.presetLogoType === 'trade' && overlay.availableLanguages && overlay.availableLanguages.length > 1 && (
                                         <div className="slds-m-top_xx-small" onClick={(e) => e.stopPropagation()}>
-                                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
-                                            {overlay.availableLanguages
-                                              .filter(lang => lang !== 'default')
-                                              .sort()
-                                              .slice(0, 6) // Limit to 6 for compactness
-                                              .map(language => (
-                                              <button
-                                                key={language}
-                                                type="button"
-                                                className={`slds-button ${overlay.selectedLanguage === language ? 'slds-button_brand' : 'slds-button_neutral'}`}
-                                                style={{ 
-                                                  fontSize: '0.55rem', 
-                                                  padding: '1px 4px',
-                                                  minHeight: '16px',
-                                                  lineHeight: '1',
-                                                  borderRadius: '2px'
-                                                }}
-                                                onClick={() => changeTradeLogoLanguage(overlay.id, language)}
-                                                disabled={isLoading}
-                                                title={`Switch to ${language}`}
-                                              >
-                                                {language}
-                                              </button>
-                                            ))}
-                                            {overlay.availableLanguages.includes('default') && (
-                                              <button
-                                                type="button"
-                                                className={`slds-button ${overlay.selectedLanguage === 'default' ? 'slds-button_brand' : 'slds-button_neutral'}`}
-                                                style={{ 
-                                                  fontSize: '0.55rem', 
-                                                  padding: '1px 4px',
-                                                  minHeight: '16px',
-                                                  lineHeight: '1',
-                                                  borderRadius: '2px'
-                                                }}
-                                                onClick={() => changeTradeLogoLanguage(overlay.id, 'default')}
-                                                disabled={isLoading}
-                                                title="Default version"
-                                              >
-                                                DEF
-                                              </button>
-                                            )}
-                                            {overlay.availableLanguages.length > 7 && (
-                                              <span 
-                                                style={{ 
-                                                  fontSize: '0.55rem', 
-                                                  color: '#706e6b',
-                                                  alignSelf: 'center',
-                                                  marginLeft: '4px'
-                                                }}
-                                              >
-                                                +{overlay.availableLanguages.length - 6} more
-                                              </span>
-                                            )}
+                                          <div className="slds-form-element" style={{ marginBottom: 0 }}>
+                                            <div className="slds-form-element__control">
+                                              <div className="slds-select_container" style={{ width: '120px' }}>
+                                                <select
+                                                  className="slds-select slds-select_small"
+                                                  value={overlay.selectedLanguage || 'default'}
+                                                  onChange={(e) => changeTradeLogoLanguage(overlay.id, e.target.value)}
+                                                  disabled={isLoading}
+                                                  style={{ 
+                                                    fontSize: '0.65rem',
+                                                    height: '20px',
+                                                    padding: '0 4px'
+                                                  }}
+                                                >
+                                                  {overlay.availableLanguages
+                                                    .sort((a, b) => {
+                                                      // Put 'default' first, then sort alphabetically
+                                                      if (a === 'default') return -1;
+                                                      if (b === 'default') return 1;
+                                                      return a.localeCompare(b);
+                                                    })
+                                                    .map(language => (
+                                                      <option key={language} value={language}>
+                                                        {language === 'default' ? 'Default' : language}
+                                                      </option>
+                                                    ))}
+                                                </select>
+                                              </div>
+                                            </div>
                                           </div>
                                         </div>
                                       )}
