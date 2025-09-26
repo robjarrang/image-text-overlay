@@ -2036,18 +2036,20 @@ export function ClientApp() {
                     hidden={!openAccordions.imageOverlays}
                   >
                     <div className="form-section">
-                      {/* Add Image Overlay Input */}
+                      {/* Combined Add Image Section */}
                       <div className="slds-form-element slds-m-bottom_medium">
-                        <label className="slds-form-element__label" htmlFor="new-image-overlay-url">
+                        <label className="slds-form-element__label slds-text-heading_small" htmlFor="new-image-overlay-url">
                           Add Image Overlay
                         </label>
-                        <div className="slds-form-element__control">
+                        
+                        {/* URL Input - More Compact */}
+                        <div className="slds-form-element__control slds-m-bottom_x-small">
                           <div className="slds-input-has-icon slds-input-has-icon_right">
                             <input
                               type="url"
                               id="new-image-overlay-url"
-                              className="slds-input"
-                              placeholder="Enter image URL..."
+                              className="slds-input slds-input_small"
+                              placeholder="Enter image URL or use presets below..."
                               value={newImageOverlayUrl}
                               onChange={(e) => setNewImageOverlayUrl(e.target.value)}
                               onKeyDown={(e) => {
@@ -2058,91 +2060,76 @@ export function ClientApp() {
                               }}
                             />
                             <button
-                              className="slds-input__icon slds-input__icon_right slds-button slds-button_icon"
+                              className="slds-input__icon slds-input__icon_right slds-button slds-button_icon slds-button_icon-small"
                               onClick={() => addImageOverlay(newImageOverlayUrl)}
                               disabled={!newImageOverlayUrl.trim() || isLoading}
                               title="Add image overlay"
                             >
-                              <svg className="slds-button__icon" aria-hidden="true">
+                              <svg className="slds-button__icon slds-button__icon_x-small" aria-hidden="true">
                                 <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#add"></use>
                               </svg>
                               <span className="slds-assistive-text">Add image overlay</span>
                             </button>
                           </div>
                         </div>
-                        <div className="slds-form-element__help">
-                          Enter a URL for an image (PNG, JPG, etc.) to add as an overlay
-                        </div>
-                      </div>
 
-                      {/* Preset Logos Section */}
-                      <div className="slds-form-element slds-m-bottom_medium">
-                        <label className="slds-form-element__label">
-                          Or Select from Preset Logos
-                        </label>
-                        <div className="slds-form-element__control">
-                          <button
-                            type="button"
-                            className="slds-button slds-button_neutral slds-m-bottom_x-small"
-                            onClick={loadPresetLogos}
-                            disabled={loadingPresetLogos}
-                          >
-                            {loadingPresetLogos ? 'Loading...' : 'Load Preset Logos'}
-                          </button>
-                          
-                          {presetLogos && (
-                            <div className="slds-m-top_small">
-                              {/* System Logos */}
-                              {presetLogos.systemLogos.length > 0 && (
-                                <div className="slds-m-bottom_medium">
-                                  <h5 className="slds-text-title_caps slds-m-bottom_x-small">System Logos</h5>
-                                  <div className="slds-grid slds-wrap slds-gutters_x-small">
-                                    {presetLogos.systemLogos.map((logo) => (
-                                      <div key={logo.id} className="slds-col slds-size_1-of-4 slds-m-bottom_x-small">
-                                        <button
-                                          type="button"
-                                          className="slds-button slds-button_outline-brand"
-                                          onClick={() => addPresetLogo(logo)}
-                                          disabled={isLoading}
-                                          style={{ width: '100%', fontSize: '0.75rem' }}
-                                        >
-                                          {logo.name}
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Trade Logos */}
-                              {presetLogos.tradeLogos.length > 0 && (
-                                <div className="slds-m-bottom_medium">
-                                  <h5 className="slds-text-title_caps slds-m-bottom_x-small">
-                                    Trade Logos
-                                    <span className="slds-text-body_small slds-text-color_weak slds-m-left_small">
-                                      (Add logo, then change language in the list below)
-                                    </span>
-                                  </h5>
-                                  <div className="slds-grid slds-wrap slds-gutters_x-small">
-                                    {presetLogos.tradeLogos.map((logo) => (
-                                      <div key={logo.id} className="slds-col slds-size_1-of-3 slds-m-bottom_x-small">
-                                        <button
-                                          type="button"
-                                          className="slds-button slds-button_outline-brand"
-                                          onClick={() => addPresetLogo(logo)} // Add with default language
-                                          disabled={isLoading}
-                                          style={{ width: '100%', fontSize: '0.75rem' }}
-                                        >
-                                          {logo.name}
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                      {/* Preset Logos Section - Compact Design */}
+                      <div className="slds-form-element">
+                        <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_xx-small">
+                          <span className="slds-text-body_small slds-text-color_weak">
+                            Preset Logos:
+                          </span>
+                          {!presetLogos && (
+                            <button
+                              type="button"
+                              className="slds-button slds-button_neutral slds-button_small"
+                              onClick={loadPresetLogos}
+                              disabled={loadingPresetLogos}
+                            >
+                              {loadingPresetLogos ? 'Loading...' : 'Load'}
+                            </button>
                           )}
                         </div>
+                        
+                        {presetLogos && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {/* System Logos - Inline */}
+                            {presetLogos.systemLogos.map((logo) => (
+                              <button
+                                key={logo.id}
+                                type="button"
+                                className="slds-button slds-button_outline-brand slds-button_small"
+                                onClick={() => addPresetLogo(logo)}
+                                disabled={isLoading}
+                                style={{ fontSize: '0.65rem', padding: '2px 8px' }}
+                              >
+                                {logo.name}
+                              </button>
+                            ))}
+                            
+                            {/* Trade Logos - Inline with visual distinction */}
+                            {presetLogos.tradeLogos.map((logo) => (
+                              <button
+                                key={logo.id}
+                                type="button"
+                                className="slds-button slds-button_brand slds-button_small"
+                                onClick={() => addPresetLogo(logo)}
+                                disabled={isLoading}
+                                style={{ fontSize: '0.65rem', padding: '2px 8px' }}
+                                title={`Add ${logo.name} (change language in list below)`}
+                              >
+                                {logo.name} ⚡
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {presetLogos && (
+                          <div className="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">
+                            ⚡ = Multi-language (change variants in overlay list below)
+                          </div>
+                        )}
+                      </div>
                       </div>
 
                       {/* Image Overlays List */}
@@ -2220,51 +2207,62 @@ export function ClientApp() {
                                         )}
                                       </span>
                                       
-                                      {/* Language variant controls for trade logos */}
+                                      {/* Compact language variant controls for trade logos */}
                                       {overlay.presetLogoType === 'trade' && overlay.availableLanguages && overlay.availableLanguages.length > 1 && (
-                                        <div className="slds-m-top_x-small" onClick={(e) => e.stopPropagation()}>
-                                          <div className="slds-grid slds-wrap slds-gutters_xx-small">
+                                        <div className="slds-m-top_xx-small" onClick={(e) => e.stopPropagation()}>
+                                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
                                             {overlay.availableLanguages
                                               .filter(lang => lang !== 'default')
                                               .sort()
-                                              .slice(0, 8) // Show max 8 language options
+                                              .slice(0, 6) // Limit to 6 for compactness
                                               .map(language => (
-                                              <div key={language} className="slds-col" style={{ minWidth: '45px' }}>
-                                                <button
-                                                  type="button"
-                                                  className={`slds-button ${overlay.selectedLanguage === language ? 'slds-button_brand' : 'slds-button_neutral'}`}
-                                                  style={{ 
-                                                    fontSize: '0.6rem', 
-                                                    padding: '0.125rem 0.25rem',
-                                                    minHeight: 'auto',
-                                                    lineHeight: '1'
-                                                  }}
-                                                  onClick={() => changeTradeLogoLanguage(overlay.id, language)}
-                                                  disabled={isLoading}
-                                                  title={`Switch to ${language} variant`}
-                                                >
-                                                  {language}
-                                                </button>
-                                              </div>
+                                              <button
+                                                key={language}
+                                                type="button"
+                                                className={`slds-button ${overlay.selectedLanguage === language ? 'slds-button_brand' : 'slds-button_neutral'}`}
+                                                style={{ 
+                                                  fontSize: '0.55rem', 
+                                                  padding: '1px 4px',
+                                                  minHeight: '16px',
+                                                  lineHeight: '1',
+                                                  borderRadius: '2px'
+                                                }}
+                                                onClick={() => changeTradeLogoLanguage(overlay.id, language)}
+                                                disabled={isLoading}
+                                                title={`Switch to ${language}`}
+                                              >
+                                                {language}
+                                              </button>
                                             ))}
                                             {overlay.availableLanguages.includes('default') && (
-                                              <div className="slds-col" style={{ minWidth: '45px' }}>
-                                                <button
-                                                  type="button"
-                                                  className={`slds-button ${overlay.selectedLanguage === 'default' ? 'slds-button_brand' : 'slds-button_neutral'}`}
-                                                  style={{ 
-                                                    fontSize: '0.6rem', 
-                                                    padding: '0.125rem 0.25rem',
-                                                    minHeight: 'auto',
-                                                    lineHeight: '1'
-                                                  }}
-                                                  onClick={() => changeTradeLogoLanguage(overlay.id, 'default')}
-                                                  disabled={isLoading}
-                                                  title="Switch to default variant"
-                                                >
-                                                  DEF
-                                                </button>
-                                              </div>
+                                              <button
+                                                type="button"
+                                                className={`slds-button ${overlay.selectedLanguage === 'default' ? 'slds-button_brand' : 'slds-button_neutral'}`}
+                                                style={{ 
+                                                  fontSize: '0.55rem', 
+                                                  padding: '1px 4px',
+                                                  minHeight: '16px',
+                                                  lineHeight: '1',
+                                                  borderRadius: '2px'
+                                                }}
+                                                onClick={() => changeTradeLogoLanguage(overlay.id, 'default')}
+                                                disabled={isLoading}
+                                                title="Default version"
+                                              >
+                                                DEF
+                                              </button>
+                                            )}
+                                            {overlay.availableLanguages.length > 7 && (
+                                              <span 
+                                                style={{ 
+                                                  fontSize: '0.55rem', 
+                                                  color: '#706e6b',
+                                                  alignSelf: 'center',
+                                                  marginLeft: '4px'
+                                                }}
+                                              >
+                                                +{overlay.availableLanguages.length - 6} more
+                                              </span>
                                             )}
                                           </div>
                                         </div>
