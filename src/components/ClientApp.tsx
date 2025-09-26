@@ -687,37 +687,10 @@ export function ClientApp() {
         // Handle image URL
         if (shareData.img) {
           setOriginalImageUrl(shareData.img);
-          // Trigger image preview generation for compressed data
-          if (shareData.mode !== 'transparent' && shareData.mode !== 'desktop-mobile') {
-            setIsLoading(true);
-            fetch('/api/load-images', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ images: [shareData.img] })
-            })
-            .then(response => response.json())
-            .then(data => {
-              setFormState(prev => ({
-                ...prev,
-                ...urlState,
-                imageUrl: data.images[0]
-              }));
-              setIsLoading(false);
-            })
-            .catch(error => {
-              console.error('Error loading shared image from compressed data:', error);
-              setError('Failed to load shared image');
-              setOriginalImageUrl('');
-              setIsLoading(false);
-            });
-          } else {
-            // Apply state immediately for transparent/desktop-mobile modes
-            setFormState(prev => ({ ...prev, ...urlState }));
-          }
-        } else {
-          // Apply state if no image URL
-          setFormState(prev => ({ ...prev, ...urlState }));
         }
+        
+        // Apply state first, then trigger image loading
+        setFormState(prev => ({ ...prev, ...urlState }));
         if (shareData.to && Array.isArray(shareData.to)) {
           const textOverlays = shareData.to.map((overlay: any) => ({
             id: overlay.i,
@@ -985,6 +958,38 @@ export function ClientApp() {
       setFormState(prev => ({ ...prev, ...urlState }));
     }
   }, []);
+
+  // Separate effect to trigger image loading when URL is loaded from shared link
+  useEffect(() => {
+    if (originalImageUrl && 
+        originalImageUrl !== 'transparent' && 
+        activeImageSourceTab === 'url' && 
+        !formState.imageUrl &&
+        !isLoading) {
+      
+      console.log('Triggering image load for shared link:', originalImageUrl);
+      setIsLoading(true);
+      fetch('/api/load-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: [originalImageUrl] })
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Image loaded successfully for shared link');
+        setFormState(prev => ({
+          ...prev,
+          imageUrl: data.images[0]
+        }));
+        setIsLoading(false);
+      })
+      .catch(error => {
+        console.error('Error loading shared image:', error);
+        setError('Failed to load shared image');
+        setIsLoading(false);
+      });
+    }
+  }, [originalImageUrl, activeImageSourceTab, formState.imageUrl, isLoading]);
 
   const updateSliderProgress = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target;
