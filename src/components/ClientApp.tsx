@@ -2469,323 +2469,6 @@ export function ClientApp() {
                   </div>
                 </div>
                 
-                {/* Image Overlays Accordion */}
-                <div className={`slds-accordion__section ${openAccordions.imageOverlays ? 'slds-is-open' : ''}`}>
-                  <div className="slds-accordion__summary">
-                    <h3 className="slds-accordion__summary-heading">
-                      <button
-                        aria-controls="image-overlays-content"
-                        aria-expanded={openAccordions.imageOverlays}
-                        className="slds-button slds-button_reset slds-accordion__summary-action"
-                        onClick={() => toggleAccordion('imageOverlays')}
-                      >
-                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#layers"></use>
-                        </svg>
-                        <span className="slds-accordion__summary-content">Image Overlays</span>
-                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
-                        </svg>
-                      </button>
-                    </h3>
-                  </div>
-                  <div 
-                    className="slds-accordion__content" 
-                    id="image-overlays-content"
-                    hidden={!openAccordions.imageOverlays}
-                  >
-                    <div className="form-section">
-                      {/* Primary Action: Add Image */}
-                      <div className="slds-form-element slds-m-bottom_medium">
-                        <label className="slds-form-element__label" htmlFor="new-image-overlay-url">
-                          Add Image Overlay
-                        </label>
-                        
-                        {/* URL Input - Primary Method */}
-                        <div className="slds-form-element__control slds-m-bottom_small">
-                          <div className="slds-input-has-icon slds-input-has-icon_right">
-                            <input
-                              type="url"
-                              id="new-image-overlay-url"
-                              className="slds-input"
-                              placeholder="Enter image URL..."
-                              value={newImageOverlayUrl}
-                              onChange={(e) => setNewImageOverlayUrl(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  addImageOverlay(newImageOverlayUrl);
-                                }
-                              }}
-                            />
-                            <button
-                              className="slds-input__icon slds-input__icon_right slds-button slds-button_icon"
-                              onClick={() => addImageOverlay(newImageOverlayUrl)}
-                              disabled={!newImageOverlayUrl.trim() || isLoading}
-                              title="Add image overlay"
-                            >
-                              <svg className="slds-button__icon" aria-hidden="true">
-                                <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#add"></use>
-                              </svg>
-                              <span className="slds-assistive-text">Add image overlay</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Secondary Option: Preset Logos */}
-                        <div 
-                          className="slds-box slds-box_xx-small slds-theme_shade" 
-                          style={{ borderRadius: '4px', backgroundColor: '#fafaf9', padding: '8px 12px' }}
-                        >
-                          <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center" style={{ marginBottom: '6px' }}>
-                            <div className="slds-media slds-media_center">
-                              <div className="slds-media__figure">
-                                <svg className="slds-icon slds-icon_x-small slds-icon-text-default" aria-hidden="true">
-                                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#apps"></use>
-                                </svg>
-                              </div>
-                              <div className="slds-media__body">
-                                <span className="slds-text-body_regular">
-                                  Quick Add: Preset Logos
-                                </span>
-                              </div>
-                            </div>
-                            {loadingPresetLogos && (
-                              <div className="slds-text-body_small slds-text-color_weak">
-                                <div className="slds-spinner slds-spinner_xx-small slds-spinner_inline" role="status" style={{ marginRight: '0.25rem' }}>
-                                  <span className="slds-assistive-text">Loading</span>
-                                  <div className="slds-spinner__dot-a"></div>
-                                  <div className="slds-spinner__dot-b"></div>
-                                </div>
-                                Loading presets...
-                              </div>
-                            )}
-                          </div>
-                          
-                          {presetLogos && (
-                            <div>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
-                                {/* System Logos - Secondary Actions */}
-                                {presetLogos.systemLogos.map((logo) => (
-                                  <button
-                                    key={logo.id}
-                                    type="button"
-                                    className="slds-button slds-button_neutral slds-button_small"
-                                    onClick={() => addPresetLogo(logo)}
-                                    disabled={isLoading}
-                                    style={{ borderRadius: '12px' }}
-                                  >
-                                    {logo.name}
-                                  </button>
-                                ))}
-                                
-                                {/* Trade Logos - Primary Preset Actions */}
-                                {presetLogos.tradeLogos.map((logo) => (
-                                  <button
-                                    key={logo.id}
-                                    type="button"
-                                    className="slds-button slds-button_brand slds-button_small"
-                                    onClick={() => addPresetLogo(logo)}
-                                    disabled={isLoading}
-                                    style={{ borderRadius: '12px' }}
-                                    title={`Add ${logo.name} logo with multiple language options`}
-                                  >
-                                    <svg className="slds-button__icon slds-button__icon_left slds-button__icon_xx-small" aria-hidden="true">
-                                      <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#world"></use>
-                                    </svg>
-                                    {logo.name}
-                                  </button>
-                                ))}
-                              </div>
-                              
-                              <div className="slds-text-body_small slds-text-color_weak">
-                                <svg className="slds-icon slds-icon_xx-small slds-m-right_xx-small" aria-hidden="true">
-                                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#world"></use>
-                                </svg>
-                                Multi-language logos can be changed using the dropdown in each overlay below
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Image Overlays List - Improved */}
-                      <div className="overlays-section">
-                        <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_small">
-                          <h4 className="slds-text-heading_small slds-m-bottom_none">Your Image Overlays</h4>
-                          {formState.imageOverlays.length > 0 && (
-                            <span className="slds-badge slds-badge_lightest slds-text-body_small">
-                              {formState.imageOverlays.length} overlay{formState.imageOverlays.length !== 1 ? 's' : ''}
-                            </span>
-                          )}
-                        </div>
-                        
-                        {formState.imageOverlays.length === 0 ? (
-                          <div className="slds-illustration slds-illustration_small" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-                            <svg className="slds-illustration__svg" viewBox="0 0 454 218" style={{ width: '100px', height: 'auto', opacity: 0.4, marginBottom: '1rem' }}>
-                              <g>
-                                <rect x="227" y="129" width="40" height="40" rx="4" fill="#c9c9c9"/>
-                                <rect x="187" y="89" width="40" height="40" rx="4" fill="#e8e8e8"/>
-                                <rect x="267" y="89" width="40" height="40" rx="4" fill="#e8e8e8"/>
-                              </g>
-                            </svg>
-                            <div className="slds-text-longform">
-                              <h3 className="slds-text-heading_medium slds-m-bottom_small">No image overlays yet</h3>
-                              <p className="slds-text-body_regular slds-text-color_weak">
-                                Add your first overlay using the URL input or preset logos above
-                              </p>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="slds-card" style={{ border: '1px solid #e5e5e5', borderRadius: '4px' }}>
-                            {formState.imageOverlays.map((overlay, index) => (
-                              <div 
-                                key={overlay.id} 
-                                className={`overlay-item ${formState.activeOverlayId === overlay.id && formState.activeOverlayType === 'image' ? 'slds-is-selected' : ''}`}
-                                style={{ 
-                                  borderBottom: index < formState.imageOverlays.length - 1 ? '1px solid #f3f2f2' : 'none',
-                                  backgroundColor: formState.activeOverlayId === overlay.id && formState.activeOverlayType === 'image' ? '#f4f6fe' : 'white'
-                                }}
-                              >
-                                <div className="slds-p-around_small">
-                                  <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
-                                    {/* Main Content */}
-                                    <button
-                                      className="slds-media slds-media_center overlay-select-button"
-                                      onClick={() => setActiveOverlay(overlay.id, 'image')}
-                                      title={`Select ${overlay.presetLogoId ? overlay.presetLogoId : 'image'} overlay`}
-                                      style={{ 
-                                        flexGrow: 1,
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        border: 'none',
-                                        background: 'transparent',
-                                        padding: 0
-                                      }}
-                                      aria-pressed={formState.activeOverlayId === overlay.id && formState.activeOverlayType === 'image'}
-                                    >
-                                      <div className="slds-media__figure slds-m-right_small">
-                                        <div style={{ position: 'relative' }}>
-                                          <img 
-                                            src={overlay.imageUrl} 
-                                            alt={`${overlay.presetLogoId || 'Image'} overlay preview`}
-                                            style={{ 
-                                              width: '48px', 
-                                              height: '48px', 
-                                              objectFit: 'cover',
-                                              borderRadius: '6px',
-                                              border: formState.activeOverlayId === overlay.id ? '2px solid #1b96ff' : '1px solid #dddbda',
-                                              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-                                            }}
-                                          />
-                                          {overlay.presetLogoType === 'trade' && (
-                                            <div 
-                                              style={{ 
-                                                position: 'absolute',
-                                                top: '-4px',
-                                                right: '-4px',
-                                                backgroundColor: '#1b96ff',
-                                                borderRadius: '50%',
-                                                width: '16px',
-                                                height: '16px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                              }}
-                                            >
-                                              <svg style={{ width: '8px', height: '8px', fill: 'white' }}>
-                                                <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#world"></use>
-                                              </svg>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                      <div className="slds-media__body">
-                                        <h5 className={`slds-text-heading_small ${formState.activeOverlayId === overlay.id && formState.activeOverlayType === 'image' ? 'slds-text-color_brand' : 'slds-text-color_default'}`}>
-                                          {overlay.presetLogoId ? `${overlay.presetLogoId} Logo` : `Image ${index + 1}`}
-                                        </h5>
-                                        <span className="slds-text-body_small slds-text-color_weak">
-                                          Position: {Math.round(
-                                            activeImageSourceTab === 'desktop-mobile' 
-                                              ? (desktopMobileVersion === 'desktop' 
-                                                  ? (overlay.desktopX ?? overlay.x) 
-                                                  : (overlay.mobileX ?? overlay.x))
-                                              : overlay.x
-                                          )}%, {Math.round(
-                                            activeImageSourceTab === 'desktop-mobile' 
-                                              ? (desktopMobileVersion === 'desktop' 
-                                                  ? (overlay.desktopY ?? overlay.y) 
-                                                  : (overlay.mobileY ?? overlay.y))
-                                              : overlay.y
-                                          )}% • Size: {Math.round(
-                                            activeImageSourceTab === 'desktop-mobile' 
-                                              ? (desktopMobileVersion === 'desktop' 
-                                                  ? (overlay.desktopWidth ?? overlay.width) 
-                                                  : (overlay.mobileWidth ?? overlay.width))
-                                              : overlay.width
-                                          )}%
-                                        </span>
-                                      </div>
-                                    </button>
-                                    
-                                    {/* Actions */}
-                                    <div className="slds-no-flex slds-grid slds-gutters_xx-small slds-grid_vertical-align-center">
-                                      {/* Language Selector for Trade Logos */}
-                                      {overlay.presetLogoType === 'trade' && overlay.availableLanguages && overlay.availableLanguages.length > 1 && (
-                                        <div className="slds-col" onClick={(e) => e.stopPropagation()}>
-                                          <div className="slds-form-element" style={{ marginBottom: 0 }}>
-                                            <div className="slds-form-element__control">
-                                              <div className="slds-select_container" style={{ minWidth: '90px' }}>
-                                                <select
-                                                  className="slds-select slds-select_small"
-                                                  value={overlay.selectedLanguage || 'default'}
-                                                  onChange={(e) => changeTradeLogoLanguage(overlay.id, e.target.value)}
-                                                  disabled={isLoading}
-                                                  title="Change language variant"
-                                                >
-                                                  {overlay.availableLanguages
-                                                    .sort((a, b) => {
-                                                      if (a === 'default') return -1;
-                                                      if (b === 'default') return 1;
-                                                      return a.localeCompare(b);
-                                                    })
-                                                    .map(language => (
-                                                      <option key={language} value={language}>
-                                                        {language === 'default' ? 'Default' : language}
-                                                      </option>
-                                                    ))}
-                                                </select>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      )}
-                                      
-                                      {/* Delete Button */}
-                                      <div className="slds-col">
-                                        <button 
-                                          className="slds-button slds-button_icon slds-button_icon-border-filled" 
-                                          onClick={() => deleteImageOverlay(overlay.id)}
-                                          title="Delete this overlay"
-                                        >
-                                          <svg className="slds-button__icon" aria-hidden="true">
-                                            <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#delete"></use>
-                                          </svg>
-                                          <span className="slds-assistive-text">Delete overlay</span>
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
                 {/* Text Content Accordion */}
                 <div className={`slds-accordion__section ${openAccordions.textContent ? 'slds-is-open' : ''}`}>
                   <div className="slds-accordion__summary">
@@ -3257,6 +2940,323 @@ export function ClientApp() {
                           </div>
                         </fieldset>
                       )}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Image Overlays Accordion */}
+                <div className={`slds-accordion__section ${openAccordions.imageOverlays ? 'slds-is-open' : ''}`}>
+                  <div className="slds-accordion__summary">
+                    <h3 className="slds-accordion__summary-heading">
+                      <button
+                        aria-controls="image-overlays-content"
+                        aria-expanded={openAccordions.imageOverlays}
+                        className="slds-button slds-button_reset slds-accordion__summary-action"
+                        onClick={() => toggleAccordion('imageOverlays')}
+                      >
+                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#layers"></use>
+                        </svg>
+                        <span className="slds-accordion__summary-content">Image Overlays</span>
+                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
+                        </svg>
+                      </button>
+                    </h3>
+                  </div>
+                  <div 
+                    className="slds-accordion__content" 
+                    id="image-overlays-content"
+                    hidden={!openAccordions.imageOverlays}
+                  >
+                    <div className="form-section">
+                      {/* Primary Action: Add Image */}
+                      <div className="slds-form-element slds-m-bottom_medium">
+                        <label className="slds-form-element__label" htmlFor="new-image-overlay-url">
+                          Add Image Overlay
+                        </label>
+                        
+                        {/* URL Input - Primary Method */}
+                        <div className="slds-form-element__control slds-m-bottom_small">
+                          <div className="slds-input-has-icon slds-input-has-icon_right">
+                            <input
+                              type="url"
+                              id="new-image-overlay-url"
+                              className="slds-input"
+                              placeholder="Enter image URL..."
+                              value={newImageOverlayUrl}
+                              onChange={(e) => setNewImageOverlayUrl(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  addImageOverlay(newImageOverlayUrl);
+                                }
+                              }}
+                            />
+                            <button
+                              className="slds-input__icon slds-input__icon_right slds-button slds-button_icon"
+                              onClick={() => addImageOverlay(newImageOverlayUrl)}
+                              disabled={!newImageOverlayUrl.trim() || isLoading}
+                              title="Add image overlay"
+                            >
+                              <svg className="slds-button__icon" aria-hidden="true">
+                                <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#add"></use>
+                              </svg>
+                              <span className="slds-assistive-text">Add image overlay</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Secondary Option: Preset Logos */}
+                        <div 
+                          className="slds-box slds-box_xx-small slds-theme_shade" 
+                          style={{ borderRadius: '4px', backgroundColor: '#fafaf9', padding: '8px 12px' }}
+                        >
+                          <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center" style={{ marginBottom: '6px' }}>
+                            <div className="slds-media slds-media_center">
+                              <div className="slds-media__figure">
+                                <svg className="slds-icon slds-icon_x-small slds-icon-text-default" aria-hidden="true">
+                                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#apps"></use>
+                                </svg>
+                              </div>
+                              <div className="slds-media__body">
+                                <span className="slds-text-body_regular">
+                                  Quick Add: Preset Logos
+                                </span>
+                              </div>
+                            </div>
+                            {loadingPresetLogos && (
+                              <div className="slds-text-body_small slds-text-color_weak">
+                                <div className="slds-spinner slds-spinner_xx-small slds-spinner_inline" role="status" style={{ marginRight: '0.25rem' }}>
+                                  <span className="slds-assistive-text">Loading</span>
+                                  <div className="slds-spinner__dot-a"></div>
+                                  <div className="slds-spinner__dot-b"></div>
+                                </div>
+                                Loading presets...
+                              </div>
+                            )}
+                          </div>
+                          
+                          {presetLogos && (
+                            <div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
+                                {/* System Logos - Secondary Actions */}
+                                {presetLogos.systemLogos.map((logo) => (
+                                  <button
+                                    key={logo.id}
+                                    type="button"
+                                    className="slds-button slds-button_neutral slds-button_small"
+                                    onClick={() => addPresetLogo(logo)}
+                                    disabled={isLoading}
+                                    style={{ borderRadius: '12px' }}
+                                  >
+                                    {logo.name}
+                                  </button>
+                                ))}
+                                
+                                {/* Trade Logos - Primary Preset Actions */}
+                                {presetLogos.tradeLogos.map((logo) => (
+                                  <button
+                                    key={logo.id}
+                                    type="button"
+                                    className="slds-button slds-button_brand slds-button_small"
+                                    onClick={() => addPresetLogo(logo)}
+                                    disabled={isLoading}
+                                    style={{ borderRadius: '12px' }}
+                                    title={`Add ${logo.name} logo with multiple language options`}
+                                  >
+                                    <svg className="slds-button__icon slds-button__icon_left slds-button__icon_xx-small" aria-hidden="true">
+                                      <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#world"></use>
+                                    </svg>
+                                    {logo.name}
+                                  </button>
+                                ))}
+                              </div>
+                              
+                              <div className="slds-text-body_small slds-text-color_weak">
+                                <svg className="slds-icon slds-icon_xx-small slds-m-right_xx-small" aria-hidden="true">
+                                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#world"></use>
+                                </svg>
+                                Multi-language logos can be changed using the dropdown in each overlay below
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Image Overlays List - Improved */}
+                      <div className="overlays-section">
+                        <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_small">
+                          <h4 className="slds-text-heading_small slds-m-bottom_none">Your Image Overlays</h4>
+                          {formState.imageOverlays.length > 0 && (
+                            <span className="slds-badge slds-badge_lightest slds-text-body_small">
+                              {formState.imageOverlays.length} overlay{formState.imageOverlays.length !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {formState.imageOverlays.length === 0 ? (
+                          <div className="slds-illustration slds-illustration_small" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                            <svg className="slds-illustration__svg" viewBox="0 0 454 218" style={{ width: '100px', height: 'auto', opacity: 0.4, marginBottom: '1rem' }}>
+                              <g>
+                                <rect x="227" y="129" width="40" height="40" rx="4" fill="#c9c9c9"/>
+                                <rect x="187" y="89" width="40" height="40" rx="4" fill="#e8e8e8"/>
+                                <rect x="267" y="89" width="40" height="40" rx="4" fill="#e8e8e8"/>
+                              </g>
+                            </svg>
+                            <div className="slds-text-longform">
+                              <h3 className="slds-text-heading_medium slds-m-bottom_small">No image overlays yet</h3>
+                              <p className="slds-text-body_regular slds-text-color_weak">
+                                Add your first overlay using the URL input or preset logos above
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="slds-card" style={{ border: '1px solid #e5e5e5', borderRadius: '4px' }}>
+                            {formState.imageOverlays.map((overlay, index) => (
+                              <div 
+                                key={overlay.id} 
+                                className={`overlay-item ${formState.activeOverlayId === overlay.id && formState.activeOverlayType === 'image' ? 'slds-is-selected' : ''}`}
+                                style={{ 
+                                  borderBottom: index < formState.imageOverlays.length - 1 ? '1px solid #f3f2f2' : 'none',
+                                  backgroundColor: formState.activeOverlayId === overlay.id && formState.activeOverlayType === 'image' ? '#f4f6fe' : 'white'
+                                }}
+                              >
+                                <div className="slds-p-around_small">
+                                  <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                                    {/* Main Content */}
+                                    <button
+                                      className="slds-media slds-media_center overlay-select-button"
+                                      onClick={() => setActiveOverlay(overlay.id, 'image')}
+                                      title={`Select ${overlay.presetLogoId ? overlay.presetLogoId : 'image'} overlay`}
+                                      style={{ 
+                                        flexGrow: 1,
+                                        textAlign: 'left',
+                                        cursor: 'pointer',
+                                        border: 'none',
+                                        background: 'transparent',
+                                        padding: 0
+                                      }}
+                                      aria-pressed={formState.activeOverlayId === overlay.id && formState.activeOverlayType === 'image'}
+                                    >
+                                      <div className="slds-media__figure slds-m-right_small">
+                                        <div style={{ position: 'relative' }}>
+                                          <img 
+                                            src={overlay.imageUrl} 
+                                            alt={`${overlay.presetLogoId || 'Image'} overlay preview`}
+                                            style={{ 
+                                              width: '48px', 
+                                              height: '48px', 
+                                              objectFit: 'cover',
+                                              borderRadius: '6px',
+                                              border: formState.activeOverlayId === overlay.id ? '2px solid #1b96ff' : '1px solid #dddbda',
+                                              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                                            }}
+                                          />
+                                          {overlay.presetLogoType === 'trade' && (
+                                            <div 
+                                              style={{ 
+                                                position: 'absolute',
+                                                top: '-4px',
+                                                right: '-4px',
+                                                backgroundColor: '#1b96ff',
+                                                borderRadius: '50%',
+                                                width: '16px',
+                                                height: '16px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                              }}
+                                            >
+                                              <svg style={{ width: '8px', height: '8px', fill: 'white' }}>
+                                                <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#world"></use>
+                                              </svg>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="slds-media__body">
+                                        <h5 className={`slds-text-heading_small ${formState.activeOverlayId === overlay.id && formState.activeOverlayType === 'image' ? 'slds-text-color_brand' : 'slds-text-color_default'}`}>
+                                          {overlay.presetLogoId ? `${overlay.presetLogoId} Logo` : `Image ${index + 1}`}
+                                        </h5>
+                                        <span className="slds-text-body_small slds-text-color_weak">
+                                          Position: {Math.round(
+                                            activeImageSourceTab === 'desktop-mobile' 
+                                              ? (desktopMobileVersion === 'desktop' 
+                                                  ? (overlay.desktopX ?? overlay.x) 
+                                                  : (overlay.mobileX ?? overlay.x))
+                                              : overlay.x
+                                          )}%, {Math.round(
+                                            activeImageSourceTab === 'desktop-mobile' 
+                                              ? (desktopMobileVersion === 'desktop' 
+                                                  ? (overlay.desktopY ?? overlay.y) 
+                                                  : (overlay.mobileY ?? overlay.y))
+                                              : overlay.y
+                                          )}% • Size: {Math.round(
+                                            activeImageSourceTab === 'desktop-mobile' 
+                                              ? (desktopMobileVersion === 'desktop' 
+                                                  ? (overlay.desktopWidth ?? overlay.width) 
+                                                  : (overlay.mobileWidth ?? overlay.width))
+                                              : overlay.width
+                                          )}%
+                                        </span>
+                                      </div>
+                                    </button>
+                                    
+                                    {/* Actions */}
+                                    <div className="slds-no-flex slds-grid slds-gutters_xx-small slds-grid_vertical-align-center">
+                                      {/* Language Selector for Trade Logos */}
+                                      {overlay.presetLogoType === 'trade' && overlay.availableLanguages && overlay.availableLanguages.length > 1 && (
+                                        <div className="slds-col" onClick={(e) => e.stopPropagation()}>
+                                          <div className="slds-form-element" style={{ marginBottom: 0 }}>
+                                            <div className="slds-form-element__control">
+                                              <div className="slds-select_container" style={{ minWidth: '90px' }}>
+                                                <select
+                                                  className="slds-select slds-select_small"
+                                                  value={overlay.selectedLanguage || 'default'}
+                                                  onChange={(e) => changeTradeLogoLanguage(overlay.id, e.target.value)}
+                                                  disabled={isLoading}
+                                                  title="Change language variant"
+                                                >
+                                                  {overlay.availableLanguages
+                                                    .sort((a, b) => {
+                                                      if (a === 'default') return -1;
+                                                      if (b === 'default') return 1;
+                                                      return a.localeCompare(b);
+                                                    })
+                                                    .map(language => (
+                                                      <option key={language} value={language}>
+                                                        {language === 'default' ? 'Default' : language}
+                                                      </option>
+                                                    ))}
+                                                </select>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                      
+                                      {/* Delete Button */}
+                                      <div className="slds-col">
+                                        <button 
+                                          className="slds-button slds-button_icon slds-button_icon-border-filled" 
+                                          onClick={() => deleteImageOverlay(overlay.id)}
+                                          title="Delete this overlay"
+                                        >
+                                          <svg className="slds-button__icon" aria-hidden="true">
+                                            <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#delete"></use>
+                                          </svg>
+                                          <span className="slds-assistive-text">Delete overlay</span>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
