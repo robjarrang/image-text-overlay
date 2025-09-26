@@ -647,6 +647,136 @@ export function ClientApp() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    
+    // Check for compressed data format first
+    const compressedData = params.get('d');
+    if (compressedData) {
+      try {
+        const decompressed = decodeURIComponent(atob(compressedData));
+        const shareData = JSON.parse(decompressed);
+        
+        // Handle mode
+        if (shareData.mode && ['url', 'upload', 'transparent', 'desktop-mobile'].includes(shareData.mode)) {
+          setActiveImageSourceTab(shareData.mode);
+        }
+        
+        // Handle desktop/mobile specific parameters
+        if (shareData.mode === 'desktop-mobile') {
+          if (shareData.dmv && ['desktop', 'mobile'].includes(shareData.dmv)) {
+            setDesktopMobileVersion(shareData.dmv);
+          }
+          if (shareData.dmUrl) {
+            setDesktopMobileImageUrl(shareData.dmUrl);
+          }
+        }
+        
+        // Set form state from compressed data
+        const urlState: Partial<FormState> = {
+          ...(shareData.w && { width: shareData.w }),
+          ...(shareData.h && { height: shareData.h }),
+          ...(shareData.dw && { desktopWidth: shareData.dw }),
+          ...(shareData.dh && { desktopHeight: shareData.dh }),
+          ...(shareData.mw && { mobileWidth: shareData.mw }),
+          ...(shareData.mh && { mobileHeight: shareData.mh }),
+          ...(shareData.b && { brightness: shareData.b }),
+          ...(shareData.z && { imageZoom: shareData.z }),
+          ...(shareData.x && { imageX: shareData.x }),
+          ...(shareData.y && { imageY: shareData.y })
+        };
+        
+        // Handle image URL
+        if (shareData.img) {
+          setOriginalImageUrl(shareData.img);
+        }
+        
+        // Handle text overlays
+        if (shareData.to && Array.isArray(shareData.to)) {
+          const textOverlays = shareData.to.map((overlay: any) => ({
+            id: overlay.i,
+            text: overlay.t,
+            fontSize: overlay.f,
+            desktopFontSize: overlay.df,
+            mobileFontSize: overlay.mf,
+            fontColor: overlay.c,
+            x: overlay.x,
+            y: overlay.y,
+            desktopX: overlay.dx,
+            desktopY: overlay.dy,
+            mobileX: overlay.mx,
+            mobileY: overlay.my,
+            allCaps: overlay.ac
+          }));
+          urlState.textOverlays = textOverlays;
+          if (textOverlays.length > 0) {
+            urlState.activeOverlayId = textOverlays[0].id;
+            urlState.activeOverlayType = 'text';
+          }
+        }
+        
+        // Handle image overlays
+        if (shareData.io && Array.isArray(shareData.io)) {
+          const imageOverlays = shareData.io.map((overlay: any) => ({
+            id: overlay.i,
+            imageUrl: '', // Will be loaded later
+            originalImageUrl: overlay.u,
+            width: overlay.w,
+            height: overlay.h,
+            x: overlay.x,
+            y: overlay.y,
+            desktopX: overlay.dx,
+            desktopY: overlay.dy,
+            mobileX: overlay.mx,
+            mobileY: overlay.my,
+            desktopWidth: overlay.dw,
+            desktopHeight: overlay.dh,
+            mobileWidth: overlay.mw,
+            mobileHeight: overlay.mh,
+            aspectRatio: overlay.a,
+            presetLogoId: overlay.pl,
+            presetLogoType: overlay.pt,
+            selectedLanguage: overlay.sl,
+            availableLanguages: overlay.al
+          }));
+          
+          // Load the images and convert to base64
+          const imageUrls = imageOverlays.map(overlay => overlay.originalImageUrl).filter(Boolean);
+          if (imageUrls.length > 0) {
+            fetch('/api/load-images', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ images: imageUrls })
+            })
+            .then(response => response.json())
+            .then(data => {
+              const updatedImageOverlays = imageOverlays.map((overlay, index) => ({
+                ...overlay,
+                imageUrl: data.images[index] || overlay.imageUrl
+              }));
+              
+              setFormState(prev => ({
+                ...prev,
+                imageOverlays: updatedImageOverlays
+              }));
+            })
+            .catch(error => {
+              console.error('Error loading shared image overlays:', error);
+              urlState.imageOverlays = imageOverlays;
+            });
+          } else {
+            urlState.imageOverlays = imageOverlays;
+          }
+        }
+        
+        setFormState(prev => ({ ...prev, ...urlState }));
+        return;
+        
+      } catch (error) {
+        console.error('Failed to parse compressed data:', error);
+        // Fall through to legacy parsing
+      }
+    }
+    
+    // Legacy URL parsing (existing code)
     const numericKeys: NumericKeys[] = ['width', 'height', 'brightness', 'imageX', 'imageY', 'imageZoom'];
     const stringKeys: StringKeys[] = [];  // Removed imageUrl
     const urlState: Partial<FormState> = {};
@@ -1060,57 +1190,99 @@ export function ClientApp() {
   };
 
   const handleShare = () => {
-    const url = new URL(window.location.href);
-    
-    // Add the image source mode
-    url.searchParams.set('mode', activeImageSourceTab);
-    
-    // Add desktop/mobile specific parameters
-    if (activeImageSourceTab === 'desktop-mobile') {
-      url.searchParams.set('desktopMobileVersion', desktopMobileVersion);
-      if (desktopMobileImageUrl) {
-        url.searchParams.set('desktopMobileImageUrl', desktopMobileImageUrl);
-      }
-      // Add custom dimensions for desktop/mobile mode
-      url.searchParams.set('desktopWidth', String(formState.desktopWidth));
-      url.searchParams.set('desktopHeight', String(formState.desktopHeight));
-      url.searchParams.set('mobileWidth', String(formState.mobileWidth));
-      url.searchParams.set('mobileHeight', String(formState.mobileHeight));
-    }
-    
-    // Add the basic parameters
-    const baseParams: (keyof Omit<FormState, 'textOverlays' | 'activeOverlayId' | 'imageUrl'>)[] = 
-      ['width', 'height', 'brightness', 'imageZoom', 'imageX', 'imageY'];
-    
-    baseParams.forEach(key => {
-      url.searchParams.set(key, String(formState[key]));
-    });
-    
-    // Add the image URL (using original URL, not base64) - skip for transparent mode and desktop-mobile mode
-    if (activeImageSourceTab !== 'transparent' && activeImageSourceTab !== 'desktop-mobile') {
-      url.searchParams.set('imageUrl', originalImageUrl);
-    }
-    
-    // Encode text overlays as JSON in the URL
-    if (formState.textOverlays.length > 0) {
-      const overlaysJson = JSON.stringify(formState.textOverlays);
-      url.searchParams.set('overlays', encodeURIComponent(overlaysJson));
-    }
-    
-    // Encode image overlays as JSON in the URL
-    if (formState.imageOverlays.length > 0) {
-      const imageOverlaysJson = JSON.stringify(formState.imageOverlays);
-      url.searchParams.set('imageOverlays', encodeURIComponent(imageOverlaysJson));
-    }
+    try {
+      const url = new URL(window.location.href);
+      
+      // Create a compressed data object
+      const shareData = {
+        mode: activeImageSourceTab,
+        ...(activeImageSourceTab === 'desktop-mobile' && {
+          dmv: desktopMobileVersion,
+          ...(desktopMobileImageUrl && { dmUrl: desktopMobileImageUrl }),
+          dw: formState.desktopWidth,
+          dh: formState.desktopHeight,
+          mw: formState.mobileWidth,
+          mh: formState.mobileHeight
+        }),
+        // Use shortened property names to reduce size
+        w: formState.width,
+        h: formState.height,
+        b: formState.brightness,
+        z: formState.imageZoom,
+        x: formState.imageX,
+        y: formState.imageY,
+        ...(activeImageSourceTab !== 'transparent' && activeImageSourceTab !== 'desktop-mobile' && originalImageUrl && {
+          img: originalImageUrl
+        }),
+        ...(formState.textOverlays.length > 0 && {
+          to: formState.textOverlays.map(overlay => ({
+            i: overlay.id,
+            t: overlay.text,
+            f: overlay.fontSize,
+            ...(overlay.desktopFontSize && { df: overlay.desktopFontSize }),
+            ...(overlay.mobileFontSize && { mf: overlay.mobileFontSize }),
+            c: overlay.fontColor,
+            x: overlay.x,
+            y: overlay.y,
+            ...(overlay.desktopX && { dx: overlay.desktopX }),
+            ...(overlay.desktopY && { dy: overlay.desktopY }),
+            ...(overlay.mobileX && { mx: overlay.mobileX }),
+            ...(overlay.mobileY && { my: overlay.mobileY }),
+            ...(overlay.allCaps && { ac: overlay.allCaps })
+          }))
+        }),
+        ...(formState.imageOverlays.length > 0 && {
+          io: formState.imageOverlays.map(overlay => ({
+            i: overlay.id,
+            u: overlay.originalImageUrl,
+            w: overlay.width,
+            h: overlay.height,
+            x: overlay.x,
+            y: overlay.y,
+            ...(overlay.desktopX && { dx: overlay.desktopX }),
+            ...(overlay.desktopY && { dy: overlay.desktopY }),
+            ...(overlay.mobileX && { mx: overlay.mobileX }),
+            ...(overlay.mobileY && { my: overlay.mobileY }),
+            ...(overlay.desktopWidth && { dw: overlay.desktopWidth }),
+            ...(overlay.desktopHeight && { dh: overlay.desktopHeight }),
+            ...(overlay.mobileWidth && { mw: overlay.mobileWidth }),
+            ...(overlay.mobileHeight && { mh: overlay.mobileHeight }),
+            a: overlay.aspectRatio,
+            ...(overlay.presetLogoId && { pl: overlay.presetLogoId }),
+            ...(overlay.presetLogoType && { pt: overlay.presetLogoType }),
+            ...(overlay.selectedLanguage && { sl: overlay.selectedLanguage }),
+            ...(overlay.availableLanguages && { al: overlay.availableLanguages })
+          }))
+        })
+      };
 
-    navigator.clipboard.writeText(url.toString());
-    setToastMessage('Settings URL copied to clipboard!');
-    setShowToast(true);
-    setShowShareSuccess(true);
-    setTimeout(() => {
-      setShowToast(false);
-      setShowShareSuccess(false);
-    }, 1500);
+      // Compress the data by converting to JSON and base64 encoding
+      const jsonString = JSON.stringify(shareData);
+      const compressed = btoa(encodeURIComponent(jsonString));
+      
+      // Clear existing params and set the compressed data
+      url.search = '';
+      url.searchParams.set('d', compressed);
+
+      const finalUrl = url.toString();
+      
+      // Check if URL is still too long (most browsers limit to ~2000 chars)
+      if (finalUrl.length > 1800) {
+        throw new Error('Configuration is too complex to share via URL. Try removing some overlays.');
+      }
+
+      navigator.clipboard.writeText(finalUrl);
+      setToastMessage('Settings URL copied to clipboard!');
+      setShowToast(true);
+      setShowShareSuccess(true);
+      setTimeout(() => {
+        setShowToast(false);
+        setShowShareSuccess(false);
+      }, 1500);
+    } catch (error) {
+      console.error('Share error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to generate share URL');
+    }
   };
 
   const handleTextChange = (value: string) => {
