@@ -661,22 +661,26 @@ export function ClientApp() {
         const shareData = JSON.parse(decompressed);
         console.log('🔍 Parsed share data:', shareData);
         
-        // Handle mode
-        if (shareData.mode && ['url', 'upload', 'transparent', 'desktop-mobile'].includes(shareData.mode)) {
-          console.log('🔍 Setting activeImageSourceTab to:', shareData.mode);
-          setActiveImageSourceTab(shareData.mode);
+        // Handle mode - support both old and new formats
+        const mode = shareData.mode || shareData.m;
+        if (mode && ['url', 'upload', 'transparent', 'desktop-mobile'].includes(mode)) {
+          console.log('🔍 Setting activeImageSourceTab to:', mode);
+          setActiveImageSourceTab(mode);
         }
         
-        // Handle desktop/mobile specific parameters
-        if (shareData.mode === 'desktop-mobile') {
+        // Handle desktop/mobile specific parameters - support both old and new formats
+        if (mode === 'desktop-mobile') {
           console.log('🔍 Desktop/mobile mode detected');
-          if (shareData.dmv && ['desktop', 'mobile'].includes(shareData.dmv)) {
-            console.log('🔍 Setting desktop/mobile version to:', shareData.dmv);
-            setDesktopMobileVersion(shareData.dmv);
+          const dmVersion = shareData.dmv || shareData.v;
+          const dmUrl = shareData.dmUrl || shareData.u;
+          
+          if (dmVersion && ['desktop', 'mobile'].includes(dmVersion)) {
+            console.log('🔍 Setting desktop/mobile version to:', dmVersion);
+            setDesktopMobileVersion(dmVersion);
           }
-          if (shareData.dmUrl) {
-            console.log('🔍 Setting desktop/mobile image URL to:', shareData.dmUrl);
-            setDesktopMobileImageUrl(shareData.dmUrl);
+          if (dmUrl) {
+            console.log('🔍 Setting desktop/mobile image URL to:', dmUrl);
+            setDesktopMobileImageUrl(dmUrl);
           }
         }
         
@@ -695,17 +699,18 @@ export function ClientApp() {
         };
         console.log('🔍 URL state to apply:', urlState);
         
-        // Handle image URL and trigger loading immediately if needed
-        if (shareData.img && shareData.mode === 'url') {
-          console.log('🔍 URL mode with image detected, starting image load:', shareData.img);
-          setOriginalImageUrl(shareData.img);
+        // Handle image URL and trigger loading immediately if needed - support both old and new formats
+        const imageUrl = shareData.img || shareData.i;
+        if (imageUrl && mode === 'url') {
+          console.log('🔍 URL mode with image detected, starting image load:', imageUrl);
+          setOriginalImageUrl(imageUrl);
           
           // Trigger image loading immediately for URL mode
           setIsLoading(true);
           fetch('/api/load-images', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ images: [shareData.img] })
+            body: JSON.stringify({ images: [imageUrl] })
           })
           .then(response => {
             console.log('🔍 Image API response status:', response.status);
@@ -727,42 +732,47 @@ export function ClientApp() {
             setOriginalImageUrl('');
             setIsLoading(false);
           });
-        } else if (shareData.img) {
-          console.log('🔍 Non-URL mode with image, setting originalImageUrl:', shareData.img);
-          setOriginalImageUrl(shareData.img);
+        } else if (imageUrl) {
+          console.log('🔍 Non-URL mode with image, setting originalImageUrl:', imageUrl);
+          setOriginalImageUrl(imageUrl);
           setFormState(prev => ({ ...prev, ...urlState }));
         } else {
           console.log('🔍 No image in share data, applying state only');
           setFormState(prev => ({ ...prev, ...urlState }));
           
           // Check if this is desktop-mobile mode and we need to generate preview
-          if (shareData.mode === 'desktop-mobile' && shareData.dmUrl) {
+          const dmUrl = shareData.dmUrl || shareData.u;
+          const dmVersion = shareData.dmv || shareData.v;
+          if (mode === 'desktop-mobile' && dmUrl) {
             console.log('🔍 Desktop-mobile mode detected, triggering preview generation');
-            console.log('🔍 Desktop-mobile image URL:', shareData.dmUrl);
-            console.log('🔍 Desktop-mobile version:', shareData.dmv);
+            console.log('🔍 Desktop-mobile image URL:', dmUrl);
+            console.log('🔍 Desktop-mobile version:', dmVersion);
             
             // Small delay to ensure state is applied
             setTimeout(() => {
               console.log('🔍 Calling generateDesktopMobilePreview');
-              generateDesktopMobilePreview(shareData.dmUrl, shareData.dmv);
+              generateDesktopMobilePreview(dmUrl, dmVersion);
             }, 100);
           }
         }
-        if (shareData.to && Array.isArray(shareData.to)) {
-          const textOverlays = shareData.to.map((overlay: any) => ({
+        
+        // Handle text overlays - support both old format (to) and new format (t)
+        const textOverlaysData = shareData.to || shareData.t;
+        if (textOverlaysData && Array.isArray(textOverlaysData)) {
+          const textOverlays = textOverlaysData.map((overlay: any) => ({
             id: overlay.i,
             text: overlay.t,
             fontSize: overlay.f,
-            desktopFontSize: overlay.df,
-            mobileFontSize: overlay.mf,
+            desktopFontSize: overlay.df || overlay.f, // Use base fontSize if desktop-specific not provided
+            mobileFontSize: overlay.mf || overlay.f, // Use base fontSize if mobile-specific not provided
             fontColor: overlay.c,
             x: overlay.x,
             y: overlay.y,
-            desktopX: overlay.dx,
-            desktopY: overlay.dy,
-            mobileX: overlay.mx,
-            mobileY: overlay.my,
-            allCaps: overlay.ac
+            desktopX: overlay.dx !== undefined ? overlay.dx : overlay.x, // Use base x if desktop-specific not provided
+            desktopY: overlay.dy !== undefined ? overlay.dy : overlay.y, // Use base y if desktop-specific not provided
+            mobileX: overlay.mx !== undefined ? overlay.mx : overlay.x, // Use base x if mobile-specific not provided
+            mobileY: overlay.my !== undefined ? overlay.my : overlay.y, // Use base y if mobile-specific not provided
+            allCaps: overlay.ac === 1 || overlay.ac === true // Handle both new format (1) and old format (true)
           }));
           urlState.textOverlays = textOverlays;
           if (textOverlays.length > 0) {
@@ -771,9 +781,10 @@ export function ClientApp() {
           }
         }
         
-        // Handle image overlays
-        if (shareData.io && Array.isArray(shareData.io)) {
-          const imageOverlays = shareData.io.map((overlay: any) => ({
+        // Handle image overlays - support both old format (io) and new format (o)
+        const imageOverlaysData = shareData.io || shareData.o;
+        if (imageOverlaysData && Array.isArray(imageOverlaysData)) {
+          const imageOverlays = imageOverlaysData.map((overlay: any) => ({
             id: overlay.i,
             imageUrl: '', // Will be loaded later
             originalImageUrl: overlay.u,
@@ -781,14 +792,14 @@ export function ClientApp() {
             height: overlay.h,
             x: overlay.x,
             y: overlay.y,
-            desktopX: overlay.dx,
-            desktopY: overlay.dy,
-            mobileX: overlay.mx,
-            mobileY: overlay.my,
-            desktopWidth: overlay.dw,
-            desktopHeight: overlay.dh,
-            mobileWidth: overlay.mw,
-            mobileHeight: overlay.mh,
+            desktopX: overlay.dx !== undefined ? overlay.dx : overlay.x, // Use base x if desktop-specific not provided
+            desktopY: overlay.dy !== undefined ? overlay.dy : overlay.y, // Use base y if desktop-specific not provided
+            mobileX: overlay.mx !== undefined ? overlay.mx : overlay.x, // Use base x if mobile-specific not provided
+            mobileY: overlay.my !== undefined ? overlay.my : overlay.y, // Use base y if mobile-specific not provided
+            desktopWidth: overlay.dw !== undefined ? overlay.dw : overlay.w, // Use base width if desktop-specific not provided
+            desktopHeight: overlay.dh !== undefined ? overlay.dh : overlay.h, // Use base height if desktop-specific not provided
+            mobileWidth: overlay.mw !== undefined ? overlay.mw : overlay.w, // Use base width if mobile-specific not provided
+            mobileHeight: overlay.mh !== undefined ? overlay.mh : overlay.h, // Use base height if mobile-specific not provided
             aspectRatio: overlay.a,
             presetLogoId: overlay.pl,
             presetLogoType: overlay.pt,
@@ -1271,18 +1282,18 @@ export function ClientApp() {
     try {
       const url = new URL(window.location.href);
       
-      // Create a compressed data object
-      const shareData = {
-        mode: activeImageSourceTab,
+      // Create a highly compressed data object with ultra-short keys
+      const shareData: any = {
+        m: activeImageSourceTab, // mode
         ...(activeImageSourceTab === 'desktop-mobile' && {
-          dmv: desktopMobileVersion,
-          ...(desktopMobileImageUrl && { dmUrl: desktopMobileImageUrl }),
+          v: desktopMobileVersion, // dmv -> v
+          ...(desktopMobileImageUrl && { u: desktopMobileImageUrl }), // dmUrl -> u
           dw: formState.desktopWidth,
           dh: formState.desktopHeight,
           mw: formState.mobileWidth,
           mh: formState.mobileHeight
         }),
-        // Use shortened property names to reduce size
+        // Use ultra-short property names to reduce size
         w: formState.width,
         h: formState.height,
         b: formState.brightness,
@@ -1290,51 +1301,105 @@ export function ClientApp() {
         x: formState.imageX,
         y: formState.imageY,
         ...(activeImageSourceTab !== 'transparent' && activeImageSourceTab !== 'desktop-mobile' && originalImageUrl && {
-          img: originalImageUrl
-        }),
-        ...(formState.textOverlays.length > 0 && {
-          to: formState.textOverlays.map(overlay => ({
+          i: originalImageUrl // img -> i
+        })
+      };
+
+      // Ultra-compressed text overlays - only store differences from base values
+      if (formState.textOverlays.length > 0) {
+        shareData.t = formState.textOverlays.map(overlay => {
+          const compressed: any = {
             i: overlay.id,
             t: overlay.text,
             f: overlay.fontSize,
-            ...(overlay.desktopFontSize && { df: overlay.desktopFontSize }),
-            ...(overlay.mobileFontSize && { mf: overlay.mobileFontSize }),
             c: overlay.fontColor,
             x: overlay.x,
-            y: overlay.y,
-            ...(overlay.desktopX && { dx: overlay.desktopX }),
-            ...(overlay.desktopY && { dy: overlay.desktopY }),
-            ...(overlay.mobileX && { mx: overlay.mobileX }),
-            ...(overlay.mobileY && { my: overlay.mobileY }),
-            ...(overlay.allCaps && { ac: overlay.allCaps })
-          }))
-        }),
-        ...(formState.imageOverlays.length > 0 && {
-          io: formState.imageOverlays.map(overlay => ({
+            y: overlay.y
+          };
+          
+          // Only store desktop/mobile values if they differ from base values
+          if (overlay.desktopX !== undefined && overlay.desktopX !== overlay.x) {
+            compressed.dx = overlay.desktopX;
+          }
+          if (overlay.desktopY !== undefined && overlay.desktopY !== overlay.y) {
+            compressed.dy = overlay.desktopY;
+          }
+          if (overlay.mobileX !== undefined && overlay.mobileX !== overlay.x) {
+            compressed.mx = overlay.mobileX;
+          }
+          if (overlay.mobileY !== undefined && overlay.mobileY !== overlay.y) {
+            compressed.my = overlay.mobileY;
+          }
+          if (overlay.desktopFontSize !== undefined && overlay.desktopFontSize !== overlay.fontSize) {
+            compressed.df = overlay.desktopFontSize;
+          }
+          if (overlay.mobileFontSize !== undefined && overlay.mobileFontSize !== overlay.fontSize) {
+            compressed.mf = overlay.mobileFontSize;
+          }
+          if (overlay.allCaps) {
+            compressed.ac = 1; // Use 1 instead of true to save space
+          }
+          
+          return compressed;
+        });
+      }
+
+      // Ultra-compressed image overlays - only store differences from base values
+      if (formState.imageOverlays.length > 0) {
+        shareData.o = formState.imageOverlays.map(overlay => {
+          const compressed: any = {
             i: overlay.id,
             u: overlay.originalImageUrl,
             w: overlay.width,
             h: overlay.height,
             x: overlay.x,
             y: overlay.y,
-            ...(overlay.desktopX && { dx: overlay.desktopX }),
-            ...(overlay.desktopY && { dy: overlay.desktopY }),
-            ...(overlay.mobileX && { mx: overlay.mobileX }),
-            ...(overlay.mobileY && { my: overlay.mobileY }),
-            ...(overlay.desktopWidth && { dw: overlay.desktopWidth }),
-            ...(overlay.desktopHeight && { dh: overlay.desktopHeight }),
-            ...(overlay.mobileWidth && { mw: overlay.mobileWidth }),
-            ...(overlay.mobileHeight && { mh: overlay.mobileHeight }),
-            a: overlay.aspectRatio,
-            ...(overlay.presetLogoId && { pl: overlay.presetLogoId }),
-            ...(overlay.presetLogoType && { pt: overlay.presetLogoType }),
-            ...(overlay.selectedLanguage && { sl: overlay.selectedLanguage }),
-            ...(overlay.availableLanguages && { al: overlay.availableLanguages })
-          }))
-        })
-      };
+            a: overlay.aspectRatio
+          };
+          
+          // Only store desktop/mobile values if they differ from base values
+          if (overlay.desktopX !== undefined && overlay.desktopX !== overlay.x) {
+            compressed.dx = overlay.desktopX;
+          }
+          if (overlay.desktopY !== undefined && overlay.desktopY !== overlay.y) {
+            compressed.dy = overlay.desktopY;
+          }
+          if (overlay.mobileX !== undefined && overlay.mobileX !== overlay.x) {
+            compressed.mx = overlay.mobileX;
+          }
+          if (overlay.mobileY !== undefined && overlay.mobileY !== overlay.y) {
+            compressed.my = overlay.mobileY;
+          }
+          if (overlay.desktopWidth !== undefined && overlay.desktopWidth !== overlay.width) {
+            compressed.dw = overlay.desktopWidth;
+          }
+          if (overlay.desktopHeight !== undefined && overlay.desktopHeight !== overlay.height) {
+            compressed.dh = overlay.desktopHeight;
+          }
+          if (overlay.mobileWidth !== undefined && overlay.mobileWidth !== overlay.width) {
+            compressed.mw = overlay.mobileWidth;
+          }
+          if (overlay.mobileHeight !== undefined && overlay.mobileHeight !== overlay.height) {
+            compressed.mh = overlay.mobileHeight;
+          }
+          if (overlay.presetLogoId) {
+            compressed.pl = overlay.presetLogoId;
+          }
+          if (overlay.presetLogoType) {
+            compressed.pt = overlay.presetLogoType;
+          }
+          if (overlay.selectedLanguage) {
+            compressed.sl = overlay.selectedLanguage;
+          }
+          if (overlay.availableLanguages) {
+            compressed.al = overlay.availableLanguages;
+          }
+          
+          return compressed;
+        });
+      }
 
-      // Compress the data by converting to JSON and base64 encoding
+      // Double-compress: JSON -> Base64 -> URL encode
       const jsonString = JSON.stringify(shareData);
       const compressed = btoa(encodeURIComponent(jsonString));
       
@@ -1344,8 +1409,8 @@ export function ClientApp() {
 
       const finalUrl = url.toString();
       
-      // Check if URL is still too long (most browsers limit to ~2000 chars)
-      if (finalUrl.length > 1800) {
+      // Increased limit since we have better compression
+      if (finalUrl.length > 2000) {
         throw new Error('Configuration is too complex to share via URL. Try removing some overlays.');
       }
 
