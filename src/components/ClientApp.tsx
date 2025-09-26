@@ -739,7 +739,7 @@ export function ClientApp() {
           }));
           
           // Load the images and convert to base64
-          const imageUrls = imageOverlays.map(overlay => overlay.originalImageUrl).filter(Boolean);
+          const imageUrls = imageOverlays.map((overlay: any) => overlay.originalImageUrl).filter(Boolean);
           if (imageUrls.length > 0) {
             fetch('/api/load-images', {
               method: 'POST',
@@ -748,7 +748,7 @@ export function ClientApp() {
             })
             .then(response => response.json())
             .then(data => {
-              const updatedImageOverlays = imageOverlays.map((overlay, index) => ({
+              const updatedImageOverlays = imageOverlays.map((overlay: any, index: number) => ({
                 ...overlay,
                 imageUrl: data.images[index] || overlay.imageUrl
               }));
