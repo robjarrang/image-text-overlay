@@ -202,6 +202,11 @@ export function ClientApp() {
     }
   }, [formState.desktopHeight, formState.mobileHeight, desktopMobileVersion]);
   
+  // Auto-load preset logos on component mount
+  useEffect(() => {
+    loadPresetLogos();
+  }, []); // Empty dependency array means this runs once on mount
+  
   // Function to handle image source tab changes
   const handleImageSourceTabChange = (tab: 'url' | 'upload' | 'transparent' | 'desktop-mobile') => {
     setActiveImageSourceTab(tab);
@@ -2076,9 +2081,9 @@ export function ClientApp() {
                         {/* Secondary Option: Preset Logos */}
                         <div 
                           className="slds-box slds-box_xx-small slds-theme_shade" 
-                          style={{ borderRadius: '4px', backgroundColor: '#fafaf9' }}
+                          style={{ borderRadius: '4px', backgroundColor: '#fafaf9', padding: '8px 12px' }}
                         >
-                          <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-bottom_x-small">
+                          <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center" style={{ marginBottom: '6px' }}>
                             <div className="slds-media slds-media_center">
                               <div className="slds-media__figure">
                                 <svg className="slds-icon slds-icon_x-small slds-icon-text-default" aria-hidden="true">
@@ -2091,30 +2096,19 @@ export function ClientApp() {
                                 </span>
                               </div>
                             </div>
-                            {!presetLogos && (
-                              <button
-                                type="button"
-                                className="slds-button slds-button_neutral slds-button_small"
-                                onClick={loadPresetLogos}
-                                disabled={loadingPresetLogos}
-                              >
-                                {loadingPresetLogos ? (
-                                  <>
-                                    <svg className="slds-button__icon slds-button__icon_left slds-button__icon_small" aria-hidden="true">
-                                      <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#spinner"></use>
-                                    </svg>
-                                    Loading...
-                                  </>
-                                ) : (
-                                  'Load Presets'
-                                )}
-                              </button>
+                            {loadingPresetLogos && (
+                              <div className="slds-text-body_small slds-text-color_weak">
+                                <svg className="slds-button__icon slds-button__icon_small" aria-hidden="true">
+                                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#spinner"></use>
+                                </svg>
+                                Loading...
+                              </div>
                             )}
                           </div>
                           
                           {presetLogos && (
                             <div>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
                                 {/* System Logos */}
                                 {presetLogos.systemLogos.map((logo) => (
                                   <button
@@ -2156,7 +2150,7 @@ export function ClientApp() {
                                 ))}
                               </div>
                               
-                              <div className="slds-text-body_small slds-text-color_weak" style={{ fontSize: '0.6rem' }}>
+                              <div className="slds-text-body_small slds-text-color_weak" style={{ fontSize: '0.6rem', marginTop: '2px' }}>
                                 <svg className="slds-icon slds-icon_xx-small slds-m-right_xx-small" aria-hidden="true">
                                   <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#info"></use>
                                 </svg>
