@@ -661,6 +661,26 @@ export function ClientApp() {
         const shareData = JSON.parse(decompressed);
         console.log('🔍 Parsed share data:', shareData);
         
+        // Helper function to decompress URLs
+        const decompressUrl = (compressedUrl: string): string => {
+          if (!compressedUrl) return compressedUrl;
+          return compressedUrl
+            .replace('S50/', 'https://image.s50.sfmc-content.com/lib/')
+            .replace('S51/', 'https://image.s51.sfmc-content.com/lib/')
+            .replace('S52/', 'https://image.s52.sfmc-content.com/lib/')
+            .replace('V/', 'https://milwaukee-overlay.vercel.app/');
+        };
+        
+        // Helper function to restore full overlay IDs
+        const restoreId = (shortId: string): string => {
+          if (!shortId || shortId.includes('overlay-')) return shortId; // Already full ID
+          const parts = shortId.split('.');
+          if (parts.length === 2) {
+            return `overlay-${parts[0]}-${parts[1]}`;
+          }
+          return shortId;
+        };
+        
         // Handle mode - support both old and new formats
         const mode = shareData.mode || shareData.m;
         if (mode && ['url', 'upload', 'transparent', 'desktop-mobile'].includes(mode)) {
@@ -671,8 +691,8 @@ export function ClientApp() {
         // Handle desktop/mobile specific parameters - support both old and new formats
         if (mode === 'desktop-mobile') {
           console.log('🔍 Desktop/mobile mode detected');
-          const dmVersion = shareData.dmv || shareData.v;
-          const dmUrl = shareData.dmUrl || shareData.u;
+          const dmVersion = shareData.dmv || (shareData.v !== undefined ? (shareData.v === 0 ? 'desktop' : 'mobile') : shareData.v);
+          const dmUrl = decompressUrl(shareData.dmUrl || shareData.u);
           
           if (dmVersion && ['desktop', 'mobile'].includes(dmVersion)) {
             console.log('🔍 Setting desktop/mobile version to:', dmVersion);
@@ -692,15 +712,15 @@ export function ClientApp() {
           ...(shareData.dh && { desktopHeight: shareData.dh }),
           ...(shareData.mw && { mobileWidth: shareData.mw }),
           ...(shareData.mh && { mobileHeight: shareData.mh }),
-          ...(shareData.b && { brightness: shareData.b }),
-          ...(shareData.z && { imageZoom: shareData.z }),
-          ...(shareData.x && { imageX: shareData.x }),
-          ...(shareData.y && { imageY: shareData.y })
+          brightness: shareData.b !== undefined ? shareData.b : 100, // Default to 100 if not specified
+          imageZoom: shareData.z !== undefined ? shareData.z : 1, // Default to 1 if not specified
+          imageX: shareData.x !== undefined ? shareData.x : 0, // Default to 0 if not specified
+          imageY: shareData.y !== undefined ? shareData.y : 0 // Default to 0 if not specified
         };
         console.log('🔍 URL state to apply:', urlState);
         
         // Handle image URL and trigger loading immediately if needed - support both old and new formats
-        const imageUrl = shareData.img || shareData.i;
+        const imageUrl = decompressUrl(shareData.img || shareData.i);
         if (imageUrl && mode === 'url') {
           console.log('🔍 URL mode with image detected, starting image load:', imageUrl);
           setOriginalImageUrl(imageUrl);
@@ -741,8 +761,8 @@ export function ClientApp() {
           setFormState(prev => ({ ...prev, ...urlState }));
           
           // Check if this is desktop-mobile mode and we need to generate preview
-          const dmUrl = shareData.dmUrl || shareData.u;
-          const dmVersion = shareData.dmv || shareData.v;
+          const dmUrl = decompressUrl(shareData.dmUrl || shareData.u);
+          const dmVersion = shareData.dmv || (shareData.v !== undefined ? (shareData.v === 0 ? 'desktop' : 'mobile') : shareData.v);
           if (mode === 'desktop-mobile' && dmUrl) {
             console.log('🔍 Desktop-mobile mode detected, triggering preview generation');
             console.log('🔍 Desktop-mobile image URL:', dmUrl);
@@ -756,24 +776,49 @@ export function ClientApp() {
           }
         }
         
-        // Handle text overlays - support both old format (to) and new format (t)
+        // Handle text overlays - support old object format (to), new array format (t), and mixed
         const textOverlaysData = shareData.to || shareData.t;
         if (textOverlaysData && Array.isArray(textOverlaysData)) {
-          const textOverlays = textOverlaysData.map((overlay: any) => ({
-            id: overlay.i,
-            text: overlay.t,
-            fontSize: overlay.f,
-            desktopFontSize: overlay.df || overlay.f, // Use base fontSize if desktop-specific not provided
-            mobileFontSize: overlay.mf || overlay.f, // Use base fontSize if mobile-specific not provided
-            fontColor: overlay.c,
-            x: overlay.x,
-            y: overlay.y,
-            desktopX: overlay.dx !== undefined ? overlay.dx : overlay.x, // Use base x if desktop-specific not provided
-            desktopY: overlay.dy !== undefined ? overlay.dy : overlay.y, // Use base y if desktop-specific not provided
-            mobileX: overlay.mx !== undefined ? overlay.mx : overlay.x, // Use base x if mobile-specific not provided
-            mobileY: overlay.my !== undefined ? overlay.my : overlay.y, // Use base y if mobile-specific not provided
-            allCaps: overlay.ac === 1 || overlay.ac === true // Handle both new format (1) and old format (true)
-          }));
+          const textOverlays = textOverlaysData.map((overlay: any) => {
+            // Handle new array format [id, text, fontSize, color, x, y, extras?]
+            if (Array.isArray(overlay)) {
+              const [id, text, fontSize, color, x, y, extras = {}] = overlay;
+              const expandedColor = color === 'W' ? '#FFFFFF' : color === 'B' ? '#000000' : color;
+              
+              return {
+                id: restoreId(id),
+                text,
+                fontSize,
+                desktopFontSize: extras.df || fontSize,
+                mobileFontSize: extras.mf || fontSize,
+                fontColor: expandedColor,
+                x,
+                y,
+                desktopX: extras.dx !== undefined ? extras.dx : x,
+                desktopY: extras.dy !== undefined ? extras.dy : y,
+                mobileX: extras.mx !== undefined ? extras.mx : x,
+                mobileY: extras.my !== undefined ? extras.my : y,
+                allCaps: extras.ac === 1 || extras.ac === true
+              };
+            } else {
+              // Handle old object format for backward compatibility
+              return {
+                id: overlay.i,
+                text: overlay.t,
+                fontSize: overlay.f,
+                desktopFontSize: overlay.df || overlay.f,
+                mobileFontSize: overlay.mf || overlay.f,
+                fontColor: overlay.c,
+                x: overlay.x,
+                y: overlay.y,
+                desktopX: overlay.dx !== undefined ? overlay.dx : overlay.x,
+                desktopY: overlay.dy !== undefined ? overlay.dy : overlay.y,
+                mobileX: overlay.mx !== undefined ? overlay.mx : overlay.x,
+                mobileY: overlay.my !== undefined ? overlay.my : overlay.y,
+                allCaps: overlay.ac === 1 || overlay.ac === true
+              };
+            }
+          });
           urlState.textOverlays = textOverlays;
           if (textOverlays.length > 0) {
             urlState.activeOverlayId = textOverlays[0].id;
@@ -781,31 +826,62 @@ export function ClientApp() {
           }
         }
         
-        // Handle image overlays - support both old format (io) and new format (o)
+        // Handle image overlays - support old object format (io), new array format (o), and mixed
         const imageOverlaysData = shareData.io || shareData.o;
         if (imageOverlaysData && Array.isArray(imageOverlaysData)) {
-          const imageOverlays = imageOverlaysData.map((overlay: any) => ({
-            id: overlay.i,
-            imageUrl: '', // Will be loaded later
-            originalImageUrl: overlay.u,
-            width: overlay.w,
-            height: overlay.h,
-            x: overlay.x,
-            y: overlay.y,
-            desktopX: overlay.dx !== undefined ? overlay.dx : overlay.x, // Use base x if desktop-specific not provided
-            desktopY: overlay.dy !== undefined ? overlay.dy : overlay.y, // Use base y if desktop-specific not provided
-            mobileX: overlay.mx !== undefined ? overlay.mx : overlay.x, // Use base x if mobile-specific not provided
-            mobileY: overlay.my !== undefined ? overlay.my : overlay.y, // Use base y if mobile-specific not provided
-            desktopWidth: overlay.dw !== undefined ? overlay.dw : overlay.w, // Use base width if desktop-specific not provided
-            desktopHeight: overlay.dh !== undefined ? overlay.dh : overlay.h, // Use base height if desktop-specific not provided
-            mobileWidth: overlay.mw !== undefined ? overlay.mw : overlay.w, // Use base width if mobile-specific not provided
-            mobileHeight: overlay.mh !== undefined ? overlay.mh : overlay.h, // Use base height if mobile-specific not provided
-            aspectRatio: overlay.a,
-            presetLogoId: overlay.pl,
-            presetLogoType: overlay.pt,
-            selectedLanguage: overlay.sl,
-            availableLanguages: overlay.al
-          }));
+          const imageOverlays = imageOverlaysData.map((overlay: any) => {
+            // Handle new array format [id, url, width, height, x, y, aspectRatio, extras?]
+            if (Array.isArray(overlay)) {
+              const [id, originalImageUrl, width, height, x, y, aspectRatio, extras = {}] = overlay;
+              
+              return {
+                id: restoreId(id),
+                imageUrl: '', // Will be loaded later
+                originalImageUrl: decompressUrl(originalImageUrl),
+                width,
+                height,
+                x,
+                y,
+                desktopX: extras.dx !== undefined ? extras.dx : x,
+                desktopY: extras.dy !== undefined ? extras.dy : y,
+                mobileX: extras.mx !== undefined ? extras.mx : x,
+                mobileY: extras.my !== undefined ? extras.my : y,
+                desktopWidth: extras.dw !== undefined ? extras.dw : width,
+                desktopHeight: extras.dh !== undefined ? extras.dh : height,
+                mobileWidth: extras.mw !== undefined ? extras.mw : width,
+                mobileHeight: extras.mh !== undefined ? extras.mh : height,
+                aspectRatio,
+                presetLogoId: extras.pl,
+                presetLogoType: extras.pt,
+                selectedLanguage: extras.sl,
+                availableLanguages: extras.al
+              };
+            } else {
+              // Handle old object format for backward compatibility
+              return {
+                id: overlay.i,
+                imageUrl: '', // Will be loaded later
+                originalImageUrl: decompressUrl(overlay.u),
+                width: overlay.w,
+                height: overlay.h,
+                x: overlay.x,
+                y: overlay.y,
+                desktopX: overlay.dx !== undefined ? overlay.dx : overlay.x,
+                desktopY: overlay.dy !== undefined ? overlay.dy : overlay.y,
+                mobileX: overlay.mx !== undefined ? overlay.mx : overlay.x,
+                mobileY: overlay.my !== undefined ? overlay.my : overlay.y,
+                desktopWidth: overlay.dw !== undefined ? overlay.dw : overlay.w,
+                desktopHeight: overlay.dh !== undefined ? overlay.dh : overlay.h,
+                mobileWidth: overlay.mw !== undefined ? overlay.mw : overlay.w,
+                mobileHeight: overlay.mh !== undefined ? overlay.mh : overlay.h,
+                aspectRatio: overlay.a,
+                presetLogoId: overlay.pl,
+                presetLogoType: overlay.pt,
+                selectedLanguage: overlay.sl,
+                availableLanguages: overlay.al
+              };
+            }
+          });
           
           // Load the images and convert to base64
           const imageUrls = imageOverlays.map((overlay: any) => overlay.originalImageUrl).filter(Boolean);
@@ -1282,136 +1358,187 @@ export function ClientApp() {
     try {
       const url = new URL(window.location.href);
       
-      // Create a highly compressed data object with ultra-short keys
+      // Helper function to compress URLs - replace common long domains with short codes
+      const compressUrl = (originalUrl: string): string => {
+        if (!originalUrl) return originalUrl;
+        return originalUrl
+          .replace('https://image.s50.sfmc-content.com/lib/', 'S50/')
+          .replace('https://image.s51.sfmc-content.com/lib/', 'S51/')
+          .replace('https://image.s52.sfmc-content.com/lib/', 'S52/')
+          .replace('https://milwaukee-overlay.vercel.app/', 'V/');
+      };
+      
+      // Helper function to decompress URLs
+      const decompressUrl = (compressedUrl: string): string => {
+        if (!compressedUrl) return compressedUrl;
+        return compressedUrl
+          .replace('S50/', 'https://image.s50.sfmc-content.com/lib/')
+          .replace('S51/', 'https://image.s51.sfmc-content.com/lib/')
+          .replace('S52/', 'https://image.s52.sfmc-content.com/lib/')
+          .replace('V/', 'https://milwaukee-overlay.vercel.app/');
+      };
+      
+      // Helper function to create short overlay IDs
+      const shortenId = (id: string): string => {
+        if (!id) return id;
+        // Extract just the timestamp and a few chars from the hash
+        const match = id.match(/overlay-(\d+)-([a-z0-9]{8})/);
+        if (match) {
+          return `${match[1]}.${match[2]}`;
+        }
+        return id;
+      };
+      
+      // Create ultra-compressed data object
       const shareData: any = {
         m: activeImageSourceTab, // mode
         ...(activeImageSourceTab === 'desktop-mobile' && {
-          v: desktopMobileVersion, // dmv -> v
-          ...(desktopMobileImageUrl && { u: desktopMobileImageUrl }), // dmUrl -> u
+          v: desktopMobileVersion === 'desktop' ? 0 : 1, // 0=desktop, 1=mobile (save chars)
+          ...(desktopMobileImageUrl && { u: compressUrl(desktopMobileImageUrl) }),
           dw: formState.desktopWidth,
           dh: formState.desktopHeight,
           mw: formState.mobileWidth,
           mh: formState.mobileHeight
         }),
-        // Use ultra-short property names to reduce size
+        // Core state with ultra-short keys
         w: formState.width,
         h: formState.height,
-        b: formState.brightness,
-        z: formState.imageZoom,
-        x: formState.imageX,
-        y: formState.imageY,
+        ...(formState.brightness !== 100 && { b: formState.brightness }), // Only include if not default
+        ...(formState.imageZoom !== 1 && { z: formState.imageZoom }), // Only include if not default
+        ...(formState.imageX !== 0 && { x: formState.imageX }), // Only include if not default
+        ...(formState.imageY !== 0 && { y: formState.imageY }), // Only include if not default
         ...(activeImageSourceTab !== 'transparent' && activeImageSourceTab !== 'desktop-mobile' && originalImageUrl && {
-          i: originalImageUrl // img -> i
+          i: compressUrl(originalImageUrl)
         })
       };
 
-      // Ultra-compressed text overlays - only store differences from base values
+      // Ultra-compressed text overlays
       if (formState.textOverlays.length > 0) {
         shareData.t = formState.textOverlays.map(overlay => {
-          const compressed: any = {
-            i: overlay.id,
-            t: overlay.text,
-            f: overlay.fontSize,
-            c: overlay.fontColor,
-            x: overlay.x,
-            y: overlay.y
-          };
+          const compressed: any = [
+            shortenId(overlay.id),
+            overlay.text,
+            overlay.fontSize,
+            overlay.fontColor === '#FFFFFF' ? 'W' : overlay.fontColor === '#000000' ? 'B' : overlay.fontColor, // W=white, B=black
+            overlay.x,
+            overlay.y
+          ];
           
-          // Only store desktop/mobile values if they differ from base values
+          // Add optional fields only if they differ from base values
+          const extras: any = {};
           if (overlay.desktopX !== undefined && overlay.desktopX !== overlay.x) {
-            compressed.dx = overlay.desktopX;
+            extras.dx = overlay.desktopX;
           }
           if (overlay.desktopY !== undefined && overlay.desktopY !== overlay.y) {
-            compressed.dy = overlay.desktopY;
+            extras.dy = overlay.desktopY;
           }
           if (overlay.mobileX !== undefined && overlay.mobileX !== overlay.x) {
-            compressed.mx = overlay.mobileX;
+            extras.mx = overlay.mobileX;
           }
           if (overlay.mobileY !== undefined && overlay.mobileY !== overlay.y) {
-            compressed.my = overlay.mobileY;
+            extras.my = overlay.mobileY;
           }
           if (overlay.desktopFontSize !== undefined && overlay.desktopFontSize !== overlay.fontSize) {
-            compressed.df = overlay.desktopFontSize;
+            extras.df = overlay.desktopFontSize;
           }
           if (overlay.mobileFontSize !== undefined && overlay.mobileFontSize !== overlay.fontSize) {
-            compressed.mf = overlay.mobileFontSize;
+            extras.mf = overlay.mobileFontSize;
           }
           if (overlay.allCaps) {
-            compressed.ac = 1; // Use 1 instead of true to save space
+            extras.ac = 1;
+          }
+          
+          if (Object.keys(extras).length > 0) {
+            compressed.push(extras);
           }
           
           return compressed;
         });
       }
 
-      // Ultra-compressed image overlays - only store differences from base values
+      // Ultra-compressed image overlays
       if (formState.imageOverlays.length > 0) {
         shareData.o = formState.imageOverlays.map(overlay => {
-          const compressed: any = {
-            i: overlay.id,
-            u: overlay.originalImageUrl,
-            w: overlay.width,
-            h: overlay.height,
-            x: overlay.x,
-            y: overlay.y,
-            a: overlay.aspectRatio
-          };
+          const compressed: any = [
+            shortenId(overlay.id),
+            compressUrl(overlay.originalImageUrl),
+            overlay.width,
+            overlay.height,
+            overlay.x,
+            overlay.y,
+            overlay.aspectRatio
+          ];
           
-          // Only store desktop/mobile values if they differ from base values
+          // Add optional fields only if they differ from base values
+          const extras: any = {};
           if (overlay.desktopX !== undefined && overlay.desktopX !== overlay.x) {
-            compressed.dx = overlay.desktopX;
+            extras.dx = overlay.desktopX;
           }
           if (overlay.desktopY !== undefined && overlay.desktopY !== overlay.y) {
-            compressed.dy = overlay.desktopY;
+            extras.dy = overlay.desktopY;
           }
           if (overlay.mobileX !== undefined && overlay.mobileX !== overlay.x) {
-            compressed.mx = overlay.mobileX;
+            extras.mx = overlay.mobileX;
           }
           if (overlay.mobileY !== undefined && overlay.mobileY !== overlay.y) {
-            compressed.my = overlay.mobileY;
+            extras.my = overlay.mobileY;
           }
           if (overlay.desktopWidth !== undefined && overlay.desktopWidth !== overlay.width) {
-            compressed.dw = overlay.desktopWidth;
+            extras.dw = overlay.desktopWidth;
           }
           if (overlay.desktopHeight !== undefined && overlay.desktopHeight !== overlay.height) {
-            compressed.dh = overlay.desktopHeight;
+            extras.dh = overlay.desktopHeight;
           }
           if (overlay.mobileWidth !== undefined && overlay.mobileWidth !== overlay.width) {
-            compressed.mw = overlay.mobileWidth;
+            extras.mw = overlay.mobileWidth;
           }
           if (overlay.mobileHeight !== undefined && overlay.mobileHeight !== overlay.height) {
-            compressed.mh = overlay.mobileHeight;
+            extras.mh = overlay.mobileHeight;
           }
           if (overlay.presetLogoId) {
-            compressed.pl = overlay.presetLogoId;
+            extras.pl = overlay.presetLogoId;
           }
           if (overlay.presetLogoType) {
-            compressed.pt = overlay.presetLogoType;
+            extras.pt = overlay.presetLogoType;
           }
           if (overlay.selectedLanguage) {
-            compressed.sl = overlay.selectedLanguage;
+            extras.sl = overlay.selectedLanguage;
           }
           if (overlay.availableLanguages) {
-            compressed.al = overlay.availableLanguages;
+            extras.al = overlay.availableLanguages;
+          }
+          
+          if (Object.keys(extras).length > 0) {
+            compressed.push(extras);
           }
           
           return compressed;
         });
       }
 
-      // Double-compress: JSON -> Base64 -> URL encode
-      const jsonString = JSON.stringify(shareData);
-      const compressed = btoa(encodeURIComponent(jsonString));
+      // Triple compress: JSON (no spaces) -> URL encode -> Base64
+      const jsonString = JSON.stringify(shareData).replace(/\s+/g, ''); // Remove all whitespace
+      const urlEncoded = encodeURIComponent(jsonString);
+      const base64 = btoa(urlEncoded);
       
       // Clear existing params and set the compressed data
       url.search = '';
-      url.searchParams.set('d', compressed);
+      url.searchParams.set('d', base64);
 
       const finalUrl = url.toString();
       
-      // Increased limit since we have better compression
-      if (finalUrl.length > 2000) {
-        throw new Error('Configuration is too complex to share via URL. Try removing some overlays.');
+      console.log('Final URL length:', finalUrl.length);
+      console.log('Compression details:', {
+        originalData: shareData,
+        jsonLength: jsonString.length,
+        urlEncodedLength: urlEncoded.length,
+        base64Length: base64.length,
+        finalUrlLength: finalUrl.length
+      });
+      
+      // Increased limit with better compression
+      if (finalUrl.length > 2048) {
+        throw new Error('Configuration is too complex to share via URL. Try removing some overlays or shortening text.');
       }
 
       navigator.clipboard.writeText(finalUrl);
