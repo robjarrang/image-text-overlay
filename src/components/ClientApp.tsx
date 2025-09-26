@@ -1417,10 +1417,13 @@ export function ClientApp() {
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('imageSource')}
                       >
-                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
+                        <svg className="slds-icon slds-icon_small slds-button__icon slds-button__icon_left" aria-hidden="true">
                           <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#switch"></use>
                         </svg>
                         <span className="slds-accordion__summary-content">Image Source</span>
+                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
+                        </svg>
                       </button>
                     </h3>
                   </div>
@@ -1432,7 +1435,7 @@ export function ClientApp() {
                     <div className="form-section">
                       <div className="slds-form-element slds-form-element_stacked">
                         <div className="slds-tabs_scoped">
-                          <ul className="slds-tabs_scoped__nav" role="tablist" style={{ flexWrap: 'wrap', rowGap: '0.25rem' }}>
+                          <ul className="slds-tabs_scoped__nav slds-tabs_responsive" role="tablist">
                             <li className={`slds-tabs_scoped__item ${activeImageSourceTab === 'url' ? 'slds-is-active' : ''}`} role="presentation">
                               <button
                                 className="slds-tabs_scoped__link"
@@ -3012,16 +3015,13 @@ export function ClientApp() {
           </div>
           <footer className="slds-card__footer slds-border_top slds-p-around_medium">
             <div className="slds-grid slds-grid_align-spread">
-              <div
-                className="share-button-wrapper"
-                style={{ position: 'relative', display: 'inline-block' }}
-                onMouseEnter={() => activeImageSourceTab === 'upload' && setShowShareTooltip(true)}
-                onMouseLeave={() => activeImageSourceTab === 'upload' && setShowShareTooltip(false)}
-              >
+              <div className="slds-button-group slds-m-right_small">
                 <button
                   className="slds-button slds-button_neutral share-button"
                   onClick={handleShare}
                   aria-label="Share configuration URL"
+                  onMouseEnter={() => activeImageSourceTab === 'upload' && setShowShareTooltip(true)}
+                  onMouseLeave={() => activeImageSourceTab === 'upload' && setShowShareTooltip(false)}
                 >
                   <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
                     {showShareSuccess ? <Icons.Success /> : <Icons.Share />}
@@ -3034,9 +3034,8 @@ export function ClientApp() {
                     role="tooltip"
                     id="share-tooltip"
                   >
-                    <div style={{ position: 'relative' }}>
+                    <div className="slds-popover__body">
                       Uploaded image won't be shared, only text content and position settings will be shared
-                      <div className="tooltip-arrow"></div>
                     </div>
                   </div>
                 )}
@@ -3046,142 +3045,41 @@ export function ClientApp() {
                   <div className="slds-col">
                     <button
                       className="slds-button slds-button_brand download-button"
-                      onClick={(e) => {
-                        // Create ripple effect
-                        const button = e.currentTarget;
-                        const ripple = button.querySelector('.button-ripple-effect') as HTMLElement;
-                        if (ripple) {
-                          ripple.style.opacity = '1';
-                          ripple.style.transform = 'translate(-50%, -50%) scale(2.5)';
-                          setTimeout(() => {
-                            ripple.style.opacity = '0';
-                            ripple.style.transform = 'translate(-50%, -50%) scale(0)';
-                          }, 600);
-                        }
-                        
-                        // Download desktop version
-                        handleDesktopMobileDownload('desktop');
-                      }}
+                      onClick={() => handleDesktopMobileDownload('desktop')}
                       disabled={isLoading}
                       aria-label="Download desktop version (1240x968)"
-                      style={{
-                        position: 'relative', 
-                        overflow: 'hidden',
-                        transition: 'transform 0.2s ease, background-color 0.3s ease',
-                        width: '100%'
-                      }}
                     >
-                      <svg className="slds-button__icon slds-button__icon_left download-icon" aria-hidden="true">
+                      <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
                         <Icons.Download />
                       </svg>
                       Desktop
-                      <span className="button-ripple-effect" style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        width: '120%',
-                        height: '120%',
-                        transform: 'translate(-50%, -50%) scale(0)',
-                        backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                        borderRadius: '50%',
-                        opacity: '0',
-                        pointerEvents: 'none',
-                        transition: 'transform 0.6s ease-out, opacity 0.6s ease-out'
-                      }}></span>
                     </button>
                   </div>
                   <div className="slds-col">
                     <button
                       className="slds-button slds-button_brand download-button"
-                      onClick={(e) => {
-                        // Create ripple effect
-                        const button = e.currentTarget;
-                        const ripple = button.querySelector('.button-ripple-effect') as HTMLElement;
-                        if (ripple) {
-                          ripple.style.opacity = '1';
-                          ripple.style.transform = 'translate(-50%, -50%) scale(2.5)';
-                          setTimeout(() => {
-                            ripple.style.opacity = '0';
-                            ripple.style.transform = 'translate(-50%, -50%) scale(0)';
-                          }, 600);
-                        }
-                        
-                        // Download mobile version
-                        handleDesktopMobileDownload('mobile');
-                      }}
+                      onClick={() => handleDesktopMobileDownload('mobile')}
                       disabled={isLoading}
                       aria-label="Download mobile version (1240x1400)"
-                      style={{
-                        position: 'relative', 
-                        overflow: 'hidden',
-                        transition: 'transform 0.2s ease, background-color 0.3s ease',
-                        width: '100%'
-                      }}
                     >
-                      <svg className="slds-button__icon slds-button__icon_left download-icon" aria-hidden="true">
+                      <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
                         <Icons.Download />
                       </svg>
                       Mobile
-                      <span className="button-ripple-effect" style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        width: '120%',
-                        height: '120%',
-                        transform: 'translate(-50%, -50%) scale(0)',
-                        backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                        borderRadius: '50%',
-                        opacity: '0',
-                        pointerEvents: 'none',
-                        transition: 'transform 0.6s ease-out, opacity 0.6s ease-out'
-                      }}></span>
                     </button>
                   </div>
                 </div>
               ) : (
                 <button
                   className="slds-button slds-button_brand download-button"
-                  onClick={(e) => {
-                    // Create ripple effect
-                    const button = e.currentTarget;
-                    const ripple = button.querySelector('.button-ripple-effect') as HTMLElement;
-                    if (ripple) {
-                      ripple.style.opacity = '1';
-                      ripple.style.transform = 'translate(-50%, -50%) scale(2.5)';
-                      setTimeout(() => {
-                        ripple.style.opacity = '0';
-                        ripple.style.transform = 'translate(-50%, -50%) scale(0)';
-                      }, 600);
-                    }
-                    
-                    // Process download
-                    handleDownload();
-                  }}
+                  onClick={() => handleDownload()}
                   disabled={isLoading}
                   aria-label="Download image with overlay"
-                  style={{
-                    position: 'relative', 
-                    overflow: 'hidden',
-                    transition: 'transform 0.2s ease, background-color 0.3s ease'
-                  }}
                 >
-                  <svg className="slds-button__icon slds-button__icon_left download-icon" aria-hidden="true">
+                  <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
                     <Icons.Download />
                   </svg>
                   Download
-                  <span className="button-ripple-effect" style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    width: '120%',
-                    height: '120%',
-                    transform: 'translate(-50%, -50%) scale(0)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                    borderRadius: '50%',
-                    opacity: '0',
-                    pointerEvents: 'none',
-                    transition: 'transform 0.5s ease-out, opacity 0.5s ease-out'
-                  }}></span>
                 </button>
               )}
             </div>
