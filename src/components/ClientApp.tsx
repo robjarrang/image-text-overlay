@@ -1417,8 +1417,8 @@ export function ClientApp() {
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('imageSource')}
                       >
-                        <svg className="slds-icon slds-icon_small slds-button__icon slds-button__icon_left" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#switch"></use>
+                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#upload"></use>
                         </svg>
                         <span className="slds-accordion__summary-content">Image Source</span>
                         <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
@@ -1760,10 +1760,13 @@ export function ClientApp() {
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('imageAdjustments')}
                       >
-                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#image"></use>
+                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#slider"></use>
                         </svg>
                         <span className="slds-accordion__summary-content">Image Adjustments</span>
+                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
+                        </svg>
                       </button>
                     </h3>
                   </div>
@@ -1900,11 +1903,14 @@ export function ClientApp() {
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('textOverlays')}
                       >
-                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
+                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
                           <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#layers"></use>
                         </svg>
                         <span className="slds-accordion__summary-content">Text Overlays</span>
                         <span className="slds-badge slds-m-left_xx-small">{formState.textOverlays.length}</span>
+                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
+                        </svg>
                       </button>
                     </h3>
                   </div>
@@ -2031,10 +2037,13 @@ export function ClientApp() {
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('imageOverlays')}
                       >
-                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#image"></use>
+                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#layers"></use>
                         </svg>
                         <span className="slds-accordion__summary-content">Image Overlays</span>
+                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
+                        </svg>
                       </button>
                     </h3>
                   </div>
@@ -2197,7 +2206,7 @@ export function ClientApp() {
                                 }}
                               >
                                 <div className="slds-p-around_small">
-                                  <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-start">
+                                  <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
                                     {/* Main Content */}
                                     <button
                                       className="slds-media slds-media_center overlay-select-button"
@@ -2253,31 +2262,27 @@ export function ClientApp() {
                                         <h5 className={`slds-text-heading_small ${formState.activeOverlayId === overlay.id && formState.activeOverlayType === 'image' ? 'slds-text-color_brand' : 'slds-text-color_default'}`}>
                                           {overlay.presetLogoId ? `${overlay.presetLogoId} Logo` : `Image ${index + 1}`}
                                         </h5>
-                                        <div className="slds-grid slds-gutters_x-small slds-grid_vertical-align-center">
-                                          <div className="slds-col">
-                                            <span className="slds-text-body_small slds-text-color_weak">
-                                              Position: {Math.round(
-                                                activeImageSourceTab === 'desktop-mobile' 
-                                                  ? (desktopMobileVersion === 'desktop' 
-                                                      ? (overlay.desktopX ?? overlay.x) 
-                                                      : (overlay.mobileX ?? overlay.x))
-                                                  : overlay.x
-                                              )}%, {Math.round(
-                                                activeImageSourceTab === 'desktop-mobile' 
-                                                  ? (desktopMobileVersion === 'desktop' 
-                                                      ? (overlay.desktopY ?? overlay.y) 
-                                                      : (overlay.mobileY ?? overlay.y))
-                                                  : overlay.y
-                                              )}% • Size: {Math.round(
-                                                activeImageSourceTab === 'desktop-mobile' 
-                                                  ? (desktopMobileVersion === 'desktop' 
-                                                      ? (overlay.desktopWidth ?? overlay.width) 
-                                                      : (overlay.mobileWidth ?? overlay.width))
-                                                  : overlay.width
-                                              )}%
-                                            </span>
-                                          </div>
-                                        </div>
+                                        <span className="slds-text-body_small slds-text-color_weak">
+                                          Position: {Math.round(
+                                            activeImageSourceTab === 'desktop-mobile' 
+                                              ? (desktopMobileVersion === 'desktop' 
+                                                  ? (overlay.desktopX ?? overlay.x) 
+                                                  : (overlay.mobileX ?? overlay.x))
+                                              : overlay.x
+                                          )}%, {Math.round(
+                                            activeImageSourceTab === 'desktop-mobile' 
+                                              ? (desktopMobileVersion === 'desktop' 
+                                                  ? (overlay.desktopY ?? overlay.y) 
+                                                  : (overlay.mobileY ?? overlay.y))
+                                              : overlay.y
+                                          )}% • Size: {Math.round(
+                                            activeImageSourceTab === 'desktop-mobile' 
+                                              ? (desktopMobileVersion === 'desktop' 
+                                                  ? (overlay.desktopWidth ?? overlay.width) 
+                                                  : (overlay.mobileWidth ?? overlay.width))
+                                              : overlay.width
+                                          )}%
+                                        </span>
                                       </div>
                                     </button>
                                     
@@ -2349,10 +2354,13 @@ export function ClientApp() {
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('textContent')}
                       >
-                        <svg className="slds-accordion__summary-action-icon slds-button__icon slds-button__icon_left" aria-hidden="true">
+                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
                           <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#text"></use>
                         </svg>
                         <span className="slds-accordion__summary-content">Text Content</span>
+                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
+                        </svg>
                       </button>
                     </h3>
                   </div>
@@ -2392,7 +2400,7 @@ export function ClientApp() {
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('textStyle')}
                       >
-                        <svg className="slds-icon slds-icon_small slds-button__icon slds-button__icon_left" aria-hidden="true">
+                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
                           <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#brush"></use>
                         </svg>
                         <span className="slds-accordion__summary-content">Text Style & Position</span>
@@ -2821,7 +2829,7 @@ export function ClientApp() {
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('imageSettings')}
                       >
-                        <svg className="slds-icon slds-icon_small slds-button__icon slds-button__icon_left" aria-hidden="true">
+                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
                           <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#settings"></use>
                         </svg>
                         <span className="slds-accordion__summary-content">Image Settings</span>

@@ -2771,6 +2771,15 @@ main,
   gap: 0.25rem;
 }
 
+.slds-tabs_responsive .slds-tabs_scoped__item {
+  margin-right: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.slds-tabs_responsive .slds-tabs_scoped__item:last-child {
+  margin-right: 0;
+}
+
 /* Enhanced Accordion Styles - SLDS Compliant */
 .slds-accordion__section {
   border: 1px solid var(--slds-g-color-border-base-1, #e5e5e5);
@@ -2830,21 +2839,53 @@ main,
   background-color: var(--slds-g-color-neutral-base-25, #3a3a3a);
 }
 
-/* Chevron icon styling - Standard SLDS pattern */
+/* Prevent any icon rotation in accordions - EXCEPT chevrons */
+.slds-accordion__summary-action .slds-icon:not(.slds-accordion__summary-action-icon) {
+  transition: none !important;
+  transform: none !important;
+}
+
+.slds-accordion__section.slds-is-open .slds-accordion__summary-action .slds-icon:not(.slds-accordion__summary-action-icon) {
+  transform: none !important;
+}
+
+/* Chevron icon styling - Proper directional indicators */
 .slds-accordion__summary-action-icon {
-  transition: transform 0.2s ease;
-  transform: rotate(0deg); /* Down arrow when closed */
   flex-shrink: 0;
+  transition: transform 0.2s ease;
+  transform: rotate(-90deg); /* Point right when closed */
 }
 
 .slds-accordion__section.slds-is-open .slds-accordion__summary-action-icon {
-  transform: rotate(180deg); /* Up arrow when open */
+  transform: rotate(0deg); /* Point down when open */
 }
 
 .slds-accordion__content {
-  padding: 0 1rem 1rem 1rem;
+  padding: 1rem;
   transition: all 0.2s ease;
   border-radius: 0 0 0.25rem 0.25rem;
+}
+
+/* Ensure proper spacing between accordion sections */
+.slds-accordion__section {
+  margin-bottom: 1rem;
+}
+
+.slds-accordion__section:last-child {
+  margin-bottom: 0;
+}
+
+/* Add spacing for form sections within accordion content */
+.slds-accordion__content .form-section:first-child {
+  margin-top: 0;
+}
+
+.slds-accordion__content .form-section {
+  margin-bottom: 1rem;
+}
+
+.slds-accordion__content .form-section:last-child {
+  margin-bottom: 0;
 }
 
 /* Active state styling */
