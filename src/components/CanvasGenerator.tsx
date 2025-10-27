@@ -418,7 +418,7 @@ export function CanvasGenerator({
     const actualX = (effectiveX / 100) * canvasWidth;
     const actualY = (effectiveY / 100) * canvasHeight;
     const actualWidth = (effectiveWidth / 100) * canvasWidth;
-    const actualHeight = (effectiveHeight / 100) * canvasWidth; // Use width for consistent scaling
+    const actualHeight = (effectiveHeight / 100) * canvasHeight; // Fixed: Use canvasHeight instead of canvasWidth
 
     // Create and draw the image
     const img = new Image();
