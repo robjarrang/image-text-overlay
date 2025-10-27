@@ -522,7 +522,7 @@ export function CanvasGenerator({
           const actualX = (effectiveX / 100) * imageWidth;
           const actualY = (effectiveY / 100) * imageHeight;
           const actualWidth = (effectiveWidth / 100) * imageWidth;
-          const actualHeight = (effectiveHeight / 100) * imageWidth; // Use width for consistent scaling
+          const actualHeight = (effectiveHeight / 100) * imageHeight; // Fixed: Use imageHeight instead of imageWidth
 
           drawImageHoverEffect(displayCtx, actualX, actualY, actualWidth, actualHeight);
         }
@@ -591,7 +591,7 @@ export function CanvasGenerator({
           const actualX = (effectiveX / 100) * canvasWidth;
           const actualY = (effectiveY / 100) * canvasHeight;
           const actualWidth = (effectiveWidth / 100) * canvasWidth;
-          const actualHeight = (effectiveHeight / 100) * canvasWidth; // Use width for consistent scaling
+          const actualHeight = (effectiveHeight / 100) * canvasHeight; // Fixed: Use canvasHeight instead of canvasWidth
 
           drawImageHoverEffect(displayCtx, actualX, actualY, actualWidth, actualHeight);
         }
@@ -739,7 +739,7 @@ export function CanvasGenerator({
     const actualX = (effectiveX / 100) * canvasWidth;
     const actualY = (effectiveY / 100) * canvasHeight;
     const actualWidth = (effectiveWidth / 100) * canvasWidth;
-    const actualHeight = (effectiveHeight / 100) * canvasWidth; // Use width for consistent scaling
+    const actualHeight = (effectiveHeight / 100) * canvasHeight; // Fixed: Use canvasHeight instead of canvasWidth
 
     // Check if the point is within the bounds of the image
     return (
@@ -887,7 +887,7 @@ export function CanvasGenerator({
     const actualX = (effectiveX / 100) * canvasWidth;
     const actualY = (effectiveY / 100) * canvasHeight;
     const actualWidth = (effectiveWidth / 100) * canvasWidth;
-    const actualHeight = (effectiveHeight / 100) * canvasWidth; // Use width for consistent scaling
+    const actualHeight = (effectiveHeight / 100) * canvasHeight; // Fixed: Use canvasHeight instead of canvasWidth
 
     const padding = 4;
 
