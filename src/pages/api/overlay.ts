@@ -13,7 +13,7 @@ export const config = {
   },
 };
 
-// Keep dimensions minimal for memory efficiency
+// Base dimensions for fallback (actual exports will be 2x for retina)
 const MAX_WIDTH = 400;
 const MAX_HEIGHT = 300;
 
@@ -334,8 +334,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const metadata = await image.metadata();
       console.log('Image metadata:', metadata);
       
-      imageWidth = metadata.width || MAX_WIDTH;
-      imageHeight = metadata.height || MAX_HEIGHT;
+      // Export at 2x resolution for retina displays
+      const retinaScale = 2;
+      imageWidth = (metadata.width || MAX_WIDTH) * retinaScale;
+      imageHeight = (metadata.height || MAX_HEIGHT) * retinaScale;
+      
+      console.log('Export dimensions (2x for retina):', { width: imageWidth, height: imageHeight });
       
       // Check if source image has transparency
       hasAlpha = metadata.channels === 4 || Boolean(metadata.hasAlpha);
