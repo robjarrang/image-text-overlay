@@ -302,13 +302,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       // Resize background image to fit the fixed dimensions
       const backgroundImage = sharp(backgroundBuffer)
-        .resize(imageWidth, imageHeight, { fit: 'cover' });
+        .resize(imageWidth, imageHeight, { fit: 'cover' })
+        .ensureAlpha(); // Ensure alpha channel for proper overlay compositing
       
       // Keep background separate - don't composite logo yet
       console.log('Background image prepared for desktop/mobile mode');
       transformedImage = backgroundImage;
       
-      hasAlpha = false;
+      hasAlpha = true; // Set to true since we're ensuring alpha channel
       console.log('Desktop/mobile image prepared:', { width: imageWidth, height: imageHeight, version: desktopMobileVersion });
     } else {
       // Fetch and process image
@@ -350,7 +351,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const offsetY = (scaledHeight - imageHeight) * imageYPercent;
 
       // Create a new Sharp instance with the transformed image
-      transformedImage = sharp(imageBuffer)
+      let imageTransform = sharp(imageBuffer)
         .resize(scaledWidth, scaledHeight)
         .extract({
           left: Math.round(offsetX),
@@ -358,6 +359,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           width: imageWidth,
           height: imageHeight
         });
+
+      // Ensure alpha channel if we'll be adding image overlays
+      if (imageOverlays.length > 0 && !hasAlpha) {
+        imageTransform = imageTransform.ensureAlpha();
+        hasAlpha = true;
+      }
+
+      transformedImage = imageTransform;
 
       // Apply brightness adjustment if not 100% and not transparent mode
       const brightnessValue = parseInt(brightness as string);
@@ -518,14 +527,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           
           // Resize the overlay image and prepare for compositing
           const processedOverlay = await sharp(overlayBuffer)
-            .resize(actualWidth, actualHeight, { fit: 'contain' })
-            .png() // Convert to PNG to preserve transparency
+            .resize(actualWidth, actualHeight, { 
+              fit: 'contain',
+              background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
+            })
+            .ensureAlpha() // Ensure alpha channel is present
+            .png({ 
+              compressionLevel: 6,
+              adaptiveFiltering: true,
+              force: true // Force PNG output
+            })
             .toBuffer();
           
           imageComposites.push({
             input: processedOverlay,
             top: actualY,
-            left: actualX
+            left: actualX,
+            blend: 'over' // Use 'over' blend mode for proper alpha compositing
           });
           
           console.log(`Image overlay processed successfully: ${actualWidth}x${actualHeight} at (${actualX}, ${actualY})`);
@@ -565,15 +583,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             
             // Resize logo for compositing
             const resizedLogo = await sharp(logoBuffer)
-              .resize(logoWidth, null, { withoutEnlargement: false })
-              .png()
+              .resize(logoWidth, null, { 
+                withoutEnlargement: false,
+                background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
+              })
+              .ensureAlpha() // Ensure alpha channel is present
+              .png({ 
+                compressionLevel: 6,
+                adaptiveFiltering: true,
+                force: true
+              })
               .toBuffer();
             
             // Add logo to composites (it will appear on top of user image overlays)
             allComposites.push({
               input: resizedLogo,
               top: 0,
-              left: 20
+              left: 20,
+              blend: 'over' // Use 'over' blend mode for proper alpha compositing
             });
             
             console.log('Built-in logo added to compositing stack at top-left corner');
@@ -599,7 +626,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           console.log('Has transparency or image overlays, outputting PNG...');
           finalImage = await transformedImage
             .composite(allComposites)
-            .png({ quality: 90 })
+            .png({ 
+              quality: 90,
+              compressionLevel: 6,
+              adaptiveFiltering: true,
+              force: true // Force PNG output to preserve alpha
+            })
             .toBuffer();
           contentType = 'image/png';
           fileExtension = 'png';
@@ -617,7 +649,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (needsPng) {
           console.log('Source has transparency, outputting PNG...');
           finalImage = await transformedImage
-            .png({ quality: 90 })
+            .png({ 
+              quality: 90,
+              compressionLevel: 6,
+              adaptiveFiltering: true,
+              force: true
+            })
             .toBuffer();
           contentType = 'image/png';
           fileExtension = 'png';
