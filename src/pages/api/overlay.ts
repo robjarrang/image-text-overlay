@@ -503,7 +503,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           
           // Convert percentages to actual pixels
           const actualWidth = Math.round((effectiveWidth / 100) * imageWidth);
-          const actualHeight = Math.round((effectiveHeight / 100) * imageHeight);
+          const actualHeight = Math.round((effectiveHeight / 100) * imageWidth); // Height values are stored as a percentage of image width
           const actualX = Math.round((effectiveX / 100) * imageWidth);
           const actualY = Math.round((effectiveY / 100) * imageHeight);
           
