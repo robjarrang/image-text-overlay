@@ -718,6 +718,12 @@ export function ClientApp() {
           imageY: shareData.y !== undefined ? shareData.y : 0 // Default to 0 if not specified
         };
         console.log('🔍 URL state to apply:', urlState);
+
+        if (mode === 'transparent') {
+          console.log('🔍 Transparent mode detected, forcing transparent canvas imageUrl');
+          urlState.imageUrl = 'transparent';
+          setOriginalImageUrl('transparent');
+        }
         
         // Handle image URL and trigger loading immediately if needed - support both old and new formats
         const imageUrl = decompressUrl(shareData.img || shareData.i);
