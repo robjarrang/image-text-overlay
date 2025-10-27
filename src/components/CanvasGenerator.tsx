@@ -418,7 +418,7 @@ export function CanvasGenerator({
     const actualX = (effectiveX / 100) * canvasWidth;
     const actualY = (effectiveY / 100) * canvasHeight;
     const actualWidth = (effectiveWidth / 100) * canvasWidth;
-    const actualHeight = (effectiveHeight / 100) * canvasHeight; // Fixed: Use canvasHeight instead of canvasWidth
+    const actualHeight = (effectiveHeight / 100) * canvasWidth; // Maintain consistent scaling with export renderer
 
     // Create and draw the image
     const img = new Image();
@@ -522,7 +522,7 @@ export function CanvasGenerator({
           const actualX = (effectiveX / 100) * imageWidth;
           const actualY = (effectiveY / 100) * imageHeight;
           const actualWidth = (effectiveWidth / 100) * imageWidth;
-          const actualHeight = (effectiveHeight / 100) * imageHeight; // Fixed: Use imageHeight instead of imageWidth
+          const actualHeight = (effectiveHeight / 100) * imageWidth; // Match preview scaling so hover highlights align
 
           drawImageHoverEffect(displayCtx, actualX, actualY, actualWidth, actualHeight);
         }
@@ -591,7 +591,7 @@ export function CanvasGenerator({
           const actualX = (effectiveX / 100) * canvasWidth;
           const actualY = (effectiveY / 100) * canvasHeight;
           const actualWidth = (effectiveWidth / 100) * canvasWidth;
-          const actualHeight = (effectiveHeight / 100) * canvasHeight; // Fixed: Use canvasHeight instead of canvasWidth
+          const actualHeight = (effectiveHeight / 100) * canvasWidth; // Keep hover effect sizing consistent with main render
 
           drawImageHoverEffect(displayCtx, actualX, actualY, actualWidth, actualHeight);
         }
@@ -739,7 +739,7 @@ export function CanvasGenerator({
     const actualX = (effectiveX / 100) * canvasWidth;
     const actualY = (effectiveY / 100) * canvasHeight;
     const actualWidth = (effectiveWidth / 100) * canvasWidth;
-    const actualHeight = (effectiveHeight / 100) * canvasHeight; // Fixed: Use canvasHeight instead of canvasWidth
+  const actualHeight = (effectiveHeight / 100) * canvasWidth; // Match drawing logic that bases height ratios on width
 
     // Check if the point is within the bounds of the image
     return (
@@ -887,7 +887,7 @@ export function CanvasGenerator({
     const actualX = (effectiveX / 100) * canvasWidth;
     const actualY = (effectiveY / 100) * canvasHeight;
     const actualWidth = (effectiveWidth / 100) * canvasWidth;
-    const actualHeight = (effectiveHeight / 100) * canvasHeight; // Fixed: Use canvasHeight instead of canvasWidth
+  const actualHeight = (effectiveHeight / 100) * canvasWidth; // Keep resize bounds aligned with rendered image
 
     const padding = 4;
 
