@@ -113,7 +113,7 @@ export function ClientApp() {
     imageY: 0
   });
   const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
-  const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload' | 'transparent' | 'desktop-mobile'>('url');
+  const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload' | 'transparent' | 'desktop-mobile'>('desktop-mobile');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
