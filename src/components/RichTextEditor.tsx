@@ -88,15 +88,18 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     
+    // Automatically superscript the ® symbol
+    const symbolToInsert = symbol === '®' ? `^{${symbol}}` : symbol;
+    
     // Insert the symbol
-    const newValue = value.substring(0, start) + symbol + value.substring(end);
+    const newValue = value.substring(0, start) + symbolToInsert + value.substring(end);
     onChange(newValue);
     
     // Place cursor after the inserted symbol
     setTimeout(() => {
       textarea.focus();
-      textarea.selectionStart = start + symbol.length;
-      textarea.selectionEnd = start + symbol.length;
+      textarea.selectionStart = start + symbolToInsert.length;
+      textarea.selectionEnd = start + symbolToInsert.length;
     }, 0);
   };
 
