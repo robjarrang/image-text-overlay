@@ -248,51 +248,42 @@ export function CanvasGenerator({
     let currentLineIndex = 0;
 
     lines.forEach((line, originalLineIndex) => {
-      // For each processed line, we'll handle wrapping and then draw
+      // Calculate total width of all parts on this line to handle inline positioning
+      let lineStartX = actualX;
+      let currentX = lineStartX;
+      
+      // For each processed line, draw all parts on the same line
       line.parts.forEach((part, partIndex) => {
-        // Apply wrapping to each text part separately to preserve formatting
-        const wrappedLines = wrapText(ctx, part.text, maxWidth, scaledFontSize);
+        const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+        const lineHeight = scaledFontSize * 1.2;
+        const currentY = actualY + currentLineIndex * lineHeight;
+        const textY = currentY - (part.isSuper ? scaledFontSize * 0.3 : 0);
         
-        wrappedLines.forEach((wrappedLineText, wrappedIndex) => {
-          let lineX = actualX;
-          const lineHeight = scaledFontSize * 1.2;
-          const currentY = actualY + currentLineIndex * lineHeight;
+        // Set font for this part
+        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+        const displayText = overlay.allCaps ? part.text.toUpperCase() : part.text;
+        const textWidth = ctx.measureText(displayText).width;
+        
+        // Draw visual indicator only on hover
+        if (hoveredOverlayId === overlay.id && !isDragging && !isResizing) {
+          ctx.save();
+          const padding = partSize * 0.1;
+          const boxX = currentX - padding;
+          const boxY = textY - partSize - padding;
+          const boxWidth = textWidth + (padding * 2);
+          const boxHeight = partSize + (padding * 2);
           
-          // Calculate text width for alignment (simplified for wrapped text)
-          const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
-          ctx.font = `${partSize}px HelveticaNeue-Condensed`;
-          const alignmentDisplayText = overlay.allCaps ? wrappedLineText.toUpperCase() : wrappedLineText;
-          const textWidth = ctx.measureText(alignmentDisplayText).width;
+          // Light blue background
+          ctx.fillStyle = 'rgba(0, 123, 255, 0.1)';
+          ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
           
-          // Adjust position based on alignment
-          if (line.align === 'center') {
-            lineX = actualX - (textWidth / 2);
-          } else if (line.align === 'right') {
-            lineX = actualX - textWidth;
-          }
+          // Blue border outline
+          ctx.strokeStyle = 'rgba(0, 123, 255, 0.3)';
+          ctx.lineWidth = Math.max(1, partSize * 0.015);
+          ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
           
-          // Draw visual indicator only on hover
-          const textY = currentY - (part.isSuper ? scaledFontSize * 0.3 : 0);
-          
-          // Add hover effect - subtle background with border
-          if (hoveredOverlayId === overlay.id && !isDragging && !isResizing) {
-            ctx.save();
-            const padding = partSize * 0.1;
-            const boxX = lineX - padding;
-            const boxY = textY - partSize - padding;
-            const boxWidth = textWidth + (padding * 2);
-            const boxHeight = partSize + (padding * 2);
-            
-            // Light blue background
-            ctx.fillStyle = 'rgba(0, 123, 255, 0.1)';
-            ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-            
-            // Blue border outline
-            ctx.strokeStyle = 'rgba(0, 123, 255, 0.3)';
-            ctx.lineWidth = Math.max(1, partSize * 0.015);
-            ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
-            
-            // Draw resize handle in bottom-right corner
+          // Draw resize handle only on the last part of the line
+          if (partIndex === line.parts.length - 1) {
             const handleSize = Math.max(8, partSize * 0.15);
             const handleX = boxX + boxWidth - handleSize;
             const handleY = boxY + boxHeight - handleSize;
@@ -315,19 +306,21 @@ export function CanvasGenerator({
               ctx.lineTo(handleX + handleSize, handleY + offset);
               ctx.stroke();
             }
-            
-            ctx.restore();
           }
           
-          // Draw the actual text
-          ctx.font = `${partSize}px HelveticaNeue-Condensed`;
-          ctx.fillStyle = overlay.fontColor;
-          const displayText = overlay.allCaps ? wrappedLineText.toUpperCase() : wrappedLineText;
-          ctx.fillText(displayText, lineX, textY);
-          
-          currentLineIndex++;
-        });
+          ctx.restore();
+        }
+        
+        // Draw the actual text
+        ctx.fillStyle = overlay.fontColor;
+        ctx.fillText(displayText, currentX, textY);
+        
+        // Move X position for next part
+        currentX += textWidth;
       });
+      
+      // Only increment line index once per logical line (not per part)
+      currentLineIndex++;
     });
   };
 
