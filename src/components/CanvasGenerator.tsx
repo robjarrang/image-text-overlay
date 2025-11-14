@@ -248,8 +248,23 @@ export function CanvasGenerator({
     let currentLineIndex = 0;
 
     lines.forEach((line, originalLineIndex) => {
-      // Calculate total width of all parts on this line to handle inline positioning
+      // Calculate total width of all parts on this line to handle alignment
+      let totalLineWidth = 0;
+      line.parts.forEach(part => {
+        const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+        const displayText = overlay.allCaps ? part.text.toUpperCase() : part.text;
+        totalLineWidth += ctx.measureText(displayText).width;
+      });
+      
+      // Calculate starting X position based on alignment
       let lineStartX = actualX;
+      if (line.align === 'center') {
+        lineStartX = actualX - (totalLineWidth / 2);
+      } else if (line.align === 'right') {
+        lineStartX = actualX - totalLineWidth;
+      }
+      
       let currentX = lineStartX;
       
       // For each processed line, draw all parts on the same line
