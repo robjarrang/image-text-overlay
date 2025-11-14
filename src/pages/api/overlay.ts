@@ -430,38 +430,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         let currentLineIndex = 0;
 
         lines.forEach((line, originalLineIndex) => {
-          // For each processed line, handle wrapping and then draw
-          line.parts.forEach((part, partIndex) => {
-            // Apply wrapping to each text part separately to preserve formatting
+          // Calculate total width of all parts on this line to handle alignment
+          let totalLineWidth = 0;
+          line.parts.forEach(part => {
+            const partSize = part.isSuper ? actualFontSize * 0.7 : actualFontSize;
             const displayText = overlay.allCaps ? part.text.toUpperCase() : part.text;
-            const wrappedLines = wrapText(font, displayText, maxWidth, actualFontSize);
-            
-            wrappedLines.forEach((wrappedLineText, wrappedIndex) => {
-              const lineHeight = actualFontSize * 1.2;
-              const currentY = actualY + currentLineIndex * lineHeight;
-              
-              // Calculate text width for alignment
-              const partSize = part.isSuper ? actualFontSize * 0.7 : actualFontSize;
-              const testPath = font.getPath(wrappedLineText, 0, 0, partSize);
-              const bbox = testPath.getBoundingBox();
-              const textWidth = bbox.x2 - bbox.x1;
-              
-              // Calculate X position based on alignment
-              let lineX = actualX;
-              if (line.align === 'center') {
-                lineX = (imageWidth - textWidth) / 2;
-              } else if (line.align === 'right') {
-                lineX = imageWidth - textWidth - ((100 - x) / 100 * imageWidth);
-              }
-              
-              // Draw the wrapped line part
-              const partY = part.isSuper ? currentY - (actualFontSize * 0.3) : currentY;
-              const path = font.getPath(wrappedLineText, lineX, partY, partSize);
-              svgPaths += `<path d="${path.toPathData()}" fill="${fontColor}" />`;
-              
-              currentLineIndex++;
-            });
+            const testPath = font.getPath(displayText, 0, 0, partSize);
+            const bbox = testPath.getBoundingBox();
+            totalLineWidth += bbox.x2 - bbox.x1;
           });
+          
+          // Calculate starting X position based on alignment
+          let lineStartX = actualX;
+          if (line.align === 'center') {
+            lineStartX = (imageWidth - totalLineWidth) / 2;
+          } else if (line.align === 'right') {
+            lineStartX = imageWidth - totalLineWidth - ((100 - x) / 100 * imageWidth);
+          }
+          
+          let currentX = lineStartX;
+          
+          // Draw all parts on the same line
+          line.parts.forEach((part, partIndex) => {
+            const lineHeight = actualFontSize * 1.2;
+            const currentY = actualY + currentLineIndex * lineHeight;
+            
+            const partSize = part.isSuper ? actualFontSize * 0.7 : actualFontSize;
+            const displayText = overlay.allCaps ? part.text.toUpperCase() : part.text;
+            
+            // Draw the part
+            const partY = part.isSuper ? currentY - (actualFontSize * 0.3) : currentY;
+            const path = font.getPath(displayText, currentX, partY, partSize);
+            svgPaths += `<path d="${path.toPathData()}" fill="${fontColor}" />`;
+            
+            // Calculate this part's width and advance X position
+            const testPath = font.getPath(displayText, 0, 0, partSize);
+            const bbox = testPath.getBoundingBox();
+            currentX += bbox.x2 - bbox.x1;
+          });
+          
+          // Only increment line index once per logical line (not per part)
+          currentLineIndex++;
         });
       }
 
