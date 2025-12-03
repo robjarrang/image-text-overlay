@@ -95,6 +95,39 @@ const DIMENSION_CONSTRAINTS = {
   MAX_HEIGHT: 5000
 };
 
+// Font size conversion constants
+// The reference width for font size calculations (desktop/mobile canvas width)
+const FONT_REFERENCE_WIDTH = 1240;
+const DEFAULT_FONT_SIZE_PX = 62; // ~5% of 1240px, default font size
+
+// Convert percentage-based font size to pixel value for display
+// When referenceWidth is provided, use it; otherwise use default 1240
+const fontPercentToPixels = (percent: number, referenceWidth: number = FONT_REFERENCE_WIDTH): number => {
+  return Math.round((percent / 100) * referenceWidth);
+};
+
+// Convert pixel value to percentage for internal storage
+// When referenceWidth is provided, use it; otherwise use default 1240
+const fontPixelsToPercent = (pixels: number, referenceWidth: number = FONT_REFERENCE_WIDTH): number => {
+  return Number(((pixels / referenceWidth) * 100).toFixed(2));
+};
+
+// Check if a font size value is likely in pixels (legacy URLs use percentages 1-20)
+// Values above 20 are assumed to be pixels
+const isFontSizeInPixels = (value: number): boolean => {
+  return value > 20;
+};
+
+// Convert legacy percentage to pixels, or keep pixels if already in pixel format
+const normalizeFontSize = (value: number): number => {
+  if (isFontSizeInPixels(value)) {
+    // Already in pixels
+    return value;
+  }
+  // Convert from percentage to pixels
+  return fontPercentToPixels(value);
+};
+
 export function ClientApp() {
   const [formState, setFormState] = useState<FormState>({
     textOverlays: [],
@@ -2613,7 +2646,7 @@ export function ClientApp() {
                                         {overlay.text || <em>Empty text</em>}
                                       </span>
                                       <span className="slds-text-body_small slds-text-color_weak slds-m-left_small">
-                                        {Number(overlay.fontSize).toFixed(1)}%
+                                        {fontPercentToPixels(overlay.fontSize, activeImageSourceTab === 'desktop-mobile' ? FONT_REFERENCE_WIDTH : formState.width)}px
                                       </span>
                                     </div>
                                   </button>
@@ -2737,28 +2770,28 @@ export function ClientApp() {
                                             <input
                                               type="range"
                                               id={`${desktopMobileVersion}FontSize`}
-                                              min={1}
-                                              max={20}
-                                              step={0.1}
-                                              value={desktopMobileVersion === 'desktop' 
+                                              min={12}
+                                              max={248}
+                                              step={1}
+                                              value={fontPercentToPixels(desktopMobileVersion === 'desktop' 
                                                 ? (activeOverlay?.desktopFontSize ?? (activeOverlay?.fontSize || 5))
                                                 : (activeOverlay?.mobileFontSize ?? (activeOverlay?.fontSize || 5))
-                                              }
+                                              )}
                                               onChange={(e) => updateActiveOverlay(
                                                 desktopMobileVersion === 'desktop' ? 'desktopFontSize' : 'mobileFontSize', 
-                                                Number(parseFloat(e.target.value).toFixed(1))
+                                                fontPixelsToPercent(parseInt(e.target.value))
                                               )}
                                               className="slds-slider__range"
-                                              aria-valuemin={1}
-                                              aria-valuemax={20}
-                                              aria-valuenow={desktopMobileVersion === 'desktop' 
+                                              aria-valuemin={12}
+                                              aria-valuemax={248}
+                                              aria-valuenow={fontPercentToPixels(desktopMobileVersion === 'desktop' 
                                                 ? (activeOverlay?.desktopFontSize ?? (activeOverlay?.fontSize || 5))
                                                 : (activeOverlay?.mobileFontSize ?? (activeOverlay?.fontSize || 5))
-                                              }
-                                              aria-valuetext={`${desktopMobileVersion === 'desktop' 
+                                              )}
+                                              aria-valuetext={`${fontPercentToPixels(desktopMobileVersion === 'desktop' 
                                                 ? (activeOverlay?.desktopFontSize ?? (activeOverlay?.fontSize || 5))
                                                 : (activeOverlay?.mobileFontSize ?? (activeOverlay?.fontSize || 5))
-                                              }% of ${desktopMobileVersion} width`}
+                                              )}px font size`}
                                             />
                                           </div>
                                         </div>
@@ -2767,46 +2800,46 @@ export function ClientApp() {
                                             <input
                                               type="number"
                                               className="slds-input font-size-percentage-input"
-                                              min={1}
-                                              max={20}
-                                              step={0.1}
-                                              value={desktopMobileVersion === 'desktop' 
+                                              min={12}
+                                              max={248}
+                                              step={1}
+                                              value={fontPercentToPixels(desktopMobileVersion === 'desktop' 
                                                 ? (activeOverlay?.desktopFontSize ?? (activeOverlay?.fontSize || 5))
                                                 : (activeOverlay?.mobileFontSize ?? (activeOverlay?.fontSize || 5))
-                                              }
+                                              )}
                                               onChange={(e) => {
-                                                const value = parseFloat(e.target.value);
-                                                if (!isNaN(value) && value >= 1 && value <= 20) {
+                                                const value = parseInt(e.target.value);
+                                                if (!isNaN(value) && value >= 12 && value <= 248) {
                                                   updateActiveOverlay(
                                                     desktopMobileVersion === 'desktop' ? 'desktopFontSize' : 'mobileFontSize', 
-                                                    Number(value.toFixed(1))
+                                                    fontPixelsToPercent(value)
                                                   );
                                                 }
                                               }}
                                               onBlur={(e) => {
-                                                let value = parseFloat(e.target.value);
-                                                if (isNaN(value)) value = 5;
-                                                if (value < 1) value = 1;
-                                                if (value > 20) value = 20;
+                                                let value = parseInt(e.target.value);
+                                                if (isNaN(value)) value = DEFAULT_FONT_SIZE_PX;
+                                                if (value < 12) value = 12;
+                                                if (value > 248) value = 248;
                                                 updateActiveOverlay(
                                                   desktopMobileVersion === 'desktop' ? 'desktopFontSize' : 'mobileFontSize', 
-                                                  Number(value.toFixed(1))
+                                                  fontPixelsToPercent(value)
                                                 );
                                               }}
-                                              aria-label={`${desktopMobileVersion} font size percentage`}
+                                              aria-label={`${desktopMobileVersion} font size in pixels`}
                                               style={{ width: "100%", minWidth: "60px" }}
                                             />
                                           </div>
-                                          <div className="slds-form-element__help slds-text-align_center">%</div>
+                                          <div className="slds-form-element__help slds-text-align_center">px</div>
                                         </div>
                                       </div>
                                       <div className="slds-form-element__help">
-                                        Percent of image width (1240px). Switch to {desktopMobileVersion === 'desktop' ? 'Mobile' : 'Desktop'} to adjust that version.
+                                        Font size in pixels. Switch to {desktopMobileVersion === 'desktop' ? 'Mobile' : 'Desktop'} to adjust that version.
                                       </div>
                                     </div>
                                   </div>
                                 ) : (
-                                  /* Regular Font Size Control */
+                                  /* Regular Font Size Control - uses actual image width */
                                   <div className="slds-form-element">
                                     <label className="slds-form-element__label" htmlFor="fontSize">
                                       Font Size
@@ -2818,16 +2851,16 @@ export function ClientApp() {
                                             <input
                                               type="range"
                                               id="fontSize"
-                                              min={1}
-                                              max={20}
-                                              step={0.1}
-                                              value={activeOverlay?.fontSize || 5}
-                                              onChange={(e) => updateActiveOverlay('fontSize', Number(parseFloat(e.target.value).toFixed(1)))}
+                                              min={Math.round(formState.width * 0.01)}
+                                              max={Math.round(formState.width * 0.20)}
+                                              step={1}
+                                              value={fontPercentToPixels(activeOverlay?.fontSize || 5, formState.width)}
+                                              onChange={(e) => updateActiveOverlay('fontSize', fontPixelsToPercent(parseInt(e.target.value), formState.width))}
                                               className="slds-slider__range"
-                                              aria-valuemin={1}
-                                              aria-valuemax={20}
-                                              aria-valuenow={activeOverlay?.fontSize || 5}
-                                              aria-valuetext={`${activeOverlay?.fontSize || 5}% of image width`}
+                                              aria-valuemin={Math.round(formState.width * 0.01)}
+                                              aria-valuemax={Math.round(formState.width * 0.20)}
+                                              aria-valuenow={fontPercentToPixels(activeOverlay?.fontSize || 5, formState.width)}
+                                              aria-valuetext={`${fontPercentToPixels(activeOverlay?.fontSize || 5, formState.width)}px font size`}
                                             />
                                           </div>
                                         </div>
@@ -2836,32 +2869,37 @@ export function ClientApp() {
                                             <input
                                               type="number"
                                               className="slds-input font-size-percentage-input"
-                                              min={1}
-                                              max={20}
-                                              step={0.1}
-                                              value={activeOverlay?.fontSize || 5}
+                                              min={Math.round(formState.width * 0.01)}
+                                              max={Math.round(formState.width * 0.20)}
+                                              step={1}
+                                              value={fontPercentToPixels(activeOverlay?.fontSize || 5, formState.width)}
                                               onChange={(e) => {
-                                                const value = parseFloat(e.target.value);
-                                                if (!isNaN(value) && value >= 1 && value <= 20) {
-                                                  updateActiveOverlay('fontSize', Number(value.toFixed(1)));
+                                                const value = parseInt(e.target.value);
+                                                const minPx = Math.round(formState.width * 0.01);
+                                                const maxPx = Math.round(formState.width * 0.20);
+                                                if (!isNaN(value) && value >= minPx && value <= maxPx) {
+                                                  updateActiveOverlay('fontSize', fontPixelsToPercent(value, formState.width));
                                                 }
                                               }}
                                               onBlur={(e) => {
-                                                let value = parseFloat(e.target.value);
-                                                if (isNaN(value)) value = 5;
-                                                if (value < 1) value = 1;
-                                                if (value > 20) value = 20;
-                                                updateActiveOverlay('fontSize', Number(value.toFixed(1)));
+                                                let value = parseInt(e.target.value);
+                                                const minPx = Math.round(formState.width * 0.01);
+                                                const maxPx = Math.round(formState.width * 0.20);
+                                                const defaultPx = Math.round(formState.width * 0.05);
+                                                if (isNaN(value)) value = defaultPx;
+                                                if (value < minPx) value = minPx;
+                                                if (value > maxPx) value = maxPx;
+                                                updateActiveOverlay('fontSize', fontPixelsToPercent(value, formState.width));
                                               }}
-                                              aria-label="Font size percentage"
+                                              aria-label="Font size in pixels"
                                               style={{ width: "100%", minWidth: "60px" }}
                                             />
                                           </div>
-                                          <div className="slds-form-element__help slds-text-align_center">%</div>
+                                          <div className="slds-form-element__help slds-text-align_center">px</div>
                                         </div>
                                       </div>
                                       <div className="slds-form-element__help">
-                                        Percent of image width
+                                        Font size in pixels (1-20% of {formState.width}px image width)
                                       </div>
                                     </div>
                                   </div>
