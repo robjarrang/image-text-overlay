@@ -1,17 +1,41 @@
 import { useState, useRef, useEffect } from 'react';
 import { Icons } from './Icons';
 
+// Common font sizes in pixels
+const FONT_SIZE_OPTIONS = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 112, 128, 160, 192, 248];
+
 interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
+  fontSize?: number; // Font size in pixels
+  onFontSizeChange?: (size: number) => void;
+  minFontSize?: number;
+  maxFontSize?: number;
 }
 
-export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, minFontSize = 12, maxFontSize = 248 }: RichTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showHelp, setShowHelp] = useState<boolean>(false);
   const [activeButton, setActiveButton] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState<boolean>(false);
+  const [showFontSizeDropdown, setShowFontSizeDropdown] = useState<boolean>(false);
+  const fontSizeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Filter font sizes based on min/max
+  const availableFontSizes = FONT_SIZE_OPTIONS.filter(size => size >= minFontSize && size <= maxFontSize);
   
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (fontSizeDropdownRef.current && !fontSizeDropdownRef.current.contains(event.target as Node)) {
+        setShowFontSizeDropdown(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Add this function to handle block alignment
   const handleBlockAlignment = (alignment: 'left' | 'center' | 'right') => {
     if (!textareaRef.current) return;
@@ -312,6 +336,89 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
             <span className="slds-assistive-text">Insert Trademark symbol</span>
           </button>
         </div>
+        
+        {/* Font Size Dropdown */}
+        {fontSize !== undefined && onFontSizeChange && (
+          <div 
+            ref={fontSizeDropdownRef}
+            className="slds-dropdown-trigger slds-dropdown-trigger_click slds-m-left_x-small"
+            style={{ position: 'relative' }}
+          >
+            <button
+              className="slds-button slds-button_icon-border-filled"
+              onClick={() => setShowFontSizeDropdown(!showFontSizeDropdown)}
+              aria-haspopup="listbox"
+              aria-expanded={showFontSizeDropdown}
+              title="Font Size"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '0 8px',
+                minWidth: '70px',
+                height: '32px',
+                borderRadius: '4px',
+                fontSize: '0.8125rem',
+                fontWeight: 500
+              }}
+            >
+              <span>{fontSize}px</span>
+              <svg className="slds-button__icon slds-button__icon_x-small" aria-hidden="true" style={{ marginLeft: '2px' }}>
+                <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
+              </svg>
+            </button>
+            {showFontSizeDropdown && (
+              <div 
+                className="slds-dropdown slds-dropdown_left"
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  marginTop: '4px',
+                  zIndex: 9000,
+                  minWidth: '80px',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  backgroundColor: 'white',
+                  border: '1px solid #dddbda',
+                  borderRadius: '4px',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.16)'
+                }}
+              >
+                <ul className="slds-dropdown__list" role="listbox">
+                  {availableFontSizes.map((size) => (
+                    <li 
+                      key={size} 
+                      className="slds-dropdown__item" 
+                      role="presentation"
+                    >
+                      <button
+                        role="option"
+                        aria-selected={fontSize === size}
+                        className="slds-truncate"
+                        onClick={() => {
+                          onFontSizeChange(size);
+                          setShowFontSizeDropdown(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: 'none',
+                          background: fontSize === size ? '#f3f2f2' : 'transparent',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          fontSize: '0.8125rem'
+                        }}
+                      >
+                        {size}px
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Help button */}
         <div className="slds-m-left_small">
