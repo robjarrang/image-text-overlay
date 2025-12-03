@@ -2741,6 +2741,8 @@ export function ClientApp() {
                               maxFontSize={activeImageSourceTab === 'desktop-mobile' ? 248 : Math.round(formState.width * 0.20)}
                               fontColor={activeOverlay?.fontColor || '#FFFFFF'}
                               onFontColorChange={(color) => updateActiveOverlay('fontColor', color)}
+                              allCaps={activeOverlay?.allCaps || false}
+                              onAllCapsChange={(enabled) => updateActiveOverlay('allCaps', enabled)}
                             />
                           </div>
                         </div>
@@ -2760,9 +2762,9 @@ export function ClientApp() {
                         onClick={() => toggleAccordion('textStyle')}
                       >
                         <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#brush"></use>
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#pinned"></use>
                         </svg>
-                        <span className="slds-accordion__summary-content">Text Style & Position</span>
+                        <span className="slds-accordion__summary-content">Text Position</span>
                         <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
                           <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
                         </svg>
@@ -2774,43 +2776,6 @@ export function ClientApp() {
                     id="text-style-content"
                     hidden={!openAccordions.textStyle}
                   >
-                    {/* Text Style Section */}
-                    <div className="form-section">
-                      {!formState.activeOverlayId ? (
-                        <div className="slds-box slds-box_xx-small slds-theme_shade slds-text-align_center">
-                          <p className="slds-text-body_small slds-text-color_weak">
-                            Please select a text overlay to edit its style
-                          </p>
-                        </div>
-                      ) : (
-                        <fieldset className="slds-form-element">
-                          <legend className="slds-form-element__label slds-form-element__legend">Text Style</legend>
-                          <div className="slds-form-element_compound">
-                            <div className="slds-grid slds-gutters_medium slds-grid_vertical-align-end">
-                              <div className="slds-col">
-                                <div className="slds-form-element">
-                                  <label className="slds-form-element__label" htmlFor="allCapsToggle">
-                                    All Caps
-                                  </label>
-                                  <div className="slds-form-element__control">
-                                    <button
-                                      type="button"
-                                      id="allCapsToggle"
-                                      className={`slds-button ${activeOverlay?.allCaps ? 'slds-button_brand' : 'slds-button_neutral'}`}
-                                      onClick={() => updateActiveOverlay('allCaps', !activeOverlay?.allCaps)}
-                                      style={{ minWidth: '80px' }}
-                                    >
-                                      {activeOverlay?.allCaps ? 'Enabled' : 'Disabled'}
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </fieldset>
-                      )}
-                    </div>
-                    
                     {/* Position Section */}
                     <div className="form-section">
                       {!formState.activeOverlayId ? (

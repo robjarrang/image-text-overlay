@@ -20,9 +20,11 @@ interface RichTextEditorProps {
   maxFontSize?: number;
   fontColor?: string;
   onFontColorChange?: (color: string) => void;
+  allCaps?: boolean;
+  onAllCapsChange?: (enabled: boolean) => void;
 }
 
-export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, minFontSize = 12, maxFontSize = 248, fontColor, onFontColorChange }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, minFontSize = 12, maxFontSize = 248, fontColor, onFontColorChange, allCaps, onAllCapsChange }: RichTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showHelp, setShowHelp] = useState<boolean>(false);
   const [activeButton, setActiveButton] = useState<string | null>(null);
@@ -480,6 +482,39 @@ export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, mi
               </button>
             ))}
           </div>
+        )}
+        
+        {/* All Caps Toggle */}
+        {allCaps !== undefined && onAllCapsChange && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onAllCapsChange(!allCaps);
+            }}
+            aria-pressed={allCaps}
+            title={allCaps ? 'All Caps: On' : 'All Caps: Off'}
+            className="slds-m-left_x-small"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '0 8px',
+              height: '28px',
+              borderRadius: '4px',
+              border: allCaps ? '1px solid #0176d3' : '1px solid #dddbda',
+              backgroundColor: allCaps ? '#0176d3' : 'white',
+              color: allCaps ? 'white' : '#3e3e3c',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              letterSpacing: '0.5px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            AA
+          </button>
         )}
         
         {/* Help button */}
