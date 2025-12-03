@@ -50,6 +50,7 @@ export function CanvasGenerator({
   desktopMobileVersion = 'desktop'
 }: CanvasGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const [imageAspectRatio, setImageAspectRatio] = useState<number>(1);
   const [fontLoaded, setFontLoaded] = useState(false);
   const fontLoadingAttempted = useRef(false);
@@ -59,7 +60,7 @@ export function CanvasGenerator({
   const [initialDragPosition, setInitialDragPosition] = useState({ x: 0, y: 0 });
   const [showDragHint, setShowDragHint] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const [hoveredOverlayId, setHoveredOverlayId] = useState<string | null>(null);
+  const hoveredOverlayIdRef = useRef<string | null>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeOverlayId, setResizeOverlayId] = useState<string | null>(null);
   const [initialFontSize, setInitialFontSize] = useState(0);
@@ -279,54 +280,7 @@ export function CanvasGenerator({
         const displayText = overlay.allCaps ? part.text.toUpperCase() : part.text;
         const textWidth = ctx.measureText(displayText).width;
         
-        // Draw visual indicator only on hover
-        if (hoveredOverlayId === overlay.id && !isDragging && !isResizing) {
-          ctx.save();
-          const padding = partSize * 0.1;
-          const boxX = currentX - padding;
-          const boxY = textY - partSize - padding;
-          const boxWidth = textWidth + (padding * 2);
-          const boxHeight = partSize + (padding * 2);
-          
-          // Light blue background
-          ctx.fillStyle = 'rgba(0, 123, 255, 0.1)';
-          ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-          
-          // Blue border outline
-          ctx.strokeStyle = 'rgba(0, 123, 255, 0.3)';
-          ctx.lineWidth = Math.max(1, partSize * 0.015);
-          ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
-          
-          // Draw resize handle only on the last part of the line
-          if (partIndex === line.parts.length - 1) {
-            const handleSize = Math.max(8, partSize * 0.15);
-            const handleX = boxX + boxWidth - handleSize;
-            const handleY = boxY + boxHeight - handleSize;
-            
-            // Handle background
-            ctx.fillStyle = 'rgba(0, 123, 255, 0.8)';
-            ctx.fillRect(handleX, handleY, handleSize, handleSize);
-            
-            // Handle border
-            ctx.strokeStyle = 'rgba(0, 123, 255, 1)';
-            ctx.strokeRect(handleX, handleY, handleSize, handleSize);
-            
-            // Draw diagonal lines in the handle
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 1;
-            for (let i = 0; i < 3; i++) {
-              const offset = (i + 1) * handleSize / 4;
-              ctx.beginPath();
-              ctx.moveTo(handleX + offset, handleY + handleSize);
-              ctx.lineTo(handleX + handleSize, handleY + offset);
-              ctx.stroke();
-            }
-          }
-          
-          ctx.restore();
-        }
-        
-        // Draw the actual text
+        // Draw the actual text (hover effects are drawn on overlay canvas)
         ctx.fillStyle = overlay.fontColor;
         ctx.fillText(displayText, currentX, textY);
         
@@ -504,39 +458,8 @@ export function CanvasGenerator({
         drawImageOverlay(displayCtx, overlay, imageWidth, imageHeight);
       });
 
-      // Draw hover effects for image overlays (on top of images)
-      imageOverlays.forEach(overlay => {
-        if (hoveredOverlayId === overlay.id && !isDragging && !isResizing) {
-          // Use appropriate position and size based on desktop/mobile mode
-          let effectiveX = overlay.x;
-          let effectiveY = overlay.y;
-          let effectiveWidth = overlay.width;
-          let effectiveHeight = overlay.height;
-          
-          if (isDesktopMobileMode && desktopMobileVersion) {
-            if (desktopMobileVersion === 'desktop') {
-              effectiveX = overlay.desktopX ?? overlay.x;
-              effectiveY = overlay.desktopY ?? overlay.y;
-              effectiveWidth = overlay.desktopWidth ?? overlay.width;
-              effectiveHeight = overlay.desktopHeight ?? overlay.height;
-            } else if (desktopMobileVersion === 'mobile') {
-              effectiveX = overlay.mobileX ?? overlay.x;
-              effectiveY = overlay.mobileY ?? overlay.y;
-              effectiveWidth = overlay.mobileWidth ?? overlay.width;
-              effectiveHeight = overlay.mobileHeight ?? overlay.height;
-            }
-          }
-
-          const actualX = (effectiveX / 100) * imageWidth;
-          const actualY = (effectiveY / 100) * imageHeight;
-          const actualWidth = (effectiveWidth / 100) * imageWidth;
-          const actualHeight = (effectiveHeight / 100) * imageWidth; // Match preview scaling so hover highlights align
-
-          drawImageHoverEffect(displayCtx, actualX, actualY, actualWidth, actualHeight);
-        }
-      });
-
       // Draw all text overlays (logo is handled server-side for desktop-mobile mode)
+      // Hover effects are drawn on the overlay canvas to prevent flicker
       textOverlays.forEach(overlay => {
         drawTextOverlay(displayCtx, overlay, imageWidth, imageHeight);
       });
@@ -573,39 +496,8 @@ export function CanvasGenerator({
         drawImageOverlay(displayCtx, overlay, canvasWidth, canvasHeight);
       });
 
-      // Draw hover effects for image overlays (on top of images)
-      imageOverlays.forEach(overlay => {
-        if (hoveredOverlayId === overlay.id && !isDragging && !isResizing) {
-          // Use appropriate position and size based on desktop/mobile mode
-          let effectiveX = overlay.x;
-          let effectiveY = overlay.y;
-          let effectiveWidth = overlay.width;
-          let effectiveHeight = overlay.height;
-          
-          if (isDesktopMobileMode && desktopMobileVersion) {
-            if (desktopMobileVersion === 'desktop') {
-              effectiveX = overlay.desktopX ?? overlay.x;
-              effectiveY = overlay.desktopY ?? overlay.y;
-              effectiveWidth = overlay.desktopWidth ?? overlay.width;
-              effectiveHeight = overlay.desktopHeight ?? overlay.height;
-            } else if (desktopMobileVersion === 'mobile') {
-              effectiveX = overlay.mobileX ?? overlay.x;
-              effectiveY = overlay.mobileY ?? overlay.y;
-              effectiveWidth = overlay.mobileWidth ?? overlay.width;
-              effectiveHeight = overlay.mobileHeight ?? overlay.height;
-            }
-          }
-
-          const actualX = (effectiveX / 100) * canvasWidth;
-          const actualY = (effectiveY / 100) * canvasHeight;
-          const actualWidth = (effectiveWidth / 100) * canvasWidth;
-          const actualHeight = (effectiveHeight / 100) * canvasWidth; // Keep hover effect sizing consistent with main render
-
-          drawImageHoverEffect(displayCtx, actualX, actualY, actualWidth, actualHeight);
-        }
-      });
-
       // Draw all text overlays on transparent background
+      // Hover effects are drawn on the overlay canvas to prevent flicker
       textOverlays.forEach(overlay => {
         drawTextOverlay(displayCtx, overlay, canvasWidth, canvasHeight);
       });
@@ -621,7 +513,176 @@ export function CanvasGenerator({
       ctx.textAlign = 'center';
       ctx.fillText('Please enter an image URL', canvas.width / 2, canvas.height / 2);
     }
-  }, [textOverlays, imageOverlays, imageUrl, brightness, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion, hoveredOverlayId, isDragging, isResizing]);
+  }, [textOverlays, imageOverlays, imageUrl, brightness, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion]);
+
+  // Draw hover effects on the overlay canvas (separate from main canvas to prevent flicker)
+  const drawHoverEffects = (hoveredId: string | null) => {
+    const overlayCanvas = overlayCanvasRef.current;
+    const mainCanvas = canvasRef.current;
+    if (!overlayCanvas || !mainCanvas) return;
+    
+    // Sync overlay canvas size with main canvas
+    if (overlayCanvas.width !== mainCanvas.width || overlayCanvas.height !== mainCanvas.height) {
+      overlayCanvas.width = mainCanvas.width;
+      overlayCanvas.height = mainCanvas.height;
+    }
+    
+    const ctx = overlayCanvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Clear the overlay canvas
+    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    
+    // If not hovering or dragging/resizing, nothing to draw
+    if (!hoveredId || isDragging || isResizing) return;
+    
+    const canvasWidth = overlayCanvas.width;
+    const canvasHeight = overlayCanvas.height;
+    
+    // Check if hovered overlay is an image overlay
+    const imageOverlay = imageOverlays.find(o => o.id === hoveredId);
+    if (imageOverlay) {
+      let effectiveX = imageOverlay.x;
+      let effectiveY = imageOverlay.y;
+      let effectiveWidth = imageOverlay.width;
+      let effectiveHeight = imageOverlay.height;
+      
+      if (isDesktopMobileMode && desktopMobileVersion) {
+        if (desktopMobileVersion === 'desktop') {
+          effectiveX = imageOverlay.desktopX ?? imageOverlay.x;
+          effectiveY = imageOverlay.desktopY ?? imageOverlay.y;
+          effectiveWidth = imageOverlay.desktopWidth ?? imageOverlay.width;
+          effectiveHeight = imageOverlay.desktopHeight ?? imageOverlay.height;
+        } else if (desktopMobileVersion === 'mobile') {
+          effectiveX = imageOverlay.mobileX ?? imageOverlay.x;
+          effectiveY = imageOverlay.mobileY ?? imageOverlay.y;
+          effectiveWidth = imageOverlay.mobileWidth ?? imageOverlay.width;
+          effectiveHeight = imageOverlay.mobileHeight ?? imageOverlay.height;
+        }
+      }
+
+      const actualX = (effectiveX / 100) * canvasWidth;
+      const actualY = (effectiveY / 100) * canvasHeight;
+      const actualWidth = (effectiveWidth / 100) * canvasWidth;
+      const actualHeight = (effectiveHeight / 100) * canvasWidth;
+
+      drawImageHoverEffect(ctx, actualX, actualY, actualWidth, actualHeight);
+      return;
+    }
+    
+    // Check if hovered overlay is a text overlay
+    const textOverlay = textOverlays.find(o => o.id === hoveredId);
+    if (textOverlay) {
+      // Get effective position and font size
+      let effectiveX = textOverlay.x;
+      let effectiveY = textOverlay.y;
+      let effectiveFontSize = textOverlay.fontSize;
+      
+      if (isDesktopMobileMode && desktopMobileVersion) {
+        if (desktopMobileVersion === 'desktop') {
+          effectiveX = textOverlay.desktopX ?? textOverlay.x;
+          effectiveY = textOverlay.desktopY ?? textOverlay.y;
+          if (textOverlay.desktopFontSize !== undefined) {
+            effectiveFontSize = textOverlay.desktopFontSize;
+          }
+        } else if (desktopMobileVersion === 'mobile') {
+          effectiveX = textOverlay.mobileX ?? textOverlay.x;
+          effectiveY = textOverlay.mobileY ?? textOverlay.y;
+          if (textOverlay.mobileFontSize !== undefined) {
+            effectiveFontSize = textOverlay.mobileFontSize;
+          }
+        }
+      }
+      
+      const actualX = (effectiveX / 100) * canvasWidth;
+      const actualY = (effectiveY / 100) * canvasHeight;
+      const scaledFontSize = (effectiveFontSize / 100) * canvasWidth;
+      
+      // Process text to get all lines and parts
+      const lines = processText(textOverlay.text);
+      let currentLineIndex = 0;
+      
+      lines.forEach((line) => {
+        // Calculate total line width for alignment
+        let totalLineWidth = 0;
+        line.parts.forEach((part) => {
+          const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+          ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+          const displayText = textOverlay.allCaps ? part.text.toUpperCase() : part.text;
+          totalLineWidth += ctx.measureText(displayText).width;
+        });
+        
+        // Calculate starting X position based on alignment
+        let lineStartX = actualX;
+        if (line.align === 'center') {
+          lineStartX = actualX - (totalLineWidth / 2);
+        } else if (line.align === 'right') {
+          lineStartX = actualX - totalLineWidth;
+        }
+        
+        let currentX = lineStartX;
+        const lineHeight = scaledFontSize * 1.2;
+        const currentY = actualY + currentLineIndex * lineHeight;
+        
+        line.parts.forEach((part, partIndex) => {
+          const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+          const textY = currentY - (part.isSuper ? scaledFontSize * 0.3 : 0);
+          
+          ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+          const displayText = textOverlay.allCaps ? part.text.toUpperCase() : part.text;
+          const textWidth = ctx.measureText(displayText).width;
+          
+          // Draw hover effect
+          ctx.save();
+          const padding = partSize * 0.1;
+          const boxX = currentX - padding;
+          const boxY = textY - partSize - padding;
+          const boxWidth = textWidth + (padding * 2);
+          const boxHeight = partSize + (padding * 2);
+          
+          // Light blue background
+          ctx.fillStyle = 'rgba(0, 123, 255, 0.1)';
+          ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+          
+          // Blue border outline
+          ctx.strokeStyle = 'rgba(0, 123, 255, 0.3)';
+          ctx.lineWidth = Math.max(1, partSize * 0.015);
+          ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+          
+          // Draw resize handle only on the last part of the line
+          if (partIndex === line.parts.length - 1) {
+            const handleSize = Math.max(8, partSize * 0.15);
+            const handleX = boxX + boxWidth - handleSize;
+            const handleY = boxY + boxHeight - handleSize;
+            
+            // Handle background
+            ctx.fillStyle = 'rgba(0, 123, 255, 0.8)';
+            ctx.fillRect(handleX, handleY, handleSize, handleSize);
+            
+            // Handle border
+            ctx.strokeStyle = 'rgba(0, 123, 255, 1)';
+            ctx.strokeRect(handleX, handleY, handleSize, handleSize);
+            
+            // Draw diagonal lines in the handle
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 3; i++) {
+              const offset = (i + 1) * handleSize / 4;
+              ctx.beginPath();
+              ctx.moveTo(handleX + offset, handleY + handleSize);
+              ctx.lineTo(handleX + handleSize, handleY + offset);
+              ctx.stroke();
+            }
+          }
+          
+          ctx.restore();
+          currentX += textWidth;
+        });
+        
+        currentLineIndex++;
+      });
+    }
+  };
 
   // Check if a point is within a text overlay's bounds
   const isPointInTextOverlay = (
@@ -946,6 +1007,8 @@ export function CanvasGenerator({
       if (isPointInImageResizeHandle(overlay, clickX, clickY, canvas.width, canvas.height)) {
         setIsResizing(true);
         setResizeOverlayId(overlay.id);
+        // Clear hover effect during resize
+        drawHoverEffects(null);
         
         // Store initial width
         let effectiveWidth = overlay.width;
@@ -984,6 +1047,8 @@ export function CanvasGenerator({
       if (isPointInImageOverlay(overlay, clickX, clickY, canvas.width, canvas.height)) {
         setIsDragging(true);
         setDraggedOverlayId(overlay.id);
+        // Clear hover effect during drag
+        drawHoverEffects(null);
         
         // Also make this overlay active for editing
         if (overlay.id !== activeOverlayId) {
@@ -1022,6 +1087,8 @@ export function CanvasGenerator({
       if (isPointInResizeHandle(overlay, clickX, clickY, canvas.width, canvas.height)) {
         setIsResizing(true);
         setResizeOverlayId(overlay.id);
+        // Clear hover effect during resize
+        drawHoverEffects(null);
         
         // Store initial font size
         let effectiveFontSize = overlay.fontSize;
@@ -1060,6 +1127,8 @@ export function CanvasGenerator({
       if (isPointInTextOverlay(overlay, clickX, clickY, canvas.width, canvas.height)) {
         setIsDragging(true);
         setDraggedOverlayId(overlay.id);
+        // Clear hover effect during drag
+        drawHoverEffects(null);
         
         // Also make this overlay active for editing
         if (overlay.id !== activeOverlayId) {
@@ -1178,6 +1247,7 @@ export function CanvasGenerator({
       // Handle hover detection when not dragging or resizing
       let foundHover = false;
       let cursorType = 'default';
+      let newHoveredId: string | null = null;
       
       // First check image overlays (they are rendered on top)
       for (let i = imageOverlays.length - 1; i >= 0; i--) {
@@ -1185,9 +1255,7 @@ export function CanvasGenerator({
         
         // Check resize handle first
         if (isPointInImageResizeHandle(overlay, mouseX, mouseY, canvas.width, canvas.height)) {
-          if (hoveredOverlayId !== overlay.id) {
-            setHoveredOverlayId(overlay.id);
-          }
+          newHoveredId = overlay.id;
           cursorType = 'nw-resize';
           foundHover = true;
           break;
@@ -1195,9 +1263,7 @@ export function CanvasGenerator({
         
         // Then check image area
         if (isPointInImageOverlay(overlay, mouseX, mouseY, canvas.width, canvas.height)) {
-          if (hoveredOverlayId !== overlay.id) {
-            setHoveredOverlayId(overlay.id);
-          }
+          newHoveredId = overlay.id;
           cursorType = 'grab';
           foundHover = true;
           break;
@@ -1211,9 +1277,7 @@ export function CanvasGenerator({
           
           // Check resize handle first
           if (isPointInResizeHandle(overlay, mouseX, mouseY, canvas.width, canvas.height)) {
-            if (hoveredOverlayId !== overlay.id) {
-              setHoveredOverlayId(overlay.id);
-            }
+            newHoveredId = overlay.id;
             cursorType = 'nw-resize';
             foundHover = true;
             break;
@@ -1221,9 +1285,7 @@ export function CanvasGenerator({
           
           // Then check text area
           if (isPointInTextOverlay(overlay, mouseX, mouseY, canvas.width, canvas.height)) {
-            if (hoveredOverlayId !== overlay.id) {
-              setHoveredOverlayId(overlay.id);
-            }
+            newHoveredId = overlay.id;
             cursorType = 'grab';
             foundHover = true;
             break;
@@ -1231,10 +1293,11 @@ export function CanvasGenerator({
         }
       }
       
-      // Update cursor and hover state
+      // Update cursor and hover state (only redraw if hover changed)
       canvas.style.cursor = cursorType;
-      if (!foundHover && hoveredOverlayId !== null) {
-        setHoveredOverlayId(null);
+      if (newHoveredId !== hoveredOverlayIdRef.current) {
+        hoveredOverlayIdRef.current = newHoveredId;
+        drawHoverEffects(newHoveredId);
       }
     }
   };
@@ -1265,7 +1328,9 @@ export function CanvasGenerator({
     }
     setShowDragHint(false);
     setIsHovering(false);
-    setHoveredOverlayId(null);
+    // Clear hover effect
+    hoveredOverlayIdRef.current = null;
+    drawHoverEffects(null);
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
@@ -1343,7 +1408,7 @@ export function CanvasGenerator({
   };
 
   return (
-    <div className="canvas-container slds-p-around_medium slds-m-bottom_medium">
+    <div className="canvas-container slds-p-around_medium slds-m-bottom_medium" style={{ position: 'relative' }}>
       <canvas
         ref={canvasRef}
         className={`slds-border_around preview-canvas ${className}`}
@@ -1371,6 +1436,20 @@ export function CanvasGenerator({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+      />
+      {/* Overlay canvas for hover effects - prevents flicker by not redrawing main canvas */}
+      <canvas
+        ref={overlayCanvasRef}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          maxWidth: '100%',
+          height: 'auto',
+          aspectRatio: imageAspectRatio,
+          pointerEvents: 'none', // Allow clicks to pass through to main canvas
+          borderRadius: '8px',
+        }}
       />
       {showDragHint && (
         <div className="drag-instruction">
