@@ -2646,7 +2646,14 @@ export function ClientApp() {
                                         {overlay.text || <em>Empty text</em>}
                                       </span>
                                       <span className="slds-text-body_small slds-text-color_weak slds-m-left_small">
-                                        {fontPercentToPixels(overlay.fontSize, activeImageSourceTab === 'desktop-mobile' ? FONT_REFERENCE_WIDTH : formState.width)}px
+                                        {fontPercentToPixels(
+                                          activeImageSourceTab === 'desktop-mobile'
+                                            ? (desktopMobileVersion === 'desktop' 
+                                                ? (overlay.desktopFontSize ?? overlay.fontSize) 
+                                                : (overlay.mobileFontSize ?? overlay.fontSize))
+                                            : overlay.fontSize,
+                                          activeImageSourceTab === 'desktop-mobile' ? FONT_REFERENCE_WIDTH : formState.width
+                                        )}px
                                       </span>
                                     </div>
                                   </button>
