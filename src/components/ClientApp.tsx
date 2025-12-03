@@ -1863,11 +1863,78 @@ export function ClientApp() {
         width: dimensions.width,
         height: dimensions.height
       }));
+      
+      // Preload the other version in the background for instant switching
+      preloadOtherVersion(backgroundUrl, versionToUse);
     } catch (error) {
       console.error('Preview generation failed:', error);
       setError('Failed to generate preview. Please check the background image URL.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Preload the other version (desktop/mobile) in the background for instant switching
+  const preloadOtherVersion = async (backgroundUrl: string, currentVersion: 'desktop' | 'mobile') => {
+    const otherVersion = currentVersion === 'desktop' ? 'mobile' : 'desktop';
+    const otherDimensions = otherVersion === 'desktop' 
+      ? { width: Number(formState.desktopWidth), height: Number(formState.desktopHeight) } 
+      : { width: Number(formState.mobileWidth), height: Number(formState.mobileHeight) };
+    
+    // Check if already cached
+    const cached = previewCache[otherVersion];
+    if (cached && 
+        cached.sourceUrl === backgroundUrl && 
+        cached.width === otherDimensions.width && 
+        cached.height === otherDimensions.height) {
+      console.log('Other version already cached:', otherVersion);
+      return;
+    }
+    
+    console.log('Preloading other version in background:', otherVersion);
+    
+    try {
+      const payload = {
+        ...formState,
+        ...otherDimensions,
+        imageUrl: backgroundUrl,
+        textOverlays: [],
+        imageOverlays: [],
+        isDesktopMobileMode: true,
+        desktopMobileVersion: otherVersion,
+        download: false
+      };
+      
+      const response = await fetch('/api/overlay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        console.warn('Background preload failed:', response.status);
+        return;
+      }
+      
+      const blob = await response.blob();
+      const previewUrl = URL.createObjectURL(blob);
+      console.log('Background preload complete for:', otherVersion);
+      
+      // Cache the preloaded preview (don't update form state, just cache it)
+      setPreviewCache(prev => ({
+        ...prev,
+        [otherVersion]: {
+          url: previewUrl,
+          sourceUrl: backgroundUrl,
+          width: otherDimensions.width,
+          height: otherDimensions.height
+        }
+      }));
+    } catch (error) {
+      // Silently fail for background preload - it's just an optimization
+      console.warn('Background preload error:', error);
     }
   };
 
