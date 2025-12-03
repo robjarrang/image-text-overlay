@@ -3068,77 +3068,6 @@ export function ClientApp() {
               </div>
             </form>
           </div>
-          <footer className="slds-card__footer slds-border_top slds-p-around_medium">
-            <div className="slds-grid slds-grid_align-spread">
-              <div className="slds-button-group slds-m-right_small">
-                <button
-                  className="slds-button slds-button_neutral share-button"
-                  onClick={handleShare}
-                  aria-label="Share configuration URL"
-                  onMouseEnter={() => activeImageSourceTab === 'upload' && setShowShareTooltip(true)}
-                  onMouseLeave={() => activeImageSourceTab === 'upload' && setShowShareTooltip(false)}
-                >
-                  <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                    {showShareSuccess ? <Icons.Success /> : <Icons.Share />}
-                  </svg>
-                  Share
-                </button>
-                {activeImageSourceTab === 'upload' && showShareTooltip && (
-                  <div
-                    className="slds-popover slds-popover_tooltip slds-nubbin_bottom tooltip-custom"
-                    role="tooltip"
-                    id="share-tooltip"
-                  >
-                    <div className="slds-popover__body">
-                      Uploaded image won't be shared, only text content and position settings will be shared
-                    </div>
-                  </div>
-                )}
-              </div>
-              {activeImageSourceTab === 'desktop-mobile' ? (
-                <div className="slds-grid slds-gutters_small">
-                  <div className="slds-col">
-                    <button
-                      className="slds-button slds-button_brand download-button"
-                      onClick={() => handleDesktopMobileDownload('desktop')}
-                      disabled={isLoading}
-                      aria-label="Download desktop version (1240x968)"
-                    >
-                      <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                        <Icons.Download />
-                      </svg>
-                      Desktop
-                    </button>
-                  </div>
-                  <div className="slds-col">
-                    <button
-                      className="slds-button slds-button_brand download-button"
-                      onClick={() => handleDesktopMobileDownload('mobile')}
-                      disabled={isLoading}
-                      aria-label="Download mobile version (1240x1400)"
-                    >
-                      <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                        <Icons.Download />
-                      </svg>
-                      Mobile
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  className="slds-button slds-button_brand download-button"
-                  onClick={() => handleDownload()}
-                  disabled={isLoading}
-                  aria-label="Download image with overlay"
-                >
-                  <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                    <Icons.Download />
-                  </svg>
-                  Download
-                </button>
-              )}
-            </div>
-          </footer>
         </article>
       </div>
       
@@ -3234,6 +3163,77 @@ export function ClientApp() {
               </div>
             )}
           </div>
+          <footer className="slds-card__footer slds-border_top slds-p-around_medium">
+            <div className="slds-grid slds-grid_align-spread">
+              <div className="slds-button-group slds-m-right_small">
+                <button
+                  className="slds-button slds-button_neutral share-button"
+                  onClick={handleShare}
+                  aria-label="Share configuration URL"
+                  onMouseEnter={() => activeImageSourceTab === 'upload' && setShowShareTooltip(true)}
+                  onMouseLeave={() => activeImageSourceTab === 'upload' && setShowShareTooltip(false)}
+                >
+                  <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                    {showShareSuccess ? <Icons.Success /> : <Icons.Share />}
+                  </svg>
+                  Share
+                </button>
+                {activeImageSourceTab === 'upload' && showShareTooltip && (
+                  <div
+                    className="slds-popover slds-popover_tooltip slds-nubbin_bottom tooltip-custom"
+                    role="tooltip"
+                    id="share-tooltip"
+                  >
+                    <div className="slds-popover__body">
+                      Uploaded image won't be shared, only text content and position settings will be shared
+                    </div>
+                  </div>
+                )}
+              </div>
+              {activeImageSourceTab === 'desktop-mobile' ? (
+                <div className="slds-grid slds-gutters_small">
+                  <div className="slds-col">
+                    <button
+                      className="slds-button slds-button_brand download-button"
+                      onClick={() => handleDesktopMobileDownload('desktop')}
+                      disabled={isLoading}
+                      aria-label="Download desktop version (1240x968)"
+                    >
+                      <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                        <Icons.Download />
+                      </svg>
+                      Desktop
+                    </button>
+                  </div>
+                  <div className="slds-col">
+                    <button
+                      className="slds-button slds-button_brand download-button"
+                      onClick={() => handleDesktopMobileDownload('mobile')}
+                      disabled={isLoading}
+                      aria-label="Download mobile version (1240x1400)"
+                    >
+                      <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                        <Icons.Download />
+                      </svg>
+                      Mobile
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  className="slds-button slds-button_brand download-button"
+                  onClick={() => handleDownload()}
+                  disabled={isLoading}
+                  aria-label="Download image with overlay"
+                >
+                  <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                    <Icons.Download />
+                  </svg>
+                  Download
+                </button>
+              )}
+            </div>
+          </footer>
         </article>
       </div>
       {showToast && (
