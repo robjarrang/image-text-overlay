@@ -150,6 +150,12 @@ export function ClientApp() {
   // State for desktop/mobile mode
   const [desktopMobileVersion, setDesktopMobileVersion] = useState<'desktop' | 'mobile'>('desktop');
   const [desktopMobileImageUrl, setDesktopMobileImageUrl] = useState<string>('');
+  
+  // Cache for desktop/mobile preview images to avoid re-fetching when switching versions
+  const [previewCache, setPreviewCache] = useState<{
+    desktop: { url: string; sourceUrl: string; width: number; height: number } | null;
+    mobile: { url: string; sourceUrl: string; width: number; height: number } | null;
+  }>({ desktop: null, mobile: null });
 
   // Validation function for dimensions
   const validateDimension = (value: number, type: 'width' | 'height'): { isValid: boolean; message?: string } => {
@@ -195,13 +201,35 @@ export function ClientApp() {
       const heightValidation = validateDimension(currentHeight, 'height');
       
       if (widthValidation.isValid && heightValidation.isValid) {
+        // Invalidate cache for the current version when dimensions change
+        const cached = previewCache[desktopMobileVersion];
+        if (cached && (cached.width !== currentWidth || cached.height !== currentHeight)) {
+          setPreviewCache(prev => ({
+            ...prev,
+            [desktopMobileVersion]: null
+          }));
+        }
+        
         const timer = setTimeout(() => {
           generateDesktopMobilePreview(desktopMobileImageUrl, desktopMobileVersion);
         }, 300);
         return () => clearTimeout(timer);
       }
     }
-  }, [formState.desktopHeight, formState.mobileHeight, desktopMobileVersion]);
+  }, [formState.desktopHeight, formState.mobileHeight, formState.desktopWidth, formState.mobileWidth, desktopMobileVersion]);
+  
+  // Cleanup object URLs when cache entries are replaced or component unmounts
+  useEffect(() => {
+    return () => {
+      // Revoke object URLs on unmount to prevent memory leaks
+      if (previewCache.desktop?.url) {
+        URL.revokeObjectURL(previewCache.desktop.url);
+      }
+      if (previewCache.mobile?.url) {
+        URL.revokeObjectURL(previewCache.mobile.url);
+      }
+    };
+  }, []);
   
   // Auto-load preset logos on component mount
   useEffect(() => {
@@ -1721,15 +1749,36 @@ export function ClientApp() {
     console.log('Version change requested:', version, 'Current tab:', activeImageSourceTab, 'Background URL:', desktopMobileImageUrl);
     setDesktopMobileVersion(version);
     if (activeImageSourceTab === 'desktop-mobile' && desktopMobileImageUrl) {
-      console.log('Regenerating preview for version:', version);
-      // Regenerate preview with new dimensions
-      generateDesktopMobilePreview(desktopMobileImageUrl, version);
+      // Check if we have a cached preview for this version with matching source URL and dimensions
+      const cached = previewCache[version];
+      const expectedWidth = version === 'desktop' ? formState.desktopWidth : formState.mobileWidth;
+      const expectedHeight = version === 'desktop' ? formState.desktopHeight : formState.mobileHeight;
+      
+      if (cached && 
+          cached.sourceUrl === desktopMobileImageUrl && 
+          cached.width === expectedWidth && 
+          cached.height === expectedHeight) {
+        console.log('Using cached preview for version:', version);
+        // Use cached preview immediately - no loading state needed
+        setFormState(prev => ({ 
+          ...prev, 
+          imageUrl: cached.url,
+          width: cached.width,
+          height: cached.height
+        }));
+      } else {
+        console.log('Cache miss, regenerating preview for version:', version);
+        // Regenerate preview with new dimensions
+        generateDesktopMobilePreview(desktopMobileImageUrl, version);
+      }
     }
   };
 
   // Handle desktop/mobile image URL change
   const handleDesktopMobileImageUrlChange = (url: string) => {
     setDesktopMobileImageUrl(url);
+    // Clear cache when source URL changes
+    setPreviewCache({ desktop: null, mobile: null });
     if (activeImageSourceTab === 'desktop-mobile') {
       // Generate preview with logo for desktop-mobile mode
       generateDesktopMobilePreview(url, desktopMobileVersion);
@@ -1745,13 +1794,30 @@ export function ClientApp() {
     }
     
     const versionToUse = version || desktopMobileVersion;
+    const dimensions = versionToUse === 'desktop' 
+      ? { width: Number(formState.desktopWidth), height: Number(formState.desktopHeight) } 
+      : { width: Number(formState.mobileWidth), height: Number(formState.mobileHeight) };
+    
+    // Check cache first
+    const cached = previewCache[versionToUse];
+    if (cached && 
+        cached.sourceUrl === backgroundUrl && 
+        cached.width === dimensions.width && 
+        cached.height === dimensions.height) {
+      console.log('Using cached preview for version:', versionToUse);
+      setFormState(prev => ({ 
+        ...prev, 
+        imageUrl: cached.url,
+        width: dimensions.width,
+        height: dimensions.height
+      }));
+      return;
+    }
+    
     console.log('Generating preview for version:', versionToUse, 'URL:', backgroundUrl);
     
     try {
       setIsLoading(true);
-      const dimensions = versionToUse === 'desktop' 
-        ? { width: Number(formState.desktopWidth), height: Number(formState.desktopHeight) } 
-        : { width: Number(formState.mobileWidth), height: Number(formState.mobileHeight) };
       const payload = {
         ...formState,
         ...dimensions,
@@ -1779,6 +1845,17 @@ export function ClientApp() {
       const blob = await response.blob();
       const previewUrl = URL.createObjectURL(blob);
       console.log('Preview generated successfully:', previewUrl);
+      
+      // Cache the generated preview
+      setPreviewCache(prev => ({
+        ...prev,
+        [versionToUse]: {
+          url: previewUrl,
+          sourceUrl: backgroundUrl,
+          width: dimensions.width,
+          height: dimensions.height
+        }
+      }));
       
       setFormState(prev => ({ 
         ...prev, 
