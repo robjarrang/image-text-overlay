@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Icons } from './Icons';
 
 // Common font sizes in pixels
@@ -11,25 +11,6 @@ const COLOR_OPTIONS = [
   { value: '#FFFFFF', label: 'White', checkColor: '#000000', border: true }
 ];
 
-// Alignment icons as inline SVGs for the overlay
-const AlignmentIcons = {
-  left: (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style={{ verticalAlign: 'middle' }}>
-      <path d="M2 3h12v2H2V3zm0 4h8v2H2V7zm0 4h10v2H2v-2z"/>
-    </svg>
-  ),
-  center: (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style={{ verticalAlign: 'middle' }}>
-      <path d="M2 3h12v2H2V3zm2 4h8v2H4V7zm1 4h6v2H5v-2z"/>
-    </svg>
-  ),
-  right: (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style={{ verticalAlign: 'middle' }}>
-      <path d="M2 3h12v2H2V3zm4 4h8v2H6V7zm2 4h6v2H8v-2z"/>
-    </svg>
-  )
-};
-
 interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -41,11 +22,25 @@ interface RichTextEditorProps {
   onFontColorChange?: (color: string) => void;
   allCaps?: boolean;
   onAllCapsChange?: (enabled: boolean) => void;
+  alignment?: 'left' | 'center' | 'right';
+  onAlignmentChange?: (alignment: 'left' | 'center' | 'right') => void;
 }
 
-export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, minFontSize = 12, maxFontSize = 248, fontColor, onFontColorChange, allCaps, onAllCapsChange }: RichTextEditorProps) {
+export function RichTextEditor({ 
+  value, 
+  onChange, 
+  fontSize, 
+  onFontSizeChange, 
+  minFontSize = 12, 
+  maxFontSize = 248, 
+  fontColor, 
+  onFontColorChange, 
+  allCaps, 
+  onAllCapsChange,
+  alignment = 'left',
+  onAlignmentChange
+}: RichTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
   const [showHelp, setShowHelp] = useState<boolean>(false);
   const [activeButton, setActiveButton] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState<boolean>(false);
@@ -68,42 +63,13 @@ export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, mi
   }, []);
 
   // Add this function to handle block alignment
-  const handleBlockAlignment = (alignment: 'left' | 'center' | 'right') => {
-    if (!textareaRef.current) return;
-    
-    setActiveButton(alignment);
-    setTimeout(() => setActiveButton(null), 300);
-    
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = value;
-    
-    // Find the start of the first line in selection
-    let lineStart = start;
-    while (lineStart > 0 && text[lineStart - 1] !== '\n') {
-      lineStart--;
+  const handleBlockAlignment = (newAlignment: 'left' | 'center' | 'right') => {
+    if (onAlignmentChange) {
+      onAlignmentChange(newAlignment);
     }
     
-    // Check if there's already an alignment tag at the beginning of this block
-    const beforeSelection = text.substring(0, lineStart);
-    const afterLineStart = text.substring(lineStart);
-    
-    // Remove any existing alignment tag at the current position
-    const cleanedAfter = afterLineStart.replace(/^\[(left|center|right)\]/, '');
-    
-    // Add the new alignment tag
-    const newText = beforeSelection + `[${alignment}]` + cleanedAfter;
-    
-    onChange(newText);
-    
-    // Restore cursor position
-    setTimeout(() => {
-      textarea.focus();
-      const offset = `[${alignment}]`.length;
-      textarea.selectionStart = start + offset;
-      textarea.selectionEnd = end + offset;
-    }, 0);
+    setActiveButton(newAlignment);
+    setTimeout(() => setActiveButton(null), 300);
   };
 
   // Function to handle superscript
@@ -179,56 +145,6 @@ export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, mi
     }
   };
 
-  // Render text with styled alignment indicators
-  const renderHighlightedText = useCallback(() => {
-    // Replace alignment tags with styled pill indicators
-    const parts: (string | JSX.Element)[] = [];
-    const regex = /\[(left|center|right)\]/g;
-    let lastIndex = 0;
-    let match;
-    let key = 0;
-    
-    while ((match = regex.exec(value)) !== null) {
-      // Add text before the match
-      if (match.index > lastIndex) {
-        parts.push(value.substring(lastIndex, match.index));
-      }
-      
-      // Add styled alignment indicator
-      const alignment = match[1] as 'left' | 'center' | 'right';
-      parts.push(
-        <span 
-          key={key++}
-          className="alignment-indicator"
-          data-alignment={alignment}
-          title={`Align ${alignment}`}
-        >
-          {AlignmentIcons[alignment]}
-        </span>
-      );
-      
-      lastIndex = regex.lastIndex;
-    }
-    
-    // Add remaining text
-    if (lastIndex < value.length) {
-      parts.push(value.substring(lastIndex));
-    }
-    
-    // Add a trailing space to match textarea behavior
-    parts.push('\u00A0');
-    
-    return parts;
-  }, [value]);
-
-  // Sync scroll between textarea and overlay
-  const syncScroll = useCallback(() => {
-    if (textareaRef.current && overlayRef.current) {
-      overlayRef.current.scrollTop = textareaRef.current.scrollTop;
-      overlayRef.current.scrollLeft = textareaRef.current.scrollLeft;
-    }
-  }, []);
-
   // Apply syntax highlighting to the textarea
   useEffect(() => {
     if (!textareaRef.current) return;
@@ -295,7 +211,7 @@ export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, mi
           }}
         >
           <button
-            className={`slds-button slds-button_icon slds-button_icon-border-filled ${activeButton === 'left' ? 'button-flash' : ''}`}
+            className={`slds-button slds-button_icon slds-button_icon-border-filled ${alignment === 'left' ? 'slds-is-selected' : ''} ${activeButton === 'left' ? 'button-flash' : ''}`}
             onClick={(e) => { 
               createRipple(e);
               handleBlockAlignment('left');
@@ -315,7 +231,7 @@ export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, mi
             <span className="slds-assistive-text">Align text left</span>
           </button>
           <button
-            className={`slds-button slds-button_icon slds-button_icon-border-filled ${activeButton === 'center' ? 'button-flash' : ''}`}
+            className={`slds-button slds-button_icon slds-button_icon-border-filled ${alignment === 'center' ? 'slds-is-selected' : ''} ${activeButton === 'center' ? 'button-flash' : ''}`}
             onClick={(e) => {
               createRipple(e);
               handleBlockAlignment('center');
@@ -335,7 +251,7 @@ export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, mi
             <span className="slds-assistive-text">Align text center</span>
           </button>
           <button
-            className={`slds-button slds-button_icon slds-button_icon-border-filled ${activeButton === 'right' ? 'button-flash' : ''}`}
+            className={`slds-button slds-button_icon slds-button_icon-border-filled ${alignment === 'right' ? 'slds-is-selected' : ''} ${activeButton === 'right' ? 'button-flash' : ''}`}
             onClick={(e) => {
               createRipple(e);
               handleBlockAlignment('right');
@@ -625,13 +541,13 @@ export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, mi
             <h3 className="slds-text-heading_small">Text Alignment</h3>
             <ul className="slds-list_dotted">
               <li>
-                <span className="alignment-indicator" data-alignment="left" style={{ display: 'inline-flex' }}>{AlignmentIcons.left}</span> - Aligns text to the left
+                <code className="syntax-tag alignment-tag">[left]</code> - Aligns text to the left
               </li>
               <li>
-                <span className="alignment-indicator" data-alignment="center" style={{ display: 'inline-flex' }}>{AlignmentIcons.center}</span> - Centers the text
+                <code className="syntax-tag alignment-tag">[center]</code> - Centers the text
               </li>
               <li>
-                <span className="alignment-indicator" data-alignment="right" style={{ display: 'inline-flex' }}>{AlignmentIcons.right}</span> - Aligns text to the right
+                <code className="syntax-tag alignment-tag">[right]</code> - Aligns text to the right
               </li>
             </ul>
           </div>
@@ -652,42 +568,43 @@ export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, mi
         </div>
         <div className="slds-m-top_small">
           <p className="slds-text-body_small">
-            <strong>Tip:</strong> Click the alignment buttons in the toolbar to set text alignment. 
-            The alignment applies to the current line and all following lines until a new alignment is set.
+            <strong>Tip:</strong> Alignment tags apply to the current line and all following lines until a new alignment is set. 
+            For example, adding [center] once will center all subsequent lines.
           </p>
+          <div className="slds-box slds-theme_shade slds-m-top_x-small">
+            <p className="slds-text-body_small slds-m-bottom_x-small"><strong>Example:</strong></p>
+            <pre className="slds-text-body_small" style={{ fontFamily: 'monospace', background: 'rgba(0,0,0,0.05)', padding: '0.5rem', borderRadius: '4px' }}>
+[center]This line is centered
+This is also centered
+Still centered
+[left]Now back to left
+This stays left
+            </pre>
+          </div>
         </div>
       </div>
       
-      {/* Text area with syntax highlighting overlay */}
+      {/* Text area with syntax highlighting - Modified structure for proper focus handling */}
       <div className="rich-text-editor-container">
         <div className="slds-form-element__control rich-text-editor-wrapper">
-          {/* Syntax highlighting overlay - shows styled alignment indicators */}
-          <div 
-            ref={overlayRef}
-            className="syntax-overlay"
-            aria-hidden="true"
-          >
-            {renderHighlightedText()}
-          </div>
           <textarea
             ref={textareaRef}
             id="textInput"
-            className="slds-textarea syntax-textarea syntax-textarea-transparent"
+            className="slds-textarea syntax-textarea"
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            onScroll={syncScroll}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             rows={4}
             placeholder="Enter text here. Use the buttons above to format text."
             aria-label="Text content"
             aria-describedby="textInputHelp"
-            style={{ borderRadius: '8px' }}
+            style={{ borderRadius: '8px', overflow: 'hidden' }}
           />
         </div>
         {/* Help text moved outside the rich-text-editor-wrapper for proper focus handling */}
         <div className="slds-form-element__help help-text-container" id="textInputHelp">
-          Use the toolbar buttons to format text alignment
+          Select text and use the formatting buttons above to apply alignment or superscript formatting
         </div>
       </div>
     </div>

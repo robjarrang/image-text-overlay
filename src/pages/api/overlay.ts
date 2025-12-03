@@ -109,19 +109,12 @@ const wrapText = (
   return lines;
 };
 
-const processText = (text: string) => {
+const processText = (text: string, alignment: 'left' | 'center' | 'right' = 'left') => {
   const lines = text.split('\n');
-  let currentAlign = 'left'; // Default alignment
   
   return lines.map(line => {
-    // Check if this line has an alignment tag
-    const alignMatch = line.match(/\[(center|left|right)\]/);
-    if (alignMatch) {
-      // Update the current alignment for this and subsequent lines
-      currentAlign = alignMatch[1];
-      // Remove the alignment tag from the line
-      line = line.replace(/\[(center|left|right)\]/g, '');
-    }
+    // Remove legacy alignment tags if present
+    line = line.replace(/\[(center|left|right)\]/g, '');
     
     // Process superscript
     const parts: Array<{ text: string; isSuper: boolean }> = [];
@@ -153,7 +146,7 @@ const processText = (text: string) => {
       });
     }
     
-    return { parts, align: currentAlign }; // Use the current alignment
+    return { parts, align: alignment };
   });
 };
 
@@ -392,7 +385,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       // Process each overlay
       for (const overlay of textOverlays) {
-        const { text, fontSize, fontColor, x, y, desktopFontSize, mobileFontSize, desktopX, desktopY, mobileX, mobileY } = overlay;
+        const { text, fontSize, fontColor, x, y, desktopFontSize, mobileFontSize, desktopX, desktopY, mobileX, mobileY, alignment } = overlay;
         
         // Skip empty overlays
         if (!text || text.trim() === '') continue;
@@ -425,7 +418,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         
         const actualFontSize = Math.round((effectiveFontSize / 100) * imageWidth);
         const maxWidth = imageWidth * 0.8; // 80% of image width for wrapping
-        const lines = processText(text);
+        const lines = processText(text, alignment);
 
         let currentLineIndex = 0;
 

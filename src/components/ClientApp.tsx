@@ -24,6 +24,7 @@ export interface TextOverlay {
   mobileX?: number;
   mobileY?: number;
   allCaps?: boolean;
+  alignment?: 'left' | 'center' | 'right';
 }
 
 export interface ImageOverlay {
@@ -316,7 +317,8 @@ export function ClientApp() {
       fontSize: 5, // Default font size (5% of image width)
       fontColor: '#FFFFFF', // Default color (white)
       x: 10, // Default position (10% from left)
-      y: 10 + (formState.textOverlays.length * 10) % 80 // Staggered positioning
+      y: 10 + (formState.textOverlays.length * 10) % 80, // Staggered positioning
+      alignment: 'left'
     };
     
     setFormState(prev => ({
@@ -2736,6 +2738,8 @@ export function ClientApp() {
                               onFontColorChange={(color) => updateActiveOverlay('fontColor', color)}
                               allCaps={activeOverlay?.allCaps || false}
                               onAllCapsChange={(enabled) => updateActiveOverlay('allCaps', enabled)}
+                              alignment={activeOverlay?.alignment || 'left'}
+                              onAlignmentChange={(alignment) => updateActiveOverlay('alignment', alignment)}
                             />
                           </div>
                         </div>
