@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import LZString from 'lz-string';
 import { Icons } from './Icons';
 
 const CanvasGenerator = dynamic(() => import('./CanvasGenerator').then(mod => ({ default: mod.CanvasGenerator })), {
@@ -650,14 +651,33 @@ export function ClientApp() {
     const params = new URLSearchParams(window.location.search);
     console.log('🔍 URL params:', params.toString());
     
-    // Check for compressed data format first
-    const compressedData = params.get('d');
-    console.log('🔍 Compressed data found:', !!compressedData);
+    // Check for lz-string compressed data format first (new format with 'c' parameter)
+    const lzCompressedData = params.get('c');
+    // Check for old base64 compressed data format ('d' parameter) for backward compatibility
+    const base64CompressedData = params.get('d');
     
-    if (compressedData) {
+    console.log('🔍 LZ-string compressed data found:', !!lzCompressedData);
+    console.log('🔍 Base64 compressed data found:', !!base64CompressedData);
+    
+    // Determine which compression format to use
+    const hasCompressedData = lzCompressedData || base64CompressedData;
+    
+    if (hasCompressedData) {
       console.log('🔍 Processing compressed data...');
       try {
-        const decompressed = decodeURIComponent(atob(compressedData));
+        let decompressed: string;
+        
+        if (lzCompressedData) {
+          // New lz-string format
+          decompressed = LZString.decompressFromEncodedURIComponent(lzCompressedData) || '';
+          if (!decompressed) {
+            throw new Error('Failed to decompress lz-string data');
+          }
+        } else {
+          // Old base64 format for backward compatibility
+          decompressed = decodeURIComponent(atob(base64CompressedData!));
+        }
+        
         const shareData = JSON.parse(decompressed);
         console.log('🔍 Parsed share data:', shareData);
         
@@ -1522,14 +1542,13 @@ export function ClientApp() {
         });
       }
 
-      // Triple compress: JSON (no spaces) -> URL encode -> Base64
-      const jsonString = JSON.stringify(shareData).replace(/\s+/g, ''); // Remove all whitespace
-      const urlEncoded = encodeURIComponent(jsonString);
-      const base64 = btoa(urlEncoded);
+      // Use lz-string for efficient URL-safe compression
+      const jsonString = JSON.stringify(shareData);
+      const compressed = LZString.compressToEncodedURIComponent(jsonString);
       
-      // Clear existing params and set the compressed data
+      // Clear existing params and set the compressed data with 'c' prefix to indicate lz-string compression
       url.search = '';
-      url.searchParams.set('d', base64);
+      url.searchParams.set('c', compressed);
 
       const finalUrl = url.toString();
       
@@ -1537,13 +1556,14 @@ export function ClientApp() {
       console.log('Compression details:', {
         originalData: shareData,
         jsonLength: jsonString.length,
-        urlEncodedLength: urlEncoded.length,
-        base64Length: base64.length,
-        finalUrlLength: finalUrl.length
+        compressedLength: compressed.length,
+        finalUrlLength: finalUrl.length,
+        compressionRatio: ((1 - compressed.length / jsonString.length) * 100).toFixed(1) + '%'
       });
       
-      // Increased limit with better compression
-      if (finalUrl.length > 2048) {
+      // With lz-string compression, we can handle much larger configurations
+      // Most browsers support URLs up to 2000-8000 characters
+      if (finalUrl.length > 8000) {
         throw new Error('Configuration is too complex to share via URL. Try removing some overlays or shortening text.');
       }
 
