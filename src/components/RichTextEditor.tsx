@@ -341,12 +341,17 @@ export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, mi
         {fontSize !== undefined && onFontSizeChange && (
           <div 
             ref={fontSizeDropdownRef}
-            className="slds-dropdown-trigger slds-dropdown-trigger_click slds-m-left_x-small"
-            style={{ position: 'relative' }}
+            className={`slds-dropdown-trigger slds-dropdown-trigger_click slds-m-left_x-small ${showFontSizeDropdown ? 'slds-is-open' : ''}`}
+            style={{ position: 'relative', display: 'inline-block' }}
           >
             <button
-              className="slds-button slds-button_icon-border-filled"
-              onClick={() => setShowFontSizeDropdown(!showFontSizeDropdown)}
+              type="button"
+              className="slds-button slds-button_neutral"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowFontSizeDropdown(!showFontSizeDropdown);
+              }}
               aria-haspopup="listbox"
               aria-expanded={showFontSizeDropdown}
               title="Font Size"
@@ -375,28 +380,32 @@ export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, mi
                   top: '100%',
                   left: 0,
                   marginTop: '4px',
-                  zIndex: 9000,
-                  minWidth: '80px',
-                  maxHeight: '200px',
+                  zIndex: 9999,
+                  minWidth: '90px',
+                  maxHeight: '250px',
                   overflowY: 'auto',
                   backgroundColor: 'white',
                   border: '1px solid #dddbda',
                   borderRadius: '4px',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.16)'
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.16)',
+                  display: 'block'
                 }}
               >
-                <ul className="slds-dropdown__list" role="listbox">
+                <ul className="slds-dropdown__list" role="listbox" style={{ margin: 0, padding: 0 }}>
                   {availableFontSizes.map((size) => (
                     <li 
                       key={size} 
                       className="slds-dropdown__item" 
                       role="presentation"
+                      style={{ listStyle: 'none' }}
                     >
                       <button
+                        type="button"
                         role="option"
                         aria-selected={fontSize === size}
-                        className="slds-truncate"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           onFontSizeChange(size);
                           setShowFontSizeDropdown(false);
                         }}
@@ -407,7 +416,8 @@ export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, mi
                           background: fontSize === size ? '#f3f2f2' : 'transparent',
                           cursor: 'pointer',
                           textAlign: 'left',
-                          fontSize: '0.8125rem'
+                          fontSize: '0.8125rem',
+                          display: 'block'
                         }}
                       >
                         {size}px
