@@ -1409,48 +1409,55 @@ export function CanvasGenerator({
 
   return (
     <div className="canvas-container slds-p-around_medium slds-m-bottom_medium" style={{ position: 'relative' }}>
-      <canvas
-        ref={canvasRef}
-        className={`slds-border_around preview-canvas ${className}`}
-        style={{
-          maxWidth: '100%',
-          height: 'auto',
-          aspectRatio: imageAspectRatio,
-          cursor: isDragging ? 'grabbing' : 'grab',
-          boxShadow: isHovering 
-            ? '0 8px 16px rgba(0, 0, 0, 0.1)' 
-            : '0 4px 6px rgba(0, 0, 0, 0.05)',
-          transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-          transform: isDragging 
-            ? 'scale(1.01)' 
-            : isHovering 
-              ? 'scale(1.005)' 
-              : 'scale(1)',
-          borderRadius: '8px',
-        }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
-        onMouseEnter={handleMouseEnter}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      />
-      {/* Overlay canvas for hover effects - prevents flicker by not redrawing main canvas */}
-      <canvas
-        ref={overlayCanvasRef}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          maxWidth: '100%',
-          height: 'auto',
-          aspectRatio: imageAspectRatio,
-          pointerEvents: 'none', // Allow clicks to pass through to main canvas
-          borderRadius: '8px',
-        }}
-      />
+      <div style={{ 
+        position: 'relative', 
+        display: 'inline-block', 
+        maxWidth: '100%',
+        transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+        transform: isDragging 
+          ? 'scale(1.01)' 
+          : isHovering 
+            ? 'scale(1.005)' 
+            : 'scale(1)',
+        boxShadow: isHovering 
+          ? '0 8px 16px rgba(0, 0, 0, 0.1)' 
+          : '0 4px 6px rgba(0, 0, 0, 0.05)',
+        borderRadius: '8px',
+      }}>
+        <canvas
+          ref={canvasRef}
+          className={`slds-border_around preview-canvas ${className}`}
+          style={{
+            maxWidth: '100%',
+            height: 'auto',
+            aspectRatio: imageAspectRatio,
+            cursor: isDragging ? 'grabbing' : 'grab',
+            borderRadius: '8px',
+            display: 'block',
+          }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          onMouseEnter={handleMouseEnter}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        />
+        {/* Overlay canvas for hover effects - prevents flicker by not redrawing main canvas */}
+        <canvas
+          ref={overlayCanvasRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none', // Allow clicks to pass through to main canvas
+            borderRadius: '8px',
+          }}
+        />
+      </div>
       {showDragHint && (
         <div className="drag-instruction">
           <div className="drag-hint-badge">
