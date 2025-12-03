@@ -428,17 +428,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           line.parts.forEach(part => {
             const partSize = part.isSuper ? actualFontSize * 0.7 : actualFontSize;
             const displayText = overlay.allCaps ? part.text.toUpperCase() : part.text;
-            const testPath = font.getPath(displayText, 0, 0, partSize);
-            const bbox = testPath.getBoundingBox();
-            totalLineWidth += bbox.x2 - bbox.x1;
+            totalLineWidth += font.getAdvanceWidth(displayText, partSize);
           });
           
           // Calculate starting X position based on alignment
           let lineStartX = actualX;
           if (line.align === 'center') {
-            lineStartX = (imageWidth - totalLineWidth) / 2;
+            lineStartX = actualX - (totalLineWidth / 2);
           } else if (line.align === 'right') {
-            lineStartX = imageWidth - totalLineWidth - ((100 - x) / 100 * imageWidth);
+            lineStartX = actualX - totalLineWidth;
           }
           
           let currentX = lineStartX;
@@ -457,9 +455,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             svgPaths += `<path d="${path.toPathData()}" fill="${fontColor}" />`;
             
             // Calculate this part's width and advance X position
-            const testPath = font.getPath(displayText, 0, 0, partSize);
-            const bbox = testPath.getBoundingBox();
-            currentX += bbox.x2 - bbox.x1;
+            currentX += font.getAdvanceWidth(displayText, partSize);
           });
           
           // Only increment line index once per logical line (not per part)

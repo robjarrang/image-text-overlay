@@ -25,6 +25,7 @@ declare module 'opentype.js' {
 
     interface Font {
         getPath(text: string, x: number, y: number, fontSize: number): Path;
+        getAdvanceWidth(text: string, fontSize: number, options?: any): number;
         stringToGlyphs(text: string): Glyph[];
         unitsPerEm: number;
     }
