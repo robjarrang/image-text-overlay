@@ -2739,6 +2739,8 @@ export function ClientApp() {
                               }}
                               minFontSize={activeImageSourceTab === 'desktop-mobile' ? 12 : Math.round(formState.width * 0.01)}
                               maxFontSize={activeImageSourceTab === 'desktop-mobile' ? 248 : Math.round(formState.width * 0.20)}
+                              fontColor={activeOverlay?.fontColor || '#FFFFFF'}
+                              onFontColorChange={(color) => updateActiveOverlay('fontColor', color)}
                             />
                           </div>
                         </div>
@@ -2785,57 +2787,6 @@ export function ClientApp() {
                           <legend className="slds-form-element__label slds-form-element__legend">Text Style</legend>
                           <div className="slds-form-element_compound">
                             <div className="slds-grid slds-gutters_medium slds-grid_vertical-align-end">
-                              <div className="slds-col">
-                                <div className="slds-form-element">
-                                  <label className="slds-form-element__label" htmlFor="fontColor">Color</label>
-                                  <div className="slds-form-element__control">
-                                    <div className="slds-color-picker_swatches color-swatch-container">
-                                      <button
-                                        type="button"
-                                        className={`slds-color-picker__swatch ${activeOverlay?.fontColor === '#DB011C' ? 'slds-is-selected' : ''}`}
-                                        aria-label="Red Color"
-                                        title="Red"
-                                        style={{ backgroundColor: '#DB011C' }}
-                                        onClick={() => updateActiveOverlay('fontColor', '#DB011C')}
-                                      >
-                                        {activeOverlay?.fontColor === '#DB011C' && 
-                                          <span className="slds-color-picker__swatch-check" style={{ color: '#FFFFFF' }}>
-                                            <Icons.Success size="x-small" />
-                                          </span>
-                                        }
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className={`slds-color-picker__swatch ${activeOverlay?.fontColor === '#000000' ? 'slds-is-selected' : ''}`}
-                                        aria-label="Black Color"
-                                        title="Black"
-                                        style={{ backgroundColor: '#000000' }}
-                                        onClick={() => updateActiveOverlay('fontColor', '#000000')}
-                                      >
-                                        {activeOverlay?.fontColor === '#000000' && 
-                                          <span className="slds-color-picker__swatch-check" style={{ color: '#FFFFFF' }}>
-                                            <Icons.Success size="x-small" />
-                                          </span>
-                                        }
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className={`slds-color-picker__swatch ${activeOverlay?.fontColor === '#FFFFFF' ? 'slds-is-selected' : ''}`}
-                                        aria-label="White Color"
-                                        title="White"
-                                        style={{ backgroundColor: '#FFFFFF', border: '1px solid #dddbda' }}
-                                        onClick={() => updateActiveOverlay('fontColor', '#FFFFFF')}
-                                      >
-                                        {activeOverlay?.fontColor === '#FFFFFF' && 
-                                          <span className="slds-color-picker__swatch-check" style={{ color: '#000000' }}>
-                                            <Icons.Success size="x-small" />
-                                          </span>
-                                        }
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
                               <div className="slds-col">
                                 <div className="slds-form-element">
                                   <label className="slds-form-element__label" htmlFor="allCapsToggle">

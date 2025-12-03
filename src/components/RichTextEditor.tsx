@@ -4,6 +4,13 @@ import { Icons } from './Icons';
 // Common font sizes in pixels
 const FONT_SIZE_OPTIONS = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 112, 128, 160, 192, 248];
 
+// Available text colors
+const COLOR_OPTIONS = [
+  { value: '#DB011C', label: 'Red', checkColor: '#FFFFFF' },
+  { value: '#000000', label: 'Black', checkColor: '#FFFFFF' },
+  { value: '#FFFFFF', label: 'White', checkColor: '#000000', border: true }
+];
+
 interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -11,9 +18,11 @@ interface RichTextEditorProps {
   onFontSizeChange?: (size: number) => void;
   minFontSize?: number;
   maxFontSize?: number;
+  fontColor?: string;
+  onFontColorChange?: (color: string) => void;
 }
 
-export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, minFontSize = 12, maxFontSize = 248 }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, minFontSize = 12, maxFontSize = 248, fontColor, onFontColorChange }: RichTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showHelp, setShowHelp] = useState<boolean>(false);
   const [activeButton, setActiveButton] = useState<string | null>(null);
@@ -427,6 +436,49 @@ export function RichTextEditor({ value, onChange, fontSize, onFontSizeChange, mi
                 </ul>
               </div>
             )}
+          </div>
+        )}
+        
+        {/* Color Picker */}
+        {fontColor !== undefined && onFontColorChange && (
+          <div className="slds-m-left_x-small" style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+            {COLOR_OPTIONS.map((color) => (
+              <button
+                key={color.value}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onFontColorChange(color.value);
+                }}
+                aria-label={`${color.label} Color`}
+                title={color.label}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '4px',
+                  backgroundColor: color.value,
+                  border: color.border ? '1px solid #dddbda' : (fontColor === color.value ? '2px solid #0176d3' : '1px solid transparent'),
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  boxShadow: fontColor === color.value ? '0 0 0 1px #fff, 0 0 0 3px #0176d3' : 'none'
+                }}
+              >
+                {fontColor === color.value && (
+                  <svg 
+                    width="12" 
+                    height="12" 
+                    viewBox="0 0 52 52" 
+                    style={{ fill: color.checkColor }}
+                  >
+                    <path d="M21.5 46.5c-.8 0-1.6-.3-2.2-.9L3.9 30.1c-1.2-1.2-1.2-3.2 0-4.4 1.2-1.2 3.2-1.2 4.4 0L21.5 39 43.7 6.4c1-1.4 2.9-1.7 4.3-.7 1.4 1 1.7 2.9.7 4.3L23.9 45.3c-.5.8-1.4 1.2-2.4 1.2z"/>
+                  </svg>
+                )}
+              </button>
+            ))}
           </div>
         )}
         
