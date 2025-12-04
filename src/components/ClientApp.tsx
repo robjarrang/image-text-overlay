@@ -129,6 +129,13 @@ const normalizeFontSize = (value: number): number => {
   return fontPercentToPixels(value);
 };
 
+// Check if a URL points to an animated GIF
+const isGifUrl = (url: string): boolean => {
+  if (!url) return false;
+  const lowerUrl = url.toLowerCase();
+  return lowerUrl.endsWith('.gif') || lowerUrl.includes('.gif?') || lowerUrl.includes('image/gif');
+};
+
 export function ClientApp() {
   const [formState, setFormState] = useState<FormState>({
     textOverlays: [],
@@ -1338,6 +1345,10 @@ export function ClientApp() {
         return;
       }
 
+      // Determine if this is a GIF
+      const imageUrlToCheck = activeImageSourceTab === 'desktop-mobile' ? desktopMobileImageUrl : (originalImageUrl || formState.imageUrl);
+      const isGif = isGifUrl(imageUrlToCheck);
+
       let response;
       // Use POST for upload mode, transparent mode, desktop-mobile mode, or base64 data URLs
       if (activeImageSourceTab === 'upload' || activeImageSourceTab === 'transparent' || activeImageSourceTab === 'desktop-mobile' || formState.imageUrl.startsWith('data:image/')) {
@@ -1350,26 +1361,45 @@ export function ClientApp() {
             isDesktopMobileMode: true
           })
         };
-        response = await fetch('/api/overlay', {
+        
+        // Use GIF endpoint for animated GIFs
+        const endpoint = isGif ? '/api/overlay-gif' : '/api/overlay';
+        response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       } else {
-        const downloadParams = new URLSearchParams();
-        Object.entries(formState).forEach(([key, value]) => {
-          if (key === 'imageUrl') return; // Skip the base64 imageUrl
-          downloadParams.set(key, String(value));
-        });
-        downloadParams.set('imageUrl', originalImageUrl);
-        downloadParams.set('download', 'true');
-        response = await fetch(`/api/overlay?${downloadParams}`);
+        // Use GIF endpoint for animated GIFs
+        if (isGif) {
+          const payload = {
+            ...formState,
+            imageUrl: originalImageUrl,
+            download: true
+          };
+          response = await fetch('/api/overlay-gif', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          const downloadParams = new URLSearchParams();
+          Object.entries(formState).forEach(([key, value]) => {
+            if (key === 'imageUrl') return; // Skip the base64 imageUrl
+            downloadParams.set(key, String(value));
+          });
+          downloadParams.set('imageUrl', originalImageUrl);
+          downloadParams.set('download', 'true');
+          response = await fetch(`/api/overlay?${downloadParams}`);
+        }
       }
       if (!response.ok) throw new Error('Failed to generate image');
       
       // Get the appropriate file extension from Content-Type header
       const contentType = response.headers.get('Content-Type');
-      const fileExtension = contentType === 'image/png' ? 'png' : 'jpg';
+      let fileExtension = 'jpg';
+      if (contentType === 'image/png') fileExtension = 'png';
+      else if (contentType === 'image/gif') fileExtension = 'gif';
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -1394,6 +1424,9 @@ export function ClientApp() {
   const handleDesktopMobileDownload = async (version: 'desktop' | 'mobile') => {
     setIsLoading(true);
     try {
+      // Determine if this is a GIF
+      const isGif = isGifUrl(desktopMobileImageUrl);
+      
       // Create payload with desktop/mobile specific dimensions and settings
       const dimensions = version === 'desktop' ? { width: 1240, height: 968 } : { width: 1240, height: 1400 };
       const payload = { 
@@ -1405,7 +1438,9 @@ export function ClientApp() {
         desktopMobileVersion: version
       };
       
-      const response = await fetch('/api/overlay', {
+      // Use GIF endpoint for animated GIFs
+      const endpoint = isGif ? '/api/overlay-gif' : '/api/overlay';
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -1423,7 +1458,9 @@ export function ClientApp() {
       
       // Get file extension from response headers or default to png
       const contentType = response.headers.get('content-type') || 'image/png';
-      const fileExtension = contentType.includes('jpeg') ? 'jpg' : 'png';
+      let fileExtension = 'png';
+      if (contentType.includes('jpeg')) fileExtension = 'jpg';
+      else if (contentType.includes('gif')) fileExtension = 'gif';
       
       a.download = `overlay-${version}-${Date.now()}.${fileExtension}`;
       document.body.appendChild(a);
