@@ -254,7 +254,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let imageHeight: number;
     let transformedImage: sharp.Sharp;
     let hasAlpha: boolean;
-    let isGif = false;
 
     if (isTransparentMode) {
       // Handle transparent canvas mode
@@ -295,7 +294,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const backgroundBuffer = Buffer.from(await imageResponse.arrayBuffer());
       
       // Resize background image to fit the fixed dimensions
-      const backgroundImage = sharp(backgroundBuffer, { animated: true })
+      const backgroundImage = sharp(backgroundBuffer)
         .resize(imageWidth, imageHeight, { fit: 'cover' })
         .ensureAlpha(); // Ensure alpha channel for proper overlay compositing
       
@@ -303,12 +302,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('Background image prepared for desktop/mobile mode');
       transformedImage = backgroundImage;
       
-      // Check if it's a GIF
-      const bgMetadata = await backgroundImage.metadata();
-      isGif = bgMetadata.format === 'gif';
-      
       hasAlpha = true; // Set to true since we're ensuring alpha channel
-      console.log('Desktop/mobile image prepared:', { width: imageWidth, height: imageHeight, version: desktopMobileVersion, isGif });
+      console.log('Desktop/mobile image prepared:', { width: imageWidth, height: imageHeight, version: desktopMobileVersion });
     } else {
       // Fetch and process image
       console.log('Fetching image from URL...');
@@ -328,7 +323,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.log('Image fetched from URL, size:', imageBuffer.length);
       }
 
-      const image = sharp(imageBuffer, { animated: true });
+      const image = sharp(imageBuffer);
       const metadata = await image.metadata();
       console.log('Image metadata:', metadata);
       
@@ -341,7 +336,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       // Check if source image has transparency
       hasAlpha = metadata.channels === 4 || Boolean(metadata.hasAlpha);
-      isGif = metadata.format === 'gif';
       
       // Calculate transformed dimensions and position
       const imageZoomValue = typeof imageZoom === 'number' ? imageZoom : parseFloat(imageZoom as string);
@@ -354,8 +348,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const offsetY = (scaledHeight - imageHeight) * imageYPercent;
 
       // Create a new Sharp instance with the transformed image
-      let imageTransform = sharp(imageBuffer, { animated: true })
-        .resize(Math.round(scaledWidth), Math.round(scaledHeight))
+      let imageTransform = sharp(imageBuffer)
+        .resize(scaledWidth, scaledHeight)
         .extract({
           left: Math.round(offsetX),
           top: Math.round(offsetY),
@@ -630,16 +624,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (allComposites.length > 0) {
         const builtInLogoCount = isDesktopMobileMode && desktopMobileVersion ? 1 : 0;
         console.log(`Compositing with ${imageComposites.length} image overlays, ${builtInLogoCount} built-in logo, and ${svgPaths.trim() ? '1' : '0'} text overlay...`);
-        
-        if (isGif) {
-          console.log('Source is GIF, outputting animated GIF...');
-          finalImage = await transformedImage
-            .composite(allComposites)
-            .gif()
-            .toBuffer();
-          contentType = 'image/gif';
-          fileExtension = 'gif';
-        } else if (needsPng) {
+        if (needsPng) {
           console.log('Has transparency or image overlays, outputting PNG...');
           finalImage = await transformedImage
             .composite(allComposites)
@@ -663,14 +648,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       } else {
         console.log('No overlays, using image as-is...');
-        if (isGif) {
-          console.log('Source is GIF, outputting animated GIF...');
-          finalImage = await transformedImage
-            .gif()
-            .toBuffer();
-          contentType = 'image/gif';
-          fileExtension = 'gif';
-        } else if (needsPng) {
+        if (needsPng) {
           console.log('Source has transparency, outputting PNG...');
           finalImage = await transformedImage
             .png({ 

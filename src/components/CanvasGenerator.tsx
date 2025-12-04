@@ -66,9 +66,6 @@ export function CanvasGenerator({
   const [initialFontSize, setInitialFontSize] = useState(0);
   const [resizeStartDistance, setResizeStartDistance] = useState(0);
 
-  // Check if image is GIF
-  const isGif = imageUrl?.toLowerCase().endsWith('.gif') || imageUrl?.startsWith('data:image/gif');
-
   // Improved font loading with retry mechanism
   useEffect(() => {
     if (fontLoadingAttempted.current) return;
@@ -440,16 +437,14 @@ export function CanvasGenerator({
       // Clear the canvas
       displayCtx.clearRect(0, 0, imageWidth, imageHeight);
       
-      // Draw the image with transformations (only if not GIF)
-      if (!isGif) {
-        displayCtx.save();
-        displayCtx.translate(-offsetX, -offsetY);
-        displayCtx.drawImage(image, 0, 0, scaledWidth, scaledHeight);
-        displayCtx.restore();
-        
-        // Apply brightness filter
-        applyBrightnessFilter(displayCtx, imageWidth, imageHeight, brightness);
-      }
+      // Draw the image with transformations
+      displayCtx.save();
+      displayCtx.translate(-offsetX, -offsetY);
+      displayCtx.drawImage(image, 0, 0, scaledWidth, scaledHeight);
+      displayCtx.restore();
+      
+      // Apply brightness filter
+      applyBrightnessFilter(displayCtx, imageWidth, imageHeight, brightness);
 
       // Draw all image overlays first (behind text)
       imageOverlays.forEach(overlay => {
@@ -1421,26 +1416,7 @@ export function CanvasGenerator({
           ? '0 8px 16px rgba(0, 0, 0, 0.1)' 
           : '0 4px 6px rgba(0, 0, 0, 0.05)',
         borderRadius: '8px',
-        overflow: 'hidden',
       }}>
-        {isGif && (
-          <img 
-            src={imageUrl}
-            alt="Background"
-            style={{
-              position: 'absolute',
-              width: `${imageZoom * 100}%`,
-              height: `${imageZoom * 100}%`,
-              left: `${-(imageX / 100) * (imageZoom - 1) * 100}%`,
-              top: `${-(imageY / 100) * (imageZoom - 1) * 100}%`,
-              filter: `brightness(${brightness}%)`,
-              maxWidth: 'none',
-              maxHeight: 'none',
-              pointerEvents: 'none',
-              zIndex: 0
-            }}
-          />
-        )}
         <canvas
           ref={canvasRef}
           className={`slds-border_around preview-canvas ${className}`}
@@ -1451,8 +1427,6 @@ export function CanvasGenerator({
             cursor: isDragging ? 'grabbing' : 'grab',
             borderRadius: '8px',
             display: 'block',
-            position: 'relative',
-            zIndex: 1,
           }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}

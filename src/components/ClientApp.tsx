@@ -1369,12 +1369,7 @@ export function ClientApp() {
       
       // Get the appropriate file extension from Content-Type header
       const contentType = response.headers.get('Content-Type');
-      let fileExtension = 'jpg';
-      if (contentType === 'image/png') {
-        fileExtension = 'png';
-      } else if (contentType === 'image/gif') {
-        fileExtension = 'gif';
-      }
+      const fileExtension = contentType === 'image/png' ? 'png' : 'jpg';
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -1428,12 +1423,7 @@ export function ClientApp() {
       
       // Get file extension from response headers or default to png
       const contentType = response.headers.get('content-type') || 'image/png';
-      let fileExtension = 'png';
-      if (contentType.includes('jpeg')) {
-        fileExtension = 'jpg';
-      } else if (contentType.includes('gif')) {
-        fileExtension = 'gif';
-      }
+      const fileExtension = contentType.includes('jpeg') ? 'jpg' : 'png';
       
       a.download = `overlay-${version}-${Date.now()}.${fileExtension}`;
       document.body.appendChild(a);
