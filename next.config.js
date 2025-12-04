@@ -9,7 +9,7 @@ const nextConfig = {
   },
   compress: true,
   experimental: {
-    serverComponentsExternalPackages: ['sharp', 'canvas'],
+    serverComponentsExternalPackages: ['sharp'],
   },
   async headers() {
     return [

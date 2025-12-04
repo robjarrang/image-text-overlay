@@ -12,18 +12,7 @@ declare module 'axios' {
 }
 
 declare module 'opentype.js' {
-    interface PathCommand {
-        type: 'M' | 'L' | 'Q' | 'C' | 'Z';
-        x?: number;
-        y?: number;
-        x1?: number;
-        y1?: number;
-        x2?: number;
-        y2?: number;
-    }
-
     interface Path {
-        commands: PathCommand[];
         getBoundingBox(): {
             x1: number;
             y1: number;
