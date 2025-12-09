@@ -3237,3 +3237,89 @@ input.font-size-percentage-input {
     align-items: center;
   }
 }
+
+/* ============================================
+   SLDS CHECKBOX STYLES
+   ============================================ */
+.slds-checkbox {
+  display: flex;
+  align-items: flex-start;
+  position: relative;
+}
+
+.slds-checkbox input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  overflow: hidden;
+}
+
+.slds-checkbox__label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 0.5rem;
+}
+
+.slds-checkbox__faux {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+  position: relative;
+  flex-shrink: 0;
+  border: 1px solid var(--slds-g-color-border-base-4, #c9c9c9);
+  border-radius: 0.125rem;
+  background-color: #fff;
+  transition: border 0.1s linear, background-color 0.1s linear;
+}
+
+.slds-checkbox__faux::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 7px;
+  width: 4px;
+  height: 9px;
+  border-bottom: 2px solid #fff;
+  border-right: 2px solid #fff;
+  transform: rotate(45deg);
+  opacity: 0;
+  transition: opacity 0.1s linear;
+}
+
+/* Checked state */
+.slds-checkbox input[type="checkbox"]:checked + .slds-checkbox__label .slds-checkbox__faux {
+  background-color: var(--slds-g-color-brand-base-50, #0176d3);
+  border-color: var(--slds-g-color-brand-base-50, #0176d3);
+}
+
+.slds-checkbox input[type="checkbox"]:checked + .slds-checkbox__label .slds-checkbox__faux::after {
+  opacity: 1;
+}
+
+/* Focus state */
+.slds-checkbox input[type="checkbox"]:focus + .slds-checkbox__label .slds-checkbox__faux {
+  box-shadow: 0 0 3px var(--slds-g-color-brand-base-50, #0176d3);
+  border-color: var(--slds-g-color-brand-base-50, #0176d3);
+}
+
+/* Hover state */
+.slds-checkbox:hover .slds-checkbox__faux {
+  border-color: var(--slds-g-color-brand-base-50, #0176d3);
+}
+
+/* Dark mode support */
+.slds-theme_dark .slds-checkbox__faux {
+  background-color: var(--slds-g-color-neutral-base-20, #2e2e2e);
+  border-color: var(--slds-g-color-neutral-base-50, #747474);
+}
+
+.slds-theme_dark .slds-checkbox input[type="checkbox"]:checked + .slds-checkbox__label .slds-checkbox__faux {
+  background-color: var(--slds-g-color-brand-base-50, #0176d3);
+  border-color: var(--slds-g-color-brand-base-50, #0176d3);
+}
