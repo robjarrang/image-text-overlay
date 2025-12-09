@@ -1818,20 +1818,19 @@ export function ClientApp() {
   };
 
   // Generate desktop/mobile preview with logo
-  const generateDesktopMobilePreview = async (backgroundUrl: string, version?: 'desktop' | 'mobile', showLogo?: boolean) => {
+  const generateDesktopMobilePreview = async (backgroundUrl: string, version?: 'desktop' | 'mobile', showLogoOverride?: boolean) => {
     if (!backgroundUrl) {
       console.log('No background URL provided');
       return;
     }
     
     const versionToUse = version || desktopMobileVersion;
-    // Use passed showLogo value if provided, otherwise use state
-    const shouldShowLogo = showLogo !== undefined ? showLogo : showMilwaukeeLogo;
+    const shouldShowLogo = showLogoOverride !== undefined ? showLogoOverride : showMilwaukeeLogo;
     const dimensions = versionToUse === 'desktop' 
       ? { width: Number(formState.desktopWidth), height: Number(formState.desktopHeight) } 
       : { width: Number(formState.mobileWidth), height: Number(formState.mobileHeight) };
     
-    // Check cache first - but don't use cache when logo setting changes
+    // Check cache first - but also check logo state
     const cached = previewCache[versionToUse];
     if (cached && 
         cached.sourceUrl === backgroundUrl && 
@@ -2405,7 +2404,7 @@ export function ClientApp() {
                                       // Clear cache to regenerate preview with/without logo
                                       setPreviewCache({ desktop: null, mobile: null });
                                       if (desktopMobileImageUrl) {
-                                        // Pass the new value directly to avoid closure issues
+                                        // Pass the new value directly to avoid stale state
                                         generateDesktopMobilePreview(desktopMobileImageUrl, desktopMobileVersion, newValue);
                                       }
                                     }}
