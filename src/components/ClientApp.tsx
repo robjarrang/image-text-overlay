@@ -784,6 +784,12 @@ export function ClientApp() {
             console.log('🔍 Setting desktop/mobile image URL to:', dmUrl);
             setDesktopMobileImageUrl(dmUrl);
           }
+          // Handle Milwaukee logo setting (ml: 0 means hide logo, undefined/1 means show)
+          if (shareData.ml !== undefined) {
+            const showLogo = shareData.ml !== 0;
+            console.log('🔍 Setting Milwaukee logo visibility to:', showLogo);
+            setShowMilwaukeeLogo(showLogo);
+          }
         }
         
         // Set form state from compressed data
@@ -1488,7 +1494,8 @@ export function ClientApp() {
           dw: formState.desktopWidth,
           dh: formState.desktopHeight,
           mw: formState.mobileWidth,
-          mh: formState.mobileHeight
+          mh: formState.mobileHeight,
+          ...(showMilwaukeeLogo === false && { ml: 0 }) // Only include if false (default is true)
         }),
         // Core state with ultra-short keys
         w: formState.width,
