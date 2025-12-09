@@ -186,8 +186,8 @@ export function ClientApp() {
   
   // Cache for desktop/mobile preview images to avoid re-fetching when switching versions
   const [previewCache, setPreviewCache] = useState<{
-    desktop: { url: string; sourceUrl: string; width: number; height: number } | null;
-    mobile: { url: string; sourceUrl: string; width: number; height: number } | null;
+    desktop: { url: string; sourceUrl: string; width: number; height: number; showLogo: boolean } | null;
+    mobile: { url: string; sourceUrl: string; width: number; height: number; showLogo: boolean } | null;
   }>({ desktop: null, mobile: null });
 
   // Validation function for dimensions
@@ -1818,24 +1818,24 @@ export function ClientApp() {
   };
 
   // Generate desktop/mobile preview with logo
-  const generateDesktopMobilePreview = async (backgroundUrl: string, version?: 'desktop' | 'mobile', showLogoOverride?: boolean) => {
+  const generateDesktopMobilePreview = async (backgroundUrl: string, version?: 'desktop' | 'mobile') => {
     if (!backgroundUrl) {
       console.log('No background URL provided');
       return;
     }
     
     const versionToUse = version || desktopMobileVersion;
-    const shouldShowLogo = showLogoOverride !== undefined ? showLogoOverride : showMilwaukeeLogo;
     const dimensions = versionToUse === 'desktop' 
       ? { width: Number(formState.desktopWidth), height: Number(formState.desktopHeight) } 
       : { width: Number(formState.mobileWidth), height: Number(formState.mobileHeight) };
     
-    // Check cache first - but also check logo state
+    // Check cache first
     const cached = previewCache[versionToUse];
     if (cached && 
         cached.sourceUrl === backgroundUrl && 
         cached.width === dimensions.width && 
-        cached.height === dimensions.height) {
+        cached.height === dimensions.height &&
+        cached.showLogo === showMilwaukeeLogo) {
       console.log('Using cached preview for version:', versionToUse);
       setFormState(prev => ({ 
         ...prev, 
@@ -1846,7 +1846,7 @@ export function ClientApp() {
       return;
     }
     
-    console.log('Generating preview for version:', versionToUse, 'URL:', backgroundUrl, 'showLogo:', shouldShowLogo);
+    console.log('Generating preview for version:', versionToUse, 'URL:', backgroundUrl);
     
     try {
       setIsLoading(true);
@@ -1858,7 +1858,7 @@ export function ClientApp() {
         imageOverlays: [], // Empty for preview, we'll add image overlays in the canvas
         isDesktopMobileMode: true,
         desktopMobileVersion: versionToUse,
-        showMilwaukeeLogo: shouldShowLogo,
+        showMilwaukeeLogo: showMilwaukeeLogo,
         download: false
       };
       
@@ -1886,7 +1886,8 @@ export function ClientApp() {
           url: previewUrl,
           sourceUrl: backgroundUrl,
           width: dimensions.width,
-          height: dimensions.height
+          height: dimensions.height,
+          showLogo: showMilwaukeeLogo
         }
       }));
       
@@ -1919,7 +1920,8 @@ export function ClientApp() {
     if (cached && 
         cached.sourceUrl === backgroundUrl && 
         cached.width === otherDimensions.width && 
-        cached.height === otherDimensions.height) {
+        cached.height === otherDimensions.height &&
+        cached.showLogo === showMilwaukeeLogo) {
       console.log('Other version already cached:', otherVersion);
       return;
     }
@@ -1963,7 +1965,8 @@ export function ClientApp() {
           url: previewUrl,
           sourceUrl: backgroundUrl,
           width: otherDimensions.width,
-          height: otherDimensions.height
+          height: otherDimensions.height,
+          showLogo: showMilwaukeeLogo
         }
       }));
     } catch (error) {
@@ -2399,13 +2402,14 @@ export function ClientApp() {
                                     id="showMilwaukeeLogo"
                                     checked={showMilwaukeeLogo}
                                     onChange={(e) => {
-                                      const newValue = e.target.checked;
-                                      setShowMilwaukeeLogo(newValue);
+                                      setShowMilwaukeeLogo(e.target.checked);
                                       // Clear cache to regenerate preview with/without logo
                                       setPreviewCache({ desktop: null, mobile: null });
                                       if (desktopMobileImageUrl) {
-                                        // Pass the new value directly to avoid stale state
-                                        generateDesktopMobilePreview(desktopMobileImageUrl, desktopMobileVersion, newValue);
+                                        // Small delay to ensure state is updated
+                                        setTimeout(() => {
+                                          generateDesktopMobilePreview(desktopMobileImageUrl, desktopMobileVersion);
+                                        }, 50);
                                       }
                                     }}
                                   />
