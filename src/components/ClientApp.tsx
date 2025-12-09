@@ -182,6 +182,7 @@ export function ClientApp() {
   // State for desktop/mobile mode
   const [desktopMobileVersion, setDesktopMobileVersion] = useState<'desktop' | 'mobile'>('desktop');
   const [desktopMobileImageUrl, setDesktopMobileImageUrl] = useState<string>('');
+  const [showMilwaukeeLogo, setShowMilwaukeeLogo] = useState<boolean>(true);
   
   // Cache for desktop/mobile preview images to avoid re-fetching when switching versions
   const [previewCache, setPreviewCache] = useState<{
@@ -1347,7 +1348,8 @@ export function ClientApp() {
           ...(activeImageSourceTab === 'desktop-mobile' && {
             desktopMobileVersion,
             desktopMobileImageUrl,
-            isDesktopMobileMode: true
+            isDesktopMobileMode: true,
+            showMilwaukeeLogo
           })
         };
         response = await fetch('/api/overlay', {
@@ -1402,7 +1404,8 @@ export function ClientApp() {
         imageUrl: desktopMobileImageUrl,
         download: true,
         isDesktopMobileMode: true,
-        desktopMobileVersion: version
+        desktopMobileVersion: version,
+        showMilwaukeeLogo
       };
       
       const response = await fetch('/api/overlay', {
@@ -1854,6 +1857,7 @@ export function ClientApp() {
         imageOverlays: [], // Empty for preview, we'll add image overlays in the canvas
         isDesktopMobileMode: true,
         desktopMobileVersion: versionToUse,
+        showMilwaukeeLogo: showMilwaukeeLogo,
         download: false
       };
       
@@ -1930,6 +1934,7 @@ export function ClientApp() {
         imageOverlays: [],
         isDesktopMobileMode: true,
         desktopMobileVersion: otherVersion,
+        showMilwaukeeLogo: showMilwaukeeLogo,
         download: false
       };
       
@@ -1988,6 +1993,7 @@ export function ClientApp() {
         imageOverlays: [], // Empty for preview, we'll add image overlays in the canvas
         isDesktopMobileMode: true,
         desktopMobileVersion: version,
+        showMilwaukeeLogo: showMilwaukeeLogo,
         download: false
       };
       
@@ -2380,6 +2386,37 @@ export function ClientApp() {
                               </div>
                               <div className="slds-form-element__help">
                                 The background image will be resized to fit the selected dimensions (1240x968 for desktop, 1240x1400 for mobile)
+                              </div>
+                            </div>
+
+                            {/* Milwaukee Logo Toggle */}
+                            <div className="slds-form-element slds-m-top_medium">
+                              <div className="slds-form-element__control">
+                                <div className="slds-checkbox">
+                                  <input
+                                    type="checkbox"
+                                    id="showMilwaukeeLogo"
+                                    checked={showMilwaukeeLogo}
+                                    onChange={(e) => {
+                                      setShowMilwaukeeLogo(e.target.checked);
+                                      // Clear cache to regenerate preview with/without logo
+                                      setPreviewCache({ desktop: null, mobile: null });
+                                      if (desktopMobileImageUrl) {
+                                        // Small delay to ensure state is updated
+                                        setTimeout(() => {
+                                          generateDesktopMobilePreview(desktopMobileImageUrl, desktopMobileVersion);
+                                        }, 50);
+                                      }
+                                    }}
+                                  />
+                                  <label className="slds-checkbox__label" htmlFor="showMilwaukeeLogo">
+                                    <span className="slds-checkbox__faux"></span>
+                                    <span className="slds-form-element__label">Show Milwaukee Logo</span>
+                                  </label>
+                                </div>
+                              </div>
+                              <div className="slds-form-element__help slds-m-top_xx-small">
+                                When enabled, the Milwaukee logo will be added to the top-left corner of the image
                               </div>
                             </div>
                           </div>

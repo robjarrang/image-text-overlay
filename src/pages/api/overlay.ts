@@ -35,6 +35,7 @@ interface OverlayParams {
   desktopHeight?: number;
   mobileWidth?: number;
   mobileHeight?: number;
+  showMilwaukeeLogo?: boolean;
 }
 
 async function loadFont(): Promise<opentype.Font> {
@@ -571,7 +572,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       allComposites.push(...imageComposites);
       
       // Add built-in logo for desktop/mobile mode (goes on top of user image overlays)
-      if (isDesktopMobileMode && desktopMobileVersion) {
+      // Only add logo if showMilwaukeeLogo is true (defaults to true if not specified)
+      const shouldShowLogo = params.showMilwaukeeLogo !== false;
+      if (isDesktopMobileMode && desktopMobileVersion && shouldShowLogo) {
         try {
           const logoUrl = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
           console.log('Fetching built-in logo for compositing from:', logoUrl);
