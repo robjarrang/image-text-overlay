@@ -2547,12 +2547,12 @@ main,
   position: fixed !important;
   /* Account for page padding (py-8 = 32px) + wrapper padding (slds-p-around_medium = 12px) */
   top: 44px !important;
-  /* Calculate right position: when viewport > 1440px, right edge should be at (viewport - 1440px) / 2 + container padding (16px) */
-  right: max(16px, calc((100vw - 1440px) / 2 + 16px)) !important;
+  /* Calculate right position: when viewport > 1600px, right edge should be at (viewport - 1600px) / 2 + container padding (16px) */
+  right: max(16px, calc((100vw - 1600px) / 2 + 16px)) !important;
   /* Calculate left position: 50% of container, accounting for container centering and padding */
-  /* When viewport <= 1440px: left at 50% + gap */
-  /* When viewport > 1440px: left at (viewport - 1440px) / 2 + 720px (half of 1440px) + gap */
-  left: max(calc(50% + 16px), calc((100vw - 1440px) / 2 + 720px + 16px)) !important;
+  /* When viewport <= 1600px: left at 50% + gap */
+  /* When viewport > 1600px: left at (viewport - 1600px) / 2 + 800px (half of 1600px) + gap */
+  left: max(calc(50% + 16px), calc((100vw - 1600px) / 2 + 800px + 16px)) !important;
   max-height: calc(100vh - 64px) !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
