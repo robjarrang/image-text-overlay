@@ -1870,6 +1870,7 @@ main,
   border-bottom: 1px solid var(--slds-g-color-border-base-1, #dddbda);
   margin-bottom: 1rem;
   padding: 0;
+  flex-wrap: wrap;
 }
 
 .slds-tabs_scoped__item {
@@ -1877,6 +1878,75 @@ main,
   margin-bottom: -1px;
   flex: 0 1 auto;
   padding-bottom: 0.5rem; /* Added padding to create more space */
+}
+
+/* Mobile responsive tabs */
+@media (max-width: 767px) {
+  .slds-tabs_scoped__nav {
+    flex-direction: column;
+    border-bottom: none;
+    gap: 0.25rem;
+  }
+  
+  .slds-tabs_scoped__item {
+    width: 100%;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: 1px solid var(--slds-g-color-border-base-1, #dddbda);
+  }
+  
+  .slds-tabs_scoped__item:last-child {
+    border-bottom: none;
+  }
+  
+  .slds-tabs_scoped__item.slds-is-active::after {
+    display: none;
+  }
+  
+  .slds-tabs_scoped__item.slds-is-active {
+    background-color: var(--slds-g-color-brand-base-95, #e5f2fc);
+    border-radius: 0.25rem;
+  }
+  
+  .slds-tabs_scoped__link {
+    padding: 0.75rem 1rem;
+    display: block;
+    width: 100%;
+    text-align: left;
+  }
+  
+  /* Reduce card padding on mobile */
+  .slds-card__body {
+    padding: 1rem !important;
+  }
+  
+  .slds-card__header {
+    padding: 0.75rem 1rem !important;
+  }
+  
+  /* Stack grid columns */
+  .slds-grid.slds-gutters_small > .slds-col {
+    width: 100% !important;
+    margin-bottom: 1rem;
+  }
+  
+  /* Reduce font sizes */
+  .slds-text-heading_medium {
+    font-size: 1.125rem;
+  }
+  
+  /* Adjust button sizing */
+  .slds-button {
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* Tablet responsive adjustments */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .slds-tabs_scoped__link {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
 }
 
 .slds-tabs_scoped__item.slds-is-active {
@@ -2561,6 +2631,30 @@ main,
   box-sizing: border-box !important;
 }
 
+/* Mobile responsive: stack columns vertically on smaller screens */
+@media (max-width: 1023px) {
+  .sticky-preview-column {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+    padding-bottom: 0 !important;
+    width: 100% !important;
+    margin-top: 1.5rem;
+  }
+  
+  .controls-column {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  .preview-container-parent {
+    min-height: auto;
+  }
+}
+
 /* Ensure preview card respects column boundaries */
 .sticky-preview-column > .slds-card {
   max-width: 100% !important;
@@ -3014,4 +3108,132 @@ input.font-size-percentage-input {
   font-weight: 500;
   padding-right: 0.5rem;
   padding-left: 0.5rem;
+}
+
+/* ============================================
+   MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+/* Small screens (phones) */
+@media (max-width: 639px) {
+  /* Reduce page padding */
+  .container {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+  
+  /* Stack button groups vertically */
+  .slds-button-group,
+  .slds-button-group-row {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .slds-button-group .slds-button,
+  .slds-button-group-row .slds-button {
+    width: 100%;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-bottom: 0.5rem;
+    border-radius: 0.25rem !important;
+  }
+  
+  .slds-button-group .slds-button:last-child,
+  .slds-button-group-row .slds-button:last-child {
+    margin-bottom: 0;
+  }
+  
+  /* Full-width inputs */
+  .slds-input,
+  .slds-textarea,
+  .slds-select {
+    width: 100%;
+  }
+  
+  /* Accordion improvements */
+  .slds-accordion__summary-action {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .slds-accordion__summary-content {
+    font-size: 0.9375rem;
+  }
+  
+  /* Slider adjustments */
+  .slds-slider {
+    margin-top: 0.5rem;
+  }
+  
+  /* Color picker size */
+  input[type="color"] {
+    width: 100% !important;
+    height: 44px !important;
+  }
+  
+  /* Download/Share buttons stacking */
+  .slds-card__footer .slds-grid {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .slds-card__footer .slds-col {
+    width: 100%;
+  }
+  
+  .slds-card__footer .slds-button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* Form element label spacing */
+  .slds-form-element__label {
+    margin-bottom: 0.375rem;
+  }
+  
+  /* Reduce accordion content padding */
+  .slds-accordion__content {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  /* Version toggle buttons - make more touch-friendly */
+  .slds-button-group-list {
+    display: flex;
+    width: 100%;
+  }
+  
+  .slds-button-group-list .slds-button {
+    flex: 1;
+    padding: 0.75rem 0.5rem;
+  }
+}
+
+/* Medium screens (tablets) */
+@media (min-width: 640px) and (max-width: 1023px) {
+  /* Two-column grids on tablet */
+  .slds-grid.slds-gutters_small > .slds-col.slds-size_1-of-2 {
+    width: 50%;
+  }
+  
+  /* Adjust button sizes */
+  .slds-button {
+    padding: 0.5rem 0.875rem;
+  }
+}
+
+/* Ensure touch targets are at least 44px */
+@media (pointer: coarse) {
+  .slds-button,
+  .slds-tabs_scoped__link,
+  .slds-accordion__summary-action,
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+  }
+  
+  .slds-tabs_scoped__link {
+    display: flex;
+    align-items: center;
+  }
 }
