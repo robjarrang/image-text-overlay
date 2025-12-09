@@ -1,17 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverRuntimeConfig: {
+    NEXT_SHARP_PATH: '/tmp/node_modules/sharp'
+  },
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**',
-      },
-    ],
+    domains: ['*'],
     dangerouslyAllowSVG: true,
   },
   compress: true,
-  serverExternalPackages: ['sharp'],
-  turbopack: {},
+  experimental: {
+    serverComponentsExternalPackages: ['sharp'],
+  },
   async headers() {
     return [
       {
