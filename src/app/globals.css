@@ -2544,14 +2544,48 @@ main,
 
 /* Remove the previous sticky-preview-column class */
 .sticky-preview-column {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  width: calc(50% - 35px); /* Adjust for the large-size_1-of-2 column width and account for gutters */
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;
-  z-index: 10;
-  padding-bottom: 20px;
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  left: calc(50% + 15px) !important; /* Position from left instead of using width */
+  max-height: calc(100vh - 40px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  z-index: 10 !important;
+  padding-bottom: 20px !important;
+  box-sizing: border-box !important;
+}
+
+/* Ensure preview card respects column boundaries */
+.sticky-preview-column > .slds-card {
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Ensure preview container and canvas respect column boundaries */
+.sticky-preview-column .preview-container {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.sticky-preview-column .canvas-container {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.sticky-preview-column canvas {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+.sticky-preview-column .slds-card__body,
+.sticky-preview-column .slds-card__header,
+.sticky-preview-column .slds-card__footer {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 /* Add additional styling for the parent container to ensure proper layout */
