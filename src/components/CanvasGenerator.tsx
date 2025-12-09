@@ -76,7 +76,7 @@ export function CanvasGenerator({
         // Try loading from local first
         const font = new FontFace(
           'HelveticaNeue-Condensed',
-          'url(/fonts/Helvetica Neue LT Pro 93 Black Extended.otf)'
+          'url(/fonts/Helvetica%20Neue%20LT%20Pro%2093%20Black%20Extended.otf)'
         );
 
         await font.load();
@@ -89,7 +89,7 @@ export function CanvasGenerator({
           // Fallback to S3 URL as a last resort
           const font = new FontFace(
             'HelveticaNeue-Condensed',
-            'url(https://jarrang-font.s3.eu-west-2.amazonaws.com/milwaukee/Helvetica Neue LT Pro 93 Black Extended.otf)'
+            'url(https://jarrang-font.s3.eu-west-2.amazonaws.com/milwaukee/Helvetica%20Neue%20LT%20Pro%2093%20Black%20Extended.otf)'
           );
 
           await font.load();
