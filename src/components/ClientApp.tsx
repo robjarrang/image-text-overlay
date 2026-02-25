@@ -183,6 +183,9 @@ export function ClientApp() {
   const [desktopMobileVersion, setDesktopMobileVersion] = useState<'desktop' | 'mobile'>('desktop');
   const [desktopMobileImageUrl, setDesktopMobileImageUrl] = useState<string>('');
   const [showMilwaukeeLogo, setShowMilwaukeeLogo] = useState<boolean>(true);
+
+  // Progress state for bulk "download all languages" operation
+  const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number; message: string } | null>(null);
   
   // Cache for desktop/mobile preview images to avoid re-fetching when switching versions
   const [previewCache, setPreviewCache] = useState<{
@@ -1447,6 +1450,135 @@ export function ClientApp() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDownloadAllLanguages = async () => {
+    // Find trade logo overlays that have multiple language variants
+    const tradeOverlays = formState.imageOverlays.filter(
+      o => o.presetLogoType === 'trade' && o.availableLanguages && o.availableLanguages.length > 1
+    );
+
+    if (tradeOverlays.length === 0) {
+      setError('No trade badge overlays with language variants found. Add a trade badge first.');
+      return;
+    }
+
+    if (!presetLogos) {
+      setError('Preset logos not loaded.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+
+      // Calculate total steps: desktop + mobile for each language of each trade overlay
+      const allLanguages = tradeOverlays.flatMap(o => {
+        const presetLogo = presetLogos.tradeLogos.find(l => l.id === o.presetLogoId);
+        return presetLogo && presetLogo.variants ? o.availableLanguages!.filter(lang => presetLogo.variants![lang]) : [];
+      });
+      const totalSteps = allLanguages.length * 2; // desktop + mobile per language
+      let step = 0;
+
+      for (const overlay of tradeOverlays) {
+        const presetLogo = presetLogos.tradeLogos.find(l => l.id === overlay.presetLogoId);
+        if (!presetLogo || !presetLogo.variants) continue;
+
+        const languages = overlay.availableLanguages!
+          .filter(lang => presetLogo.variants![lang])
+          .sort((a, b) => {
+            if (a === 'default') return -1;
+            if (b === 'default') return 1;
+            return a.localeCompare(b);
+          });
+
+        for (const language of languages) {
+          const variantUrl = presetLogo.variants[language];
+          if (!variantUrl) continue;
+
+          // Load base64 for this language variant
+          const loadResponse = await fetch('/api/load-images', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ images: [variantUrl] })
+          });
+          const loadData = await loadResponse.json();
+          if (loadData.error) {
+            console.warn(`Failed to load ${language} variant, skipping.`);
+            step += 2;
+            continue;
+          }
+
+          // Swap this trade badge overlay to the language-specific image
+          const modifiedOverlays = formState.imageOverlays.map(o =>
+            o.id === overlay.id
+              ? { ...o, imageUrl: loadData.images[0], originalImageUrl: variantUrl, selectedLanguage: language }
+              : o
+          );
+
+          const basePayload = {
+            ...formState,
+            imageOverlays: modifiedOverlays,
+            imageUrl: desktopMobileImageUrl,
+            isDesktopMobileMode: true,
+            download: true,
+            showMilwaukeeLogo
+          };
+
+          const langLabel = language === 'default' ? 'EN-GB' : language;
+          const folderName = `${presetLogo.id}_${langLabel}`;
+
+          // Desktop
+          setDownloadProgress({ current: ++step, total: totalSteps, message: `${langLabel} – desktop…` });
+          const desktopRes = await fetch('/api/overlay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...basePayload, desktopMobileVersion: 'desktop', width: 1240, height: 968 })
+          });
+          if (desktopRes.ok) {
+            const blob = await desktopRes.blob();
+            const ext = desktopRes.headers.get('content-type')?.includes('jpeg') ? 'jpg' : 'png';
+            zip.file(`${folderName}/${folderName}_desktop.${ext}`, blob);
+          }
+
+          // Mobile
+          setDownloadProgress({ current: ++step, total: totalSteps, message: `${langLabel} – mobile…` });
+          const mobileRes = await fetch('/api/overlay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...basePayload, desktopMobileVersion: 'mobile', width: 1240, height: 1400 })
+          });
+          if (mobileRes.ok) {
+            const blob = await mobileRes.blob();
+            const ext = mobileRes.headers.get('content-type')?.includes('jpeg') ? 'jpg' : 'png';
+            zip.file(`${folderName}/${folderName}_mobile.${ext}`, blob);
+          }
+        }
+      }
+
+      setDownloadProgress({ current: totalSteps, total: totalSteps, message: 'Creating zip file…' });
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = window.URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      const tradeName = tradeOverlays.map(o => o.presetLogoId || 'badge').join('-');
+      a.download = `${tradeName}-all-languages-${Date.now()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('Failed to create zip file');
+      }
+    } finally {
+      setIsLoading(false);
+      setDownloadProgress(null);
     }
   };
 
@@ -3241,7 +3373,7 @@ export function ClientApp() {
                 )}
               </div>
               {activeImageSourceTab === 'desktop-mobile' ? (
-                <div className="slds-grid slds-gutters_small">
+                <div className="slds-grid slds-gutters_small slds-wrap">
                   <div className="slds-col">
                     <button
                       className="slds-button slds-button_brand download-button"
@@ -3268,6 +3400,39 @@ export function ClientApp() {
                       Mobile
                     </button>
                   </div>
+                  {formState.imageOverlays.some(o => o.presetLogoType === 'trade' && o.availableLanguages && o.availableLanguages.length > 1) && (
+                    <div className="slds-col slds-size_1-of-1" style={{ marginTop: '0.5rem' }}>
+                      <button
+                        className="slds-button slds-button_neutral download-button"
+                        onClick={handleDownloadAllLanguages}
+                        disabled={isLoading}
+                        aria-label="Download all language versions as a zip file"
+                        style={{ width: '100%' }}
+                      >
+                        <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#download" />
+                        </svg>
+                        All Languages (ZIP)
+                      </button>
+                      {downloadProgress && (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <div style={{ fontSize: '0.75rem', color: '#706e6b', marginBottom: '0.25rem' }}>
+                            {downloadProgress.message} ({downloadProgress.current}/{downloadProgress.total})
+                          </div>
+                          <div style={{ background: '#dddbda', borderRadius: '4px', height: '6px', overflow: 'hidden' }}>
+                            <div
+                              style={{
+                                background: '#c23934',
+                                height: '100%',
+                                width: `${Math.round((downloadProgress.current / downloadProgress.total) * 100)}%`,
+                                transition: 'width 0.2s ease'
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <button
