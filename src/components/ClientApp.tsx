@@ -442,8 +442,7 @@ export function ClientApp() {
       });
       
       const aspectRatio = img.width / img.height;
-      const isTradeBadge = logo.hasVariants;
-      const defaultWidth = isTradeBadge ? 16 : 20;
+      const defaultWidth = 16; // 16% of canvas width
       const defaultHeight = defaultWidth / aspectRatio;
       
       // Calculate logo bottom position for alignment
@@ -469,8 +468,8 @@ export function ClientApp() {
         originalImageUrl: imageUrl, // Original URL for sharing
         width: defaultWidth,
         height: defaultHeight,
-        x: 78 - (formState.imageOverlays.length * 3) % 10, // Top right with smaller margin (78% from left, staggered left)
-        y: overlayTopY + (formState.imageOverlays.length * 2) % 8, // Align with logo bottom, small stagger
+        x: 82 - (formState.imageOverlays.length * 3) % 10, // Top right with smaller margin (82% from left, staggered left)
+        y: 2 + (formState.imageOverlays.length * 2) % 8, // 2% from top, small stagger
         aspectRatio
       };
       
@@ -549,7 +548,7 @@ export function ClientApp() {
       });
       
       const aspectRatio = img.width / img.height;
-      const defaultWidth = 20; // 20% of canvas width
+      const defaultWidth = 16; // 16% of canvas width
       const defaultHeight = defaultWidth / aspectRatio;
       
       // Use the same positioning logic as regular image overlays
@@ -563,8 +562,6 @@ export function ClientApp() {
       
       const overlayBottomY = logoBottomPercent;
       const overlayTopY = Math.max(2, overlayBottomY - defaultHeight);
-      const defaultX = isTradeBadge ? 82 : 78 - (formState.imageOverlays.length * 3) % 10;
-      const defaultY = isTradeBadge ? 2 : overlayTopY + (formState.imageOverlays.length * 2) % 8;
       
       const newOverlay: ImageOverlay = {
         id: generateId(),
@@ -572,8 +569,8 @@ export function ClientApp() {
         originalImageUrl: imageUrl, // Original URL for sharing
         width: defaultWidth,
         height: defaultHeight,
-        x: defaultX,
-        y: defaultY,
+        x: 82 - (formState.imageOverlays.length * 3) % 10,
+        y: 2 + (formState.imageOverlays.length * 2) % 8,
         aspectRatio,
         // Store preset logo information
         presetLogoId: logo.id,
