@@ -442,7 +442,8 @@ export function ClientApp() {
       });
       
       const aspectRatio = img.width / img.height;
-      const defaultWidth = logo.hasVariants ? 18 : 20; // Trade badges slightly smaller; system logos remain 20%
+      const isTradeBadge = logo.hasVariants;
+      const defaultWidth = isTradeBadge ? 16 : 20;
       const defaultHeight = defaultWidth / aspectRatio;
       
       // Calculate logo bottom position for alignment
@@ -562,6 +563,8 @@ export function ClientApp() {
       
       const overlayBottomY = logoBottomPercent;
       const overlayTopY = Math.max(2, overlayBottomY - defaultHeight);
+      const defaultX = isTradeBadge ? 82 : 78 - (formState.imageOverlays.length * 3) % 10;
+      const defaultY = isTradeBadge ? 2 : overlayTopY + (formState.imageOverlays.length * 2) % 8;
       
       const newOverlay: ImageOverlay = {
         id: generateId(),
@@ -569,8 +572,8 @@ export function ClientApp() {
         originalImageUrl: imageUrl, // Original URL for sharing
         width: defaultWidth,
         height: defaultHeight,
-        x: 78 - (formState.imageOverlays.length * 3) % 10,
-        y: overlayTopY + (formState.imageOverlays.length * 2) % 8,
+        x: defaultX,
+        y: defaultY,
         aspectRatio,
         // Store preset logo information
         presetLogoId: logo.id,
