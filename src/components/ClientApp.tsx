@@ -186,6 +186,9 @@ export function ClientApp() {
 
   // Progress state for bulk "download all languages" operation
   const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number; message: string } | null>(null);
+  // Language picker for zip download
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [selectedLanguagesForDownload, setSelectedLanguagesForDownload] = useState<string[]>([]);
   
   // Cache for desktop/mobile preview images to avoid re-fetching when switching versions
   const [previewCache, setPreviewCache] = useState<{
@@ -1470,14 +1473,17 @@ export function ClientApp() {
     }
 
     setIsLoading(true);
+    setShowLanguagePicker(false);
     try {
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
 
-      // Calculate total steps: desktop + mobile for each language of each trade overlay
+      // Calculate total steps: desktop + mobile for each selected language of each trade overlay
       const allLanguages = tradeOverlays.flatMap(o => {
         const presetLogo = presetLogos.tradeLogos.find(l => l.id === o.presetLogoId);
-        return presetLogo && presetLogo.variants ? o.availableLanguages!.filter(lang => presetLogo.variants![lang]) : [];
+        return presetLogo && presetLogo.variants
+          ? o.availableLanguages!.filter(lang => presetLogo.variants![lang] && selectedLanguagesForDownload.includes(lang))
+          : [];
       });
       const totalSteps = allLanguages.length * 2; // desktop + mobile per language
       let step = 0;
@@ -1487,7 +1493,7 @@ export function ClientApp() {
         if (!presetLogo || !presetLogo.variants) continue;
 
         const languages = overlay.availableLanguages!
-          .filter(lang => presetLogo.variants![lang])
+          .filter(lang => presetLogo.variants![lang] && selectedLanguagesForDownload.includes(lang))
           .sort((a, b) => {
             if (a === 'default') return -1;
             if (b === 'default') return 1;
@@ -3400,39 +3406,127 @@ export function ClientApp() {
                       Mobile
                     </button>
                   </div>
-                  {formState.imageOverlays.some(o => o.presetLogoType === 'trade' && o.availableLanguages && o.availableLanguages.length > 1) && (
-                    <div className="slds-col slds-size_1-of-1" style={{ marginTop: '0.5rem' }}>
-                      <button
-                        className="slds-button slds-button_neutral download-button"
-                        onClick={handleDownloadAllLanguages}
-                        disabled={isLoading}
-                        aria-label="Download all language versions as a zip file"
-                        style={{ width: '100%' }}
-                      >
-                        <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#download" />
-                        </svg>
-                        All Languages (ZIP)
-                      </button>
-                      {downloadProgress && (
-                        <div style={{ marginTop: '0.5rem' }}>
-                          <div style={{ fontSize: '0.75rem', color: '#706e6b', marginBottom: '0.25rem' }}>
-                            {downloadProgress.message} ({downloadProgress.current}/{downloadProgress.total})
+                  {(() => {
+                    const tradeOverlaysForZip = formState.imageOverlays.filter(
+                      o => o.presetLogoType === 'trade' && o.availableLanguages && o.availableLanguages.length > 1
+                    );
+                    if (tradeOverlaysForZip.length === 0) return null;
+
+                    const allAvailableLangs = [...new Set(
+                      tradeOverlaysForZip.flatMap(o => o.availableLanguages || [])
+                    )].sort((a, b) => {
+                      if (a === 'default') return -1;
+                      if (b === 'default') return 1;
+                      return a.localeCompare(b);
+                    });
+
+                    const allSelected = allAvailableLangs.every(l => selectedLanguagesForDownload.includes(l));
+
+                    const toggleLang = (lang: string) => {
+                      setSelectedLanguagesForDownload(prev =>
+                        prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang]
+                      );
+                    };
+
+                    const openPicker = () => {
+                      if (!showLanguagePicker) {
+                        // Initialise to all when first opened
+                        if (selectedLanguagesForDownload.length === 0) {
+                          setSelectedLanguagesForDownload(allAvailableLangs);
+                        }
+                      }
+                      setShowLanguagePicker(v => !v);
+                    };
+
+                    return (
+                      <div className="slds-col slds-size_1-of-1" style={{ marginTop: '0.5rem' }}>
+                        <button
+                          className="slds-button slds-button_neutral download-button"
+                          onClick={openPicker}
+                          disabled={isLoading}
+                          style={{ width: '100%' }}
+                          aria-expanded={showLanguagePicker}
+                        >
+                          <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                            <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#download" />
+                          </svg>
+                          Download Languages (ZIP)
+                          <svg className="slds-button__icon slds-button__icon_right" aria-hidden="true" style={{ marginLeft: '0.25rem' }}>
+                            <use xlinkHref={`/assets/icons/utility-sprite/svg/symbols.svg#${showLanguagePicker ? 'chevronup' : 'chevrondown'}`} />
+                          </svg>
+                        </button>
+
+                        {showLanguagePicker && (
+                          <div style={{ border: '1px solid #dddbda', borderRadius: '4px', marginTop: '0.5rem', padding: '0.75rem', background: '#f3f2f2' }}>
+                            {/* Select All / Deselect All */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#444' }}>
+                                {selectedLanguagesForDownload.length} of {allAvailableLangs.length} selected
+                              </span>
+                              <button
+                                className="slds-button slds-button_neutral"
+                                style={{ padding: '0 0.5rem', height: '1.75rem', fontSize: '0.75rem' }}
+                                onClick={() => setSelectedLanguagesForDownload(allSelected ? [] : [...allAvailableLangs])}
+                              >
+                                {allSelected ? 'Deselect All' : 'Select All'}
+                              </button>
+                            </div>
+
+                            {/* Language checkboxes */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.25rem 0.5rem', maxHeight: '220px', overflowY: 'auto' }}>
+                              {allAvailableLangs.map(lang => {
+                                const label = lang === 'default' ? 'EN-GB (default)' : lang;
+                                const checked = selectedLanguagesForDownload.includes(lang);
+                                return (
+                                  <label key={lang} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', cursor: 'pointer', userSelect: 'none' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => toggleLang(lang)}
+                                      style={{ margin: 0, cursor: 'pointer' }}
+                                    />
+                                    {label}
+                                  </label>
+                                );
+                              })}
+                            </div>
+
+                            {/* Download button */}
+                            <button
+                              className="slds-button slds-button_brand"
+                              onClick={handleDownloadAllLanguages}
+                              disabled={isLoading || selectedLanguagesForDownload.length === 0}
+                              style={{ width: '100%', marginTop: '0.75rem' }}
+                            >
+                              <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                                <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#download" />
+                              </svg>
+                              Download {selectedLanguagesForDownload.length} Language{selectedLanguagesForDownload.length !== 1 ? 's' : ''} (ZIP)
+                            </button>
+
+                            {/* Progress bar */}
+                            {downloadProgress && (
+                              <div style={{ marginTop: '0.5rem' }}>
+                                <div style={{ fontSize: '0.75rem', color: '#706e6b', marginBottom: '0.25rem' }}>
+                                  {downloadProgress.message} ({downloadProgress.current}/{downloadProgress.total})
+                                </div>
+                                <div style={{ background: '#dddbda', borderRadius: '4px', height: '6px', overflow: 'hidden' }}>
+                                  <div
+                                    style={{
+                                      background: '#c23934',
+                                      height: '100%',
+                                      width: `${Math.round((downloadProgress.current / downloadProgress.total) * 100)}%`,
+                                      transition: 'width 0.2s ease'
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <div style={{ background: '#dddbda', borderRadius: '4px', height: '6px', overflow: 'hidden' }}>
-                            <div
-                              style={{
-                                background: '#c23934',
-                                height: '100%',
-                                width: `${Math.round((downloadProgress.current / downloadProgress.total) * 100)}%`,
-                                transition: 'width 0.2s ease'
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
                 <button
