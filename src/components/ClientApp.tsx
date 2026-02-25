@@ -1407,8 +1407,8 @@ export function ClientApp() {
 
   const handleDesktopMobileDownload = async (version: 'desktop' | 'mobile') => {
     setIsLoading(true);
+    setShowLanguagePicker(false); // Ensure language picker is closed for single downloads
     try {
-      // Create payload with desktop/mobile specific dimensions and settings
       const dimensions = version === 'desktop' ? { width: 1240, height: 968 } : { width: 1240, height: 1400 };
       const payload = { 
         ...formState, 
@@ -3352,8 +3352,9 @@ export function ClientApp() {
             )}
           </div>
           <footer className="slds-card__footer slds-border_top slds-p-around_medium">
-            <div className="slds-grid slds-grid_align-spread">
-              <div className="slds-button-group slds-m-right_small">
+            <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center" style={{ position: 'relative' }}>
+              {/* Share — secondary action, left */}
+              <div style={{ position: 'relative' }}>
                 <button
                   className="slds-button slds-button_neutral share-button"
                   onClick={handleShare}
@@ -3378,34 +3379,34 @@ export function ClientApp() {
                   </div>
                 )}
               </div>
+
+              {/* Download actions — primary, right */}
               {activeImageSourceTab === 'desktop-mobile' ? (
-                <div className="slds-grid slds-gutters_small slds-wrap">
-                  <div className="slds-col">
-                    <button
-                      className="slds-button slds-button_brand download-button"
-                      onClick={() => handleDesktopMobileDownload('desktop')}
-                      disabled={isLoading}
-                      aria-label="Download desktop version (1240x968)"
-                    >
-                      <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                        <Icons.Download />
-                      </svg>
-                      Desktop
-                    </button>
-                  </div>
-                  <div className="slds-col">
-                    <button
-                      className="slds-button slds-button_brand download-button"
-                      onClick={() => handleDesktopMobileDownload('mobile')}
-                      disabled={isLoading}
-                      aria-label="Download mobile version (1240x1400)"
-                    >
-                      <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                        <Icons.Download />
-                      </svg>
-                      Mobile
-                    </button>
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative' }}>
+                  <button
+                    className="slds-button slds-button_brand download-button"
+                    onClick={() => handleDesktopMobileDownload('desktop')}
+                    disabled={isLoading}
+                    aria-label="Download desktop version (1240x968)"
+                  >
+                    <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                      <Icons.Download />
+                    </svg>
+                    Desktop
+                  </button>
+                  <button
+                    className="slds-button slds-button_brand download-button"
+                    onClick={() => handleDesktopMobileDownload('mobile')}
+                    disabled={isLoading}
+                    aria-label="Download mobile version (1240x1400)"
+                  >
+                    <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                      <Icons.Download />
+                    </svg>
+                    Mobile
+                  </button>
+
+                  {/* Languages ZIP — only shown when a trade badge is present */}
                   {(() => {
                     const tradeOverlaysForZip = formState.imageOverlays.filter(
                       o => o.presetLogoType === 'trade' && o.availableLanguages && o.availableLanguages.length > 1
@@ -3429,38 +3430,47 @@ export function ClientApp() {
                     };
 
                     const openPicker = () => {
-                      if (!showLanguagePicker) {
-                        // Initialise to all when first opened
-                        if (selectedLanguagesForDownload.length === 0) {
-                          setSelectedLanguagesForDownload(allAvailableLangs);
-                        }
+                      if (!showLanguagePicker && selectedLanguagesForDownload.length === 0) {
+                        setSelectedLanguagesForDownload(allAvailableLangs);
                       }
                       setShowLanguagePicker(v => !v);
                     };
 
                     return (
-                      <div className="slds-col slds-size_1-of-1" style={{ marginTop: '0.5rem' }}>
+                      <div style={{ position: 'relative' }}>
                         <button
                           className="slds-button slds-button_neutral download-button"
                           onClick={openPicker}
                           disabled={isLoading}
-                          style={{ width: '100%' }}
                           aria-expanded={showLanguagePicker}
+                          aria-label="Download all language versions as a zip file"
                         >
                           <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
                             <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#download" />
                           </svg>
-                          Download Languages (ZIP)
+                          Languages (ZIP)
                           <svg className="slds-button__icon slds-button__icon_right" aria-hidden="true" style={{ marginLeft: '0.25rem' }}>
                             <use xlinkHref={`/assets/icons/utility-sprite/svg/symbols.svg#${showLanguagePicker ? 'chevronup' : 'chevrondown'}`} />
                           </svg>
                         </button>
 
+                        {/* Language picker panel — floats upward above the footer */}
                         {showLanguagePicker && (
-                          <div style={{ border: '1px solid #dddbda', borderRadius: '4px', marginTop: '0.5rem', padding: '0.75rem', background: '#f3f2f2' }}>
-                            {/* Select All / Deselect All */}
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 'calc(100% + 0.5rem)',
+                            right: 0,
+                            width: '320px',
+                            border: '1px solid #dddbda',
+                            borderRadius: '4px',
+                            padding: '0.75rem',
+                            background: '#fff',
+                            boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+                            zIndex: 100
+                          }}>
+                            {/* Header row */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#444' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3e3e3c' }}>
                                 {selectedLanguagesForDownload.length} of {allAvailableLangs.length} selected
                               </span>
                               <button
@@ -3473,9 +3483,9 @@ export function ClientApp() {
                             </div>
 
                             {/* Language checkboxes */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.25rem 0.5rem', maxHeight: '220px', overflowY: 'auto' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.3rem 0.5rem', maxHeight: '200px', overflowY: 'auto', marginBottom: '0.75rem' }}>
                               {allAvailableLangs.map(lang => {
-                                const label = lang === 'default' ? 'EN-GB (default)' : lang;
+                                const label = lang === 'default' ? 'EN-GB' : lang;
                                 const checked = selectedLanguagesForDownload.includes(lang);
                                 return (
                                   <label key={lang} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', cursor: 'pointer', userSelect: 'none' }}>
@@ -3491,12 +3501,12 @@ export function ClientApp() {
                               })}
                             </div>
 
-                            {/* Download button */}
+                            {/* Download CTA */}
                             <button
                               className="slds-button slds-button_brand"
                               onClick={handleDownloadAllLanguages}
                               disabled={isLoading || selectedLanguagesForDownload.length === 0}
-                              style={{ width: '100%', marginTop: '0.75rem' }}
+                              style={{ width: '100%' }}
                             >
                               <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
                                 <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#download" />
