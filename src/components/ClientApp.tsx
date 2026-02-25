@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import LZString from 'lz-string';
 import { Icons } from './Icons';
@@ -189,6 +189,19 @@ export function ClientApp() {
   // Language picker for zip download
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [selectedLanguagesForDownload, setSelectedLanguagesForDownload] = useState<string[]>([]);
+  const languagePickerRef = useRef<HTMLDivElement>(null);
+
+  // Close the language picker when clicking outside it
+  useEffect(() => {
+    if (!showLanguagePicker) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (languagePickerRef.current && !languagePickerRef.current.contains(e.target as Node)) {
+        setShowLanguagePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showLanguagePicker]);
   
   // Cache for desktop/mobile preview images to avoid re-fetching when switching versions
   const [previewCache, setPreviewCache] = useState<{
@@ -554,11 +567,28 @@ export function ClientApp() {
       });
       
       const aspectRatio = img.width / img.height;
-      const defaultWidth = 16; // 16% of canvas width
-      const defaultHeight = defaultWidth / aspectRatio;
-      
-      // Use the same positioning logic as regular image overlays
+
+      // Desktop defaults: 16% size, position 82%, 2%
+      const desktopDefaultWidth = 16;
+      const desktopDefaultHeight = desktopDefaultWidth / aspectRatio;
+      const desktopDefaultX = 82;
+      const desktopDefaultY = 2;
+
+      // Mobile defaults: 21% size, position 76%, 2%
+      const mobileDefaultWidth = 21;
+      const mobileDefaultHeight = mobileDefaultWidth / aspectRatio;
+      const mobileDefaultX = 76;
+      const mobileDefaultY = 2;
+
       const isDesktopMode = activeImageSourceTab === 'desktop-mobile' && desktopMobileVersion === 'desktop';
+
+      // Active (current view) values
+      const defaultWidth = isDesktopMode ? desktopDefaultWidth : mobileDefaultWidth;
+      const defaultHeight = isDesktopMode ? desktopDefaultHeight : mobileDefaultHeight;
+      const defaultX = isDesktopMode ? desktopDefaultX : mobileDefaultX;
+      const defaultY = isDesktopMode ? desktopDefaultY : mobileDefaultY;
+
+      // Use the same positioning logic as regular image overlays
       const logoWidthPx = isDesktopMode ? 360 : 484;
       const logoAspectRatio = 4.9;
       const logoHeightPx = logoWidthPx / logoAspectRatio;
@@ -566,17 +596,22 @@ export function ClientApp() {
       const canvasHeight = isDesktopMode ? 968 : 1400;
       const logoBottomPercent = (logoHeightPx / canvasHeight) * 100;
       
-      const overlayBottomY = logoBottomPercent;
-      const overlayTopY = Math.max(2, overlayBottomY - defaultHeight);
-      
       const newOverlay: ImageOverlay = {
         id: generateId(),
         imageUrl: data.images[0], // Base64 image
         originalImageUrl: imageUrl, // Original URL for sharing
         width: defaultWidth,
         height: defaultHeight,
-        x: 82 - (formState.imageOverlays.length * 3) % 10,
-        y: 2 + (formState.imageOverlays.length * 2) % 8,
+        x: defaultX - (formState.imageOverlays.length * 3) % 10,
+        y: defaultY + (formState.imageOverlays.length * 2) % 8,
+        desktopWidth: desktopDefaultWidth,
+        desktopHeight: desktopDefaultHeight,
+        desktopX: desktopDefaultX,
+        desktopY: desktopDefaultY,
+        mobileWidth: mobileDefaultWidth,
+        mobileHeight: mobileDefaultHeight,
+        mobileX: mobileDefaultX,
+        mobileY: mobileDefaultY,
         aspectRatio,
         // Store preset logo information
         presetLogoId: logo.id,
@@ -3430,25 +3465,25 @@ export function ClientApp() {
                     };
 
                     const openPicker = () => {
-                      if (!showLanguagePicker && selectedLanguagesForDownload.length === 0) {
-                        setSelectedLanguagesForDownload(allAvailableLangs);
-                      }
                       setShowLanguagePicker(v => !v);
                     };
 
+                    const hasSelection = selectedLanguagesForDownload.length > 0;
+
                     return (
-                      <div style={{ position: 'relative' }}>
+                      <div style={{ position: 'relative' }} ref={languagePickerRef}>
                         <button
                           className="slds-button slds-button_neutral download-button"
                           onClick={openPicker}
                           disabled={isLoading}
                           aria-expanded={showLanguagePicker}
-                          aria-label="Download all language versions as a zip file"
+                          aria-label="Select languages to download as a zip file"
+                          style={!hasSelection && !showLanguagePicker ? { opacity: 0.55 } : undefined}
                         >
                           <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
                             <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#download" />
                           </svg>
-                          Languages (ZIP)
+                          {hasSelection ? `Languages (ZIP) · ${selectedLanguagesForDownload.length}` : 'Languages (ZIP)'}
                           <svg className="slds-button__icon slds-button__icon_right" aria-hidden="true" style={{ marginLeft: '0.25rem' }}>
                             <use xlinkHref={`/assets/icons/utility-sprite/svg/symbols.svg#${showLanguagePicker ? 'chevronup' : 'chevrondown'}`} />
                           </svg>
