@@ -442,7 +442,7 @@ export function ClientApp() {
       });
       
       const aspectRatio = img.width / img.height;
-      const defaultWidth = 20; // 20% of canvas width
+      const defaultWidth = logo.hasVariants ? 18 : 20; // Trade badges slightly smaller; system logos remain 20%
       const defaultHeight = defaultWidth / aspectRatio;
       
       // Calculate logo bottom position for alignment
