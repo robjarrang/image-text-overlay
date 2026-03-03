@@ -162,7 +162,6 @@ export function ClientApp() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   // Add new overlay input state
-  const [newOverlayText, setNewOverlayText] = useState('');
   const [newImageOverlayUrl, setNewImageOverlayUrl] = useState('');
 
   // Preset logos state
@@ -328,12 +327,10 @@ export function ClientApp() {
   };
   
   // Function to add a new text overlay
-  const addTextOverlay = (text: string) => {
-    if (!text.trim()) return;
-    
+  const addTextOverlay = () => {
     const newOverlay: TextOverlay = {
       id: generateId(),
-      text: text.trim(),
+      text: '',
       fontSize: 5, // Default font size (5% of image width)
       fontColor: '#FFFFFF', // Default color (white)
       x: 10, // Default position (10% from left)
@@ -344,10 +341,12 @@ export function ClientApp() {
     setFormState(prev => ({
       ...prev,
       textOverlays: [...prev.textOverlays, newOverlay],
-      activeOverlayId: newOverlay.id
+      activeOverlayId: newOverlay.id,
+      activeOverlayType: 'text'
     }));
     
-    setNewOverlayText(''); // Clear input field
+    // Auto-open the Text Content accordion so the user can start typing immediately
+    setOpenAccordions(prev => ({ ...prev, textContent: true }));
   };
   
   // Function to update an active text overlay
@@ -2785,33 +2784,16 @@ export function ClientApp() {
                     <div className="form-section">
                       {/* Add New Overlay */}
                       <div className="slds-form-element">
-                        <label className="slds-form-element__label" htmlFor="newOverlayText">
-                          Add New Text Overlay
-                        </label>
-                        <div className="slds-form-element__control slds-input-has-icon slds-input-has-icon_right">
-                          <input
-                            type="text"
-                            id="newOverlayText"
-                            value={newOverlayText}
-                            onChange={(e) => setNewOverlayText(e.target.value)}
-                            className="slds-input"
-                            placeholder="Enter text for new overlay"
-                          />
-                          <button 
-                            className="slds-button slds-button_icon slds-input__icon slds-input__icon_right"
-                            onClick={() => addTextOverlay(newOverlayText)}
-                            disabled={!newOverlayText.trim()}
-                            title="Add new text overlay"
-                          >
-                            <svg className="slds-button__icon" aria-hidden="true">
-                              <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#add"></use>
-                            </svg>
-                            <span className="slds-assistive-text">Add new text overlay</span>
-                          </button>
-                        </div>
-                        <div className="slds-form-element__help">
-                          Enter text and click the + icon to add a new text overlay
-                        </div>
+                        <button
+                          className="slds-button slds-button_neutral slds-button_stretch"
+                          onClick={() => addTextOverlay()}
+                          title="Add a new text overlay layer"
+                        >
+                          <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                            <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#add"></use>
+                          </svg>
+                          Add Text Overlay
+                        </button>
                       </div>
 
                       {/* List of Overlays */}
