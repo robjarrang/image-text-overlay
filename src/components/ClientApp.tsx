@@ -2012,7 +2012,8 @@ export function ClientApp() {
     }
     
     // Use provided showLogo value or fall back to state
-    const shouldShowLogo = showLogo !== undefined ? showLogo : showMilwaukeeLogo;
+    // Logo is now rendered client-side in the CanvasGenerator, so always exclude from server preview
+    const shouldShowLogo = false;
     
     const versionToUse = version || desktopMobileVersion;
     const dimensions = versionToUse === 'desktop' 
@@ -2110,8 +2111,7 @@ export function ClientApp() {
     if (cached && 
         cached.sourceUrl === backgroundUrl && 
         cached.width === otherDimensions.width && 
-        cached.height === otherDimensions.height &&
-        cached.showLogo === showMilwaukeeLogo) {
+        cached.height === otherDimensions.height) {
       console.log('Other version already cached:', otherVersion);
       return;
     }
@@ -2127,7 +2127,7 @@ export function ClientApp() {
         imageOverlays: [],
         isDesktopMobileMode: true,
         desktopMobileVersion: otherVersion,
-        showMilwaukeeLogo: showMilwaukeeLogo,
+        showMilwaukeeLogo: false, // Logo is rendered client-side
         download: false
       };
       
@@ -2156,7 +2156,7 @@ export function ClientApp() {
           sourceUrl: backgroundUrl,
           width: otherDimensions.width,
           height: otherDimensions.height,
-          showLogo: showMilwaukeeLogo
+          showLogo: false
         }
       }));
     } catch (error) {
@@ -2187,7 +2187,7 @@ export function ClientApp() {
         imageOverlays: [], // Empty for preview, we'll add image overlays in the canvas
         isDesktopMobileMode: true,
         desktopMobileVersion: version,
-        showMilwaukeeLogo: showMilwaukeeLogo,
+        showMilwaukeeLogo: false, // Logo is rendered client-side
         download: false
       };
       
@@ -2594,12 +2594,7 @@ export function ClientApp() {
                                     onChange={(e) => {
                                       const newValue = e.target.checked;
                                       setShowMilwaukeeLogo(newValue);
-                                      // Clear cache to regenerate preview with/without logo
-                                      setPreviewCache({ desktop: null, mobile: null });
-                                      if (desktopMobileImageUrl) {
-                                        // Pass the new value directly to avoid state update delay
-                                        generateDesktopMobilePreview(desktopMobileImageUrl, desktopMobileVersion, newValue);
-                                      }
+                                      // Logo is now rendered client-side, no need to regenerate preview
                                     }}
                                   />
                                   <label className="slds-checkbox__label" htmlFor="showMilwaukeeLogo">
@@ -3457,6 +3452,7 @@ export function ClientApp() {
                     className="preview-canvas"
                     isDesktopMobileMode={activeImageSourceTab === 'desktop-mobile'}
                     desktopMobileVersion={desktopMobileVersion}
+                    showMilwaukeeLogo={showMilwaukeeLogo}
                   />
                 </div>
               </div>
