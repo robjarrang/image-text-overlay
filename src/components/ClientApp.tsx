@@ -79,15 +79,13 @@ interface FormState {
   mobileWidth: number;
   mobileHeight: number;
   brightness: number;
-  tintColor: string;
-  tintOpacity: number;
   imageZoom: number;
   imageX: number;
   imageY: number;
 }
 
 type FormStateKey = keyof Omit<FormState, 'textOverlays' | 'activeOverlayId'>;
-type NumericKeys = Extract<FormStateKey, 'width' | 'height' | 'desktopWidth' | 'desktopHeight' | 'mobileWidth' | 'mobileHeight' | 'brightness' | 'tintOpacity' | 'imageX' | 'imageY' | 'imageZoom'>;
+type NumericKeys = Extract<FormStateKey, 'width' | 'height' | 'desktopWidth' | 'desktopHeight' | 'mobileWidth' | 'mobileHeight' | 'brightness' | 'imageX' | 'imageY' | 'imageZoom'>;
 type StringKeys = Extract<FormStateKey, 'imageUrl'>;
 
 // Validation constants
@@ -145,8 +143,6 @@ export function ClientApp() {
     mobileWidth: 1240,
     mobileHeight: 1400,
     brightness: 100, // normal brightness (100%)
-    tintColor: '#000000',
-    tintOpacity: 0,
     imageZoom: 1,
     imageX: 0,
     imageY: 0
@@ -845,8 +841,6 @@ export function ClientApp() {
           ...(shareData.mw && { mobileWidth: shareData.mw }),
           ...(shareData.mh && { mobileHeight: shareData.mh }),
           brightness: shareData.b !== undefined ? shareData.b : 100, // Default to 100 if not specified
-          tintColor: shareData.tc !== undefined ? shareData.tc : '#000000',
-          tintOpacity: shareData.to !== undefined ? shareData.to : 0,
           imageZoom: shareData.z !== undefined ? shareData.z : 1, // Default to 1 if not specified
           imageX: shareData.x !== undefined ? shareData.x : 0, // Default to 0 if not specified
           imageY: shareData.y !== undefined ? shareData.y : 0 // Default to 0 if not specified
@@ -1679,7 +1673,6 @@ export function ClientApp() {
         w: formState.width,
         h: formState.height,
         ...(formState.brightness !== 100 && { b: formState.brightness }), // Only include if not default
-        ...(formState.tintOpacity > 0 && { tc: formState.tintColor, to: formState.tintOpacity }), // Only include if tint is active
         ...(formState.imageZoom !== 1 && { z: formState.imageZoom }), // Only include if not default
         ...(formState.imageX !== 0 && { x: formState.imageX }), // Only include if not default
         ...(formState.imageY !== 0 && { y: formState.imageY }), // Only include if not default
@@ -2618,8 +2611,8 @@ export function ClientApp() {
                   </div>
                 </div>
               
-                {/* Image Adjustments Accordion - hidden for transparent mode only */}
-                {activeImageSourceTab !== 'transparent' && (
+                {/* Image Adjustments Accordion - hidden for transparent and desktop-mobile modes */}
+                {activeImageSourceTab !== 'transparent' && activeImageSourceTab !== 'desktop-mobile' && (
                 <div className={`slds-accordion__section ${openAccordions.imageAdjustments ? 'slds-is-open' : ''}`}>
                   <div className="slds-accordion__summary">
                     <h3 className="slds-accordion__summary-heading">
@@ -2673,57 +2666,6 @@ export function ClientApp() {
                               <strong>Tip:</strong> Use lower brightness values when adding light-colored text to bright images
                             </p>
                           </div>
-                        </div>
-                      </div>
-                      <div className="slds-form-element slds-m-top_small">
-                        <label className="slds-form-element__label">
-                          Image Tint
-                        </label>
-                        <div className="slds-form-element__control slds-m-bottom_x-small">
-                          <div className="slds-button-group" role="group">
-                            <button
-                              type="button"
-                              className={`slds-button ${formState.tintColor === '#000000' ? 'slds-button_brand' : 'slds-button_neutral'}`}
-                              onClick={() => setFormState(prev => ({ ...prev, tintColor: '#000000' }))}
-                              aria-pressed={formState.tintColor === '#000000'}
-                            >
-                              Black
-                            </button>
-                            <button
-                              type="button"
-                              className={`slds-button ${formState.tintColor === '#FFFFFF' ? 'slds-button_brand' : 'slds-button_neutral'}`}
-                              onClick={() => setFormState(prev => ({ ...prev, tintColor: '#FFFFFF' }))}
-                              aria-pressed={formState.tintColor === '#FFFFFF'}
-                            >
-                              White
-                            </button>
-                          </div>
-                        </div>
-                        <label className="slds-form-element__label" htmlFor="tintOpacity">
-                          Tint Opacity: {formState.tintOpacity}%
-                        </label>
-                        <div className="slds-form-element__control">
-                          <div className="slds-slider custom-slider">
-                            <input
-                              type="range"
-                              id="tintOpacity"
-                              name="tintOpacity"
-                              min={0}
-                              max={100}
-                              value={formState.tintOpacity}
-                              onChange={handleInputChange}
-                              className="slds-slider__range"
-                              aria-valuemin={0}
-                              aria-valuemax={100}
-                              aria-valuenow={formState.tintOpacity}
-                              aria-valuetext={`Image tint opacity: ${formState.tintOpacity}%`}
-                            />
-                          </div>
-                        </div>
-                        <div className="slds-form-element__help slds-m-top_x-small">
-                          <p className="position-tip">
-                            <strong>Tip:</strong> Add a tint over the background image to improve text legibility without affecting overlays
-                          </p>
                         </div>
                       </div>
                       <div className="slds-form-element">

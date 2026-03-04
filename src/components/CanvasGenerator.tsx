@@ -11,8 +11,6 @@ interface CanvasGeneratorProps {
   width: number;
   height: number;
   brightness: number;
-  tintColor: string;
-  tintOpacity: number;
   imageZoom: number; 
   imageX: number;
   imageY: number;
@@ -37,8 +35,6 @@ export function CanvasGenerator({
   width,
   height,
   brightness = 100,
-  tintColor = '#000000',
-  tintOpacity = 0,
   imageZoom = 1,
   imageX = 0,
   imageY = 0,
@@ -450,17 +446,6 @@ export function CanvasGenerator({
       // Apply brightness filter
       applyBrightnessFilter(displayCtx, imageWidth, imageHeight, brightness);
 
-      // Apply tint overlay (after brightness, before overlays)
-      if (tintOpacity > 0) {
-        displayCtx.save();
-        const alpha = tintOpacity / 100;
-        displayCtx.fillStyle = tintColor === '#FFFFFF'
-          ? `rgba(255, 255, 255, ${alpha})`
-          : `rgba(0, 0, 0, ${alpha})`;
-        displayCtx.fillRect(0, 0, imageWidth, imageHeight);
-        displayCtx.restore();
-      }
-
       // Draw all image overlays first (behind text)
       imageOverlays.forEach(overlay => {
         drawImageOverlay(displayCtx, overlay, imageWidth, imageHeight);
@@ -521,7 +506,7 @@ export function CanvasGenerator({
       ctx.textAlign = 'center';
       ctx.fillText('Please enter an image URL', canvas.width / 2, canvas.height / 2);
     }
-  }, [textOverlays, imageOverlays, imageUrl, brightness, tintColor, tintOpacity, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion]);
+  }, [textOverlays, imageOverlays, imageUrl, brightness, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion]);
 
   // Draw hover effects on the overlay canvas (separate from main canvas to prevent flicker)
   const drawHoverEffects = (hoveredId: string | null) => {
