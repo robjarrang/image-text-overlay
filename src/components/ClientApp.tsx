@@ -79,13 +79,15 @@ interface FormState {
   mobileWidth: number;
   mobileHeight: number;
   brightness: number;
+  tintColor: string;
+  tintOpacity: number;
   imageZoom: number;
   imageX: number;
   imageY: number;
 }
 
 type FormStateKey = keyof Omit<FormState, 'textOverlays' | 'activeOverlayId'>;
-type NumericKeys = Extract<FormStateKey, 'width' | 'height' | 'desktopWidth' | 'desktopHeight' | 'mobileWidth' | 'mobileHeight' | 'brightness' | 'imageX' | 'imageY' | 'imageZoom'>;
+type NumericKeys = Extract<FormStateKey, 'width' | 'height' | 'desktopWidth' | 'desktopHeight' | 'mobileWidth' | 'mobileHeight' | 'brightness' | 'tintOpacity' | 'imageX' | 'imageY' | 'imageZoom'>;
 type StringKeys = Extract<FormStateKey, 'imageUrl'>;
 
 // Validation constants
@@ -143,6 +145,8 @@ export function ClientApp() {
     mobileWidth: 1240,
     mobileHeight: 1400,
     brightness: 100, // normal brightness (100%)
+    tintColor: '#000000',
+    tintOpacity: 0,
     imageZoom: 1,
     imageX: 0,
     imageY: 0
@@ -173,6 +177,7 @@ export function ClientApp() {
   const [openAccordions, setOpenAccordions] = useState({
     imageSource: true,
     imageAdjustments: false,
+    imageTint: false,
     textOverlays: true,
     imageOverlays: true,
     textContent: true
@@ -841,6 +846,8 @@ export function ClientApp() {
           ...(shareData.mw && { mobileWidth: shareData.mw }),
           ...(shareData.mh && { mobileHeight: shareData.mh }),
           brightness: shareData.b !== undefined ? shareData.b : 100, // Default to 100 if not specified
+          tintColor: shareData.tc !== undefined ? shareData.tc : '#000000', // Default to black
+          tintOpacity: shareData.to !== undefined ? shareData.to : 0, // Default to 0 (no tint)
           imageZoom: shareData.z !== undefined ? shareData.z : 1, // Default to 1 if not specified
           imageX: shareData.x !== undefined ? shareData.x : 0, // Default to 0 if not specified
           imageY: shareData.y !== undefined ? shareData.y : 0 // Default to 0 if not specified
@@ -1673,6 +1680,7 @@ export function ClientApp() {
         w: formState.width,
         h: formState.height,
         ...(formState.brightness !== 100 && { b: formState.brightness }), // Only include if not default
+        ...(formState.tintOpacity > 0 && { tc: formState.tintColor, to: formState.tintOpacity }), // Only include if tint is active
         ...(formState.imageZoom !== 1 && { z: formState.imageZoom }), // Only include if not default
         ...(formState.imageX !== 0 && { x: formState.imageX }), // Only include if not default
         ...(formState.imageY !== 0 && { y: formState.imageY }), // Only include if not default
@@ -2755,6 +2763,92 @@ export function ClientApp() {
                 </div>
                 )}
                 
+                {/* Image Tint Accordion - visible for all modes with a background image */}
+                {activeImageSourceTab !== 'transparent' && (
+                <div className={`slds-accordion__section ${openAccordions.imageTint ? 'slds-is-open' : ''}`}>
+                  <div className="slds-accordion__summary">
+                    <h3 className="slds-accordion__summary-heading">
+                      <button
+                        aria-controls="image-tint-content"
+                        aria-expanded={openAccordions.imageTint}
+                        className="slds-button slds-button_reset slds-accordion__summary-action"
+                        onClick={() => toggleAccordion('imageTint')}
+                      >
+                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#contrast"></use>
+                        </svg>
+                        <span className="slds-accordion__summary-content">Image Tint</span>
+                        {formState.tintOpacity > 0 && (
+                          <span className="slds-badge slds-m-left_xx-small">{formState.tintOpacity}%</span>
+                        )}
+                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
+                        </svg>
+                      </button>
+                    </h3>
+                  </div>
+                  <div 
+                    className="slds-accordion__content" 
+                    id="image-tint-content"
+                    hidden={!openAccordions.imageTint}
+                  >
+                    <div className="form-section">
+                      <div className="slds-form-element">
+                        <label className="slds-form-element__label">
+                          Tint Colour
+                        </label>
+                        <div className="slds-form-element__control">
+                          <div className="slds-button-group" role="group">
+                            <button
+                              className={`slds-button slds-button_neutral${formState.tintColor === '#000000' ? ' slds-is-selected' : ''}`}
+                              onClick={() => setFormState(prev => ({ ...prev, tintColor: '#000000' }))}
+                              style={formState.tintColor === '#000000' ? { backgroundColor: '#333', color: '#fff', borderColor: '#333' } : {}}
+                            >
+                              Black
+                            </button>
+                            <button
+                              className={`slds-button slds-button_neutral${formState.tintColor === '#FFFFFF' ? ' slds-is-selected' : ''}`}
+                              onClick={() => setFormState(prev => ({ ...prev, tintColor: '#FFFFFF' }))}
+                              style={formState.tintColor === '#FFFFFF' ? { backgroundColor: '#e0e0e0', color: '#000', borderColor: '#999' } : {}}
+                            >
+                              White
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="slds-form-element slds-m-top_small">
+                        <label className="slds-form-element__label" htmlFor="tintOpacity">
+                          Tint Opacity: {formState.tintOpacity}%
+                        </label>
+                        <div className="slds-form-element__control">
+                          <div className="slds-slider custom-slider">
+                            <input
+                              type="range"
+                              id="tintOpacity"
+                              name="tintOpacity"
+                              min={0}
+                              max={100}
+                              value={formState.tintOpacity}
+                              onChange={handleInputChange}
+                              className="slds-slider__range"
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                              aria-valuenow={formState.tintOpacity}
+                              aria-valuetext={`Image tint opacity: ${formState.tintOpacity}%`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="slds-form-element__help slds-m-top_x-small">
+                        <p className="position-tip">
+                          <strong>Tip:</strong> Add a black or white tint over the background image to improve text legibility. Only affects the background &mdash; not overlaid logos, badges, or text.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                )}
+
                 {/* Text Overlays Accordion */}
                 <div className={`slds-accordion__section ${openAccordions.textOverlays ? 'slds-is-open' : ''}`}>
                   <div className="slds-accordion__summary">

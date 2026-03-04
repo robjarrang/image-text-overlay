@@ -25,6 +25,8 @@ interface OverlayParams {
   imageOverlays: ImageOverlay[];
   imageUrl: string;
   brightness?: string;
+  tintColor?: string;
+  tintOpacity?: number;
   imageZoom?: number;
   imageX?: number;
   imageY?: number;
@@ -567,7 +569,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       // Prepare all composites (text and images)
       const allComposites: sharp.OverlayOptions[] = [];
-      
+
+      // Add tint overlay (after brightness, before all other overlays)
+      // For desktop-mobile preview (download=false), tint is applied client-side by the canvas,
+      // so we only apply it server-side for downloads or non-desktop-mobile modes.
+      const isDownloadRequest = req.method === 'GET' ? Boolean(req.query.download) : Boolean(params.download);
+      const shouldApplyTintServerSide = !isDesktopMobileMode || isDownloadRequest;
+      const tintOpacityValue = typeof params.tintOpacity === 'number' ? params.tintOpacity : parseInt(params.tintOpacity as string) || 0;
+      const tintColorValue = params.tintColor || '#000000';
+      if (tintOpacityValue > 0 && shouldApplyTintServerSide) {
+        const alpha = tintOpacityValue / 100;
+        const isWhite = tintColorValue === '#FFFFFF';
+        const tintBuffer = await sharp({
+          create: {
+            width: imageWidth,
+            height: imageHeight,
+            channels: 4,
+            background: { r: isWhite ? 255 : 0, g: isWhite ? 255 : 0, b: isWhite ? 255 : 0, alpha }
+          }
+        }).png().toBuffer();
+        allComposites.push({
+          input: tintBuffer,
+          top: 0,
+          left: 0,
+          blend: 'over' as const
+        });
+        console.log(`Applied tint overlay: ${tintColorValue} at ${tintOpacityValue}% opacity`);
+      }
+
       // Add image overlays first (they go behind text)
       allComposites.push(...imageComposites);
       
