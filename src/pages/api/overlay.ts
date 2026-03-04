@@ -25,6 +25,8 @@ interface OverlayParams {
   imageOverlays: ImageOverlay[];
   imageUrl: string;
   brightness?: string;
+  tintColor?: string;
+  tintOpacity?: number;
   imageZoom?: number;
   imageX?: number;
   imageY?: number;
@@ -179,6 +181,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let textOverlays: TextOverlay[] = [];
     let imageOverlays: ImageOverlay[] = [];
     const { imageUrl, brightness = '100', imageZoom = 1, imageX = 0, imageY = 0, width, height } = params;
+    const tintOpacityValue = typeof params.tintOpacity === 'number' ? params.tintOpacity : (params.tintOpacity ? parseInt(params.tintOpacity as string) : 0);
+    const tintColorValue = params.tintColor || '#000000';
     
     // For backward compatibility with single text overlay
     if (req.method === 'GET' || !params.textOverlays) {
@@ -376,6 +380,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const brightnessMultiplier = brightnessValue / 100;
         transformedImage.modulate({ brightness: brightnessMultiplier });
         console.log(`Applied brightness adjustment: ${brightnessValue}%`);
+      }
+
+      // Apply tint overlay (after brightness, before any composites)
+      if (tintOpacityValue > 0) {
+        const alpha = tintOpacityValue / 100;
+        const isWhite = tintColorValue === '#FFFFFF';
+        const tintBuffer = await sharp({
+          create: {
+            width: imageWidth,
+            height: imageHeight,
+            channels: 4,
+            background: { r: isWhite ? 255 : 0, g: isWhite ? 255 : 0, b: isWhite ? 255 : 0, alpha }
+          }
+        }).png().toBuffer();
+
+        transformedImage = sharp(await transformedImage.toBuffer()).composite([{
+          input: tintBuffer,
+          top: 0,
+          left: 0,
+          blend: 'over'
+        }]);
+        console.log(`Applied tint overlay: ${tintColorValue} at ${tintOpacityValue}% opacity`);
       }
     }
 
