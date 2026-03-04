@@ -2012,8 +2012,7 @@ export function ClientApp() {
     }
     
     // Use provided showLogo value or fall back to state
-    // Logo is now rendered client-side in the CanvasGenerator, so always exclude from server preview
-    const shouldShowLogo = false;
+    const shouldShowLogo = showLogo !== undefined ? showLogo : showMilwaukeeLogo;
     
     const versionToUse = version || desktopMobileVersion;
     const dimensions = versionToUse === 'desktop' 
@@ -2025,8 +2024,7 @@ export function ClientApp() {
     if (cached && 
         cached.sourceUrl === backgroundUrl && 
         cached.width === dimensions.width && 
-        cached.height === dimensions.height &&
-        cached.showLogo === shouldShowLogo) {
+        cached.height === dimensions.height) {
       console.log('Using cached preview for version:', versionToUse);
       setFormState(prev => ({ 
         ...prev, 
@@ -2049,7 +2047,7 @@ export function ClientApp() {
         imageOverlays: [], // Empty for preview, we'll add image overlays in the canvas
         isDesktopMobileMode: true,
         desktopMobileVersion: versionToUse,
-        showMilwaukeeLogo: shouldShowLogo,
+        showMilwaukeeLogo: false, // Logo is drawn client-side in CanvasGenerator to avoid tint affecting it
         download: false
       };
       
@@ -2127,7 +2125,7 @@ export function ClientApp() {
         imageOverlays: [],
         isDesktopMobileMode: true,
         desktopMobileVersion: otherVersion,
-        showMilwaukeeLogo: false, // Logo is rendered client-side
+        showMilwaukeeLogo: false, // Logo is drawn client-side in CanvasGenerator
         download: false
       };
       
@@ -2156,7 +2154,7 @@ export function ClientApp() {
           sourceUrl: backgroundUrl,
           width: otherDimensions.width,
           height: otherDimensions.height,
-          showLogo: false
+          showLogo: showMilwaukeeLogo
         }
       }));
     } catch (error) {
@@ -2187,7 +2185,7 @@ export function ClientApp() {
         imageOverlays: [], // Empty for preview, we'll add image overlays in the canvas
         isDesktopMobileMode: true,
         desktopMobileVersion: version,
-        showMilwaukeeLogo: false, // Logo is rendered client-side
+        showMilwaukeeLogo: false, // Logo is drawn client-side in CanvasGenerator
         download: false
       };
       
@@ -2594,7 +2592,8 @@ export function ClientApp() {
                                     onChange={(e) => {
                                       const newValue = e.target.checked;
                                       setShowMilwaukeeLogo(newValue);
-                                      // Logo is now rendered client-side, no need to regenerate preview
+                                      // Logo is now drawn client-side in CanvasGenerator,
+                                      // so no need to regenerate the server preview
                                     }}
                                   />
                                   <label className="slds-checkbox__label" htmlFor="showMilwaukeeLogo">
@@ -3452,7 +3451,7 @@ export function ClientApp() {
                     className="preview-canvas"
                     isDesktopMobileMode={activeImageSourceTab === 'desktop-mobile'}
                     desktopMobileVersion={desktopMobileVersion}
-                    showMilwaukeeLogo={showMilwaukeeLogo}
+                    showMilwaukeeLogo={activeImageSourceTab === 'desktop-mobile' && showMilwaukeeLogo}
                   />
                 </div>
               </div>

@@ -53,7 +53,7 @@ export function CanvasGenerator({
   className = '',
   isDesktopMobileMode = false,
   desktopMobileVersion = 'desktop',
-  showMilwaukeeLogo = true
+  showMilwaukeeLogo = false
 }: CanvasGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -72,18 +72,22 @@ export function CanvasGenerator({
   const [initialFontSize, setInitialFontSize] = useState(0);
   const [resizeStartDistance, setResizeStartDistance] = useState(0);
 
-  // Milwaukee logo for desktop-mobile mode (rendered client-side so tint doesn't affect it)
-  const MILWAUKEE_LOGO_URL = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
-  const [milwaukeeLogoImage, setMilwaukeeLogoImage] = useState<HTMLImageElement | null>(null);
+  // Milwaukee logo preloading for desktop-mobile mode
+  const milwaukeeLogoRef = useRef<HTMLImageElement | null>(null);
+  const [milwaukeeLogoLoaded, setMilwaukeeLogoLoaded] = useState(false);
 
   useEffect(() => {
-    if (!isDesktopMobileMode) return;
-    const logo = new Image();
-    logo.crossOrigin = 'anonymous';
-    logo.onload = () => setMilwaukeeLogoImage(logo);
-    logo.onerror = () => console.warn('Failed to load Milwaukee logo for preview');
-    logo.src = MILWAUKEE_LOGO_URL;
-  }, [isDesktopMobileMode]);
+    const logoImg = new Image();
+    logoImg.crossOrigin = 'anonymous';
+    logoImg.onload = () => {
+      milwaukeeLogoRef.current = logoImg;
+      setMilwaukeeLogoLoaded(true);
+    };
+    logoImg.onerror = () => {
+      console.warn('Failed to preload Milwaukee logo, will not draw in preview');
+    };
+    logoImg.src = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
+  }, []);
 
   // Improved font loading with retry mechanism
   useEffect(() => {
@@ -478,12 +482,12 @@ export function CanvasGenerator({
         displayCtx.restore();
       }
 
-      // Draw Milwaukee logo in desktop-mobile mode (after tint, before other overlays)
-      if (isDesktopMobileMode && showMilwaukeeLogo && milwaukeeLogoImage) {
-        const logoTargetWidth = desktopMobileVersion === 'desktop' ? 360 : 484;
-        const logoScale = logoTargetWidth / milwaukeeLogoImage.width;
-        const logoTargetHeight = milwaukeeLogoImage.height * logoScale;
-        displayCtx.drawImage(milwaukeeLogoImage, 20, 0, logoTargetWidth, logoTargetHeight);
+      // Draw Milwaukee logo in desktop-mobile mode (after tint, so logo is not affected)
+      if (isDesktopMobileMode && showMilwaukeeLogo && milwaukeeLogoRef.current) {
+        const logoImg = milwaukeeLogoRef.current;
+        const logoWidth = desktopMobileVersion === 'desktop' ? 360 : 484;
+        const logoHeight = logoWidth * (logoImg.naturalHeight / logoImg.naturalWidth);
+        displayCtx.drawImage(logoImg, 20, 0, logoWidth, logoHeight);
       }
 
       // Draw all image overlays first (behind text)
@@ -546,7 +550,7 @@ export function CanvasGenerator({
       ctx.textAlign = 'center';
       ctx.fillText('Please enter an image URL', canvas.width / 2, canvas.height / 2);
     }
-  }, [textOverlays, imageOverlays, imageUrl, brightness, tintColor, tintOpacity, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion, showMilwaukeeLogo, milwaukeeLogoImage]);
+  }, [textOverlays, imageOverlays, imageUrl, brightness, tintColor, tintOpacity, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion, showMilwaukeeLogo, milwaukeeLogoLoaded]);
 
   // Draw hover effects on the overlay canvas (separate from main canvas to prevent flicker)
   const drawHoverEffects = (hoveredId: string | null) => {
