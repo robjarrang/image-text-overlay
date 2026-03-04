@@ -77,16 +77,31 @@ export function CanvasGenerator({
   const [milwaukeeLogoLoaded, setMilwaukeeLogoLoaded] = useState(false);
 
   useEffect(() => {
-    const logoImg = new Image();
-    logoImg.crossOrigin = 'anonymous';
-    logoImg.onload = () => {
-      milwaukeeLogoRef.current = logoImg;
-      setMilwaukeeLogoLoaded(true);
-    };
-    logoImg.onerror = () => {
-      console.warn('Failed to preload Milwaukee logo, will not draw in preview');
-    };
-    logoImg.src = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
+    // Proxy the logo through our API to avoid CORS issues with the SFMC CDN
+    const logoUrl = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
+    
+    fetch('/api/load-images', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ images: [logoUrl] })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.images && data.images[0]) {
+          const logoImg = new Image();
+          logoImg.onload = () => {
+            milwaukeeLogoRef.current = logoImg;
+            setMilwaukeeLogoLoaded(true);
+          };
+          logoImg.onerror = () => {
+            console.warn('Failed to load Milwaukee logo from base64 data');
+          };
+          logoImg.src = data.images[0];
+        }
+      })
+      .catch(err => {
+        console.warn('Failed to proxy Milwaukee logo:', err);
+      });
   }, []);
 
   // Improved font loading with retry mechanism
