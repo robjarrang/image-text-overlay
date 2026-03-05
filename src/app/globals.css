@@ -140,15 +140,10 @@ body {
 
 /* Improved preview area */
 .preview-container {
-  padding: 1.5rem;
-  background: var(--slds-g-color-neutral-base-95, #f3f3f3);
   border-radius: 0.5rem;
-  border: 1px dashed var(--slds-g-color-border-base-1, #dddbda);
 }
 
 .slds-theme_dark .preview-container {
-  background: var(--slds-g-color-neutral-base-15, #242424);
-  border-color: var(--slds-g-color-neutral-base-30, #444444);
 }
 
 .preview-card {
