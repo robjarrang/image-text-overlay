@@ -2769,7 +2769,7 @@ export function ClientApp() {
                         onClick={() => toggleAccordion('imageTint')}
                       >
                         <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#contrast"></use>
+                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#palette"></use>
                         </svg>
                         <span className="slds-accordion__summary-content">Image Tint</span>
                         {formState.tintOpacity > 0 && (
