@@ -3318,3 +3318,20 @@ input.font-size-percentage-input {
   background-color: var(--slds-g-color-brand-base-50, #0176d3);
   border-color: var(--slds-g-color-brand-base-50, #0176d3);
 }
+
+/* Background Framing disclosure */
+.bg-framing-details summary {
+  list-style: none;
+}
+.bg-framing-details summary::-webkit-details-marker {
+  display: none;
+}
+.bg-framing-details[open] .bg-framing-chevron {
+  transform: rotate(90deg);
+}
+.bg-framing-details .bg-framing-chevron {
+  transition: transform 150ms ease;
+}
+.slds-theme_dark .bg-framing-details summary {
+  color: var(--slds-g-color-neutral-base-70, #aeaeae);
+}

@@ -84,10 +84,17 @@ interface FormState {
   imageZoom: number;
   imageX: number;
   imageY: number;
+  // Per-version background framing for desktop-mobile mode
+  desktopBgZoom: number;
+  desktopBgX: number;
+  desktopBgY: number;
+  mobileBgZoom: number;
+  mobileBgX: number;
+  mobileBgY: number;
 }
 
 type FormStateKey = keyof Omit<FormState, 'textOverlays' | 'activeOverlayId'>;
-type NumericKeys = Extract<FormStateKey, 'width' | 'height' | 'desktopWidth' | 'desktopHeight' | 'mobileWidth' | 'mobileHeight' | 'brightness' | 'tintOpacity' | 'imageX' | 'imageY' | 'imageZoom'>;
+type NumericKeys = Extract<FormStateKey, 'width' | 'height' | 'desktopWidth' | 'desktopHeight' | 'mobileWidth' | 'mobileHeight' | 'brightness' | 'tintOpacity' | 'imageX' | 'imageY' | 'imageZoom' | 'desktopBgZoom' | 'desktopBgX' | 'desktopBgY' | 'mobileBgZoom' | 'mobileBgX' | 'mobileBgY'>;
 type StringKeys = Extract<FormStateKey, 'imageUrl'>;
 
 // Validation constants
@@ -149,7 +156,14 @@ export function ClientApp() {
     tintOpacity: 0,
     imageZoom: 1,
     imageX: 0,
-    imageY: 0
+    imageY: 0,
+    // Per-version background framing defaults
+    desktopBgZoom: 1,
+    desktopBgX: 0,
+    desktopBgY: 0,
+    mobileBgZoom: 1,
+    mobileBgX: 0,
+    mobileBgY: 0
   });
   const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
   const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload' | 'transparent' | 'desktop-mobile'>('desktop-mobile');
@@ -850,7 +864,14 @@ export function ClientApp() {
           tintOpacity: shareData.to !== undefined ? shareData.to : 0, // Default to 0 (no tint)
           imageZoom: shareData.z !== undefined ? shareData.z : 1, // Default to 1 if not specified
           imageX: shareData.x !== undefined ? shareData.x : 0, // Default to 0 if not specified
-          imageY: shareData.y !== undefined ? shareData.y : 0 // Default to 0 if not specified
+          imageY: shareData.y !== undefined ? shareData.y : 0, // Default to 0 if not specified
+          // Per-version background framing
+          ...(shareData.dbz !== undefined && { desktopBgZoom: shareData.dbz }),
+          ...(shareData.dbx !== undefined && { desktopBgX: shareData.dbx }),
+          ...(shareData.dby !== undefined && { desktopBgY: shareData.dby }),
+          ...(shareData.mbz !== undefined && { mobileBgZoom: shareData.mbz }),
+          ...(shareData.mbx !== undefined && { mobileBgX: shareData.mbx }),
+          ...(shareData.mby !== undefined && { mobileBgY: shareData.mby })
         };
         console.log('🔍 URL state to apply:', urlState);
 
@@ -1346,7 +1367,10 @@ export function ClientApp() {
           setFormState(prev => ({ ...prev, [name]: numValue }));
         }
       } else {
-        setFormState(prev => ({ ...prev, [name]: value }));
+        // For range inputs, parse as number to maintain correct types
+        const isRangeInput = e.target instanceof HTMLInputElement && e.target.type === 'range';
+        const parsedValue = isRangeInput ? parseFloat(value) : value;
+        setFormState(prev => ({ ...prev, [name]: parsedValue }));
       }
     }
   };
@@ -1402,7 +1426,11 @@ export function ClientApp() {
             desktopMobileVersion,
             desktopMobileImageUrl,
             isDesktopMobileMode: true,
-            showMilwaukeeLogo
+            showMilwaukeeLogo,
+            // Override with version-specific background framing
+            imageZoom: desktopMobileVersion === 'desktop' ? formState.desktopBgZoom : formState.mobileBgZoom,
+            imageX: desktopMobileVersion === 'desktop' ? formState.desktopBgX : formState.mobileBgX,
+            imageY: desktopMobileVersion === 'desktop' ? formState.desktopBgY : formState.mobileBgY
           })
         };
         response = await fetch('/api/overlay', {
@@ -1455,6 +1483,10 @@ export function ClientApp() {
         ...formState, 
         ...dimensions,
         imageUrl: desktopMobileImageUrl,
+        // Override with version-specific background framing
+        imageZoom: version === 'desktop' ? formState.desktopBgZoom : formState.mobileBgZoom,
+        imageX: version === 'desktop' ? formState.desktopBgX : formState.mobileBgX,
+        imageY: version === 'desktop' ? formState.desktopBgY : formState.mobileBgY,
         download: true,
         isDesktopMobileMode: true,
         desktopMobileVersion: version,
@@ -1582,7 +1614,7 @@ export function ClientApp() {
           const desktopRes = await fetch('/api/overlay', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...basePayload, desktopMobileVersion: 'desktop', width: 1240, height: 968 })
+            body: JSON.stringify({ ...basePayload, desktopMobileVersion: 'desktop', width: 1240, height: 968, imageZoom: formState.desktopBgZoom, imageX: formState.desktopBgX, imageY: formState.desktopBgY })
           });
           if (desktopRes.ok) {
             const blob = await desktopRes.blob();
@@ -1595,7 +1627,7 @@ export function ClientApp() {
           const mobileRes = await fetch('/api/overlay', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...basePayload, desktopMobileVersion: 'mobile', width: 1240, height: 1400 })
+            body: JSON.stringify({ ...basePayload, desktopMobileVersion: 'mobile', width: 1240, height: 1400, imageZoom: formState.mobileBgZoom, imageX: formState.mobileBgX, imageY: formState.mobileBgY })
           });
           if (mobileRes.ok) {
             const blob = await mobileRes.blob();
@@ -1674,7 +1706,14 @@ export function ClientApp() {
           dh: formState.desktopHeight,
           mw: formState.mobileWidth,
           mh: formState.mobileHeight,
-          ...(showMilwaukeeLogo === false && { ml: 0 }) // Only include if false (default is true)
+          ...(showMilwaukeeLogo === false && { ml: 0 }), // Only include if false (default is true)
+          // Per-version background framing (only include non-default values)
+          ...(formState.desktopBgZoom !== 1 && { dbz: formState.desktopBgZoom }),
+          ...(formState.desktopBgX !== 0 && { dbx: formState.desktopBgX }),
+          ...(formState.desktopBgY !== 0 && { dby: formState.desktopBgY }),
+          ...(formState.mobileBgZoom !== 1 && { mbz: formState.mobileBgZoom }),
+          ...(formState.mobileBgX !== 0 && { mbx: formState.mobileBgX }),
+          ...(formState.mobileBgY !== 0 && { mby: formState.mobileBgY })
         }),
         // Core state with ultra-short keys
         w: formState.width,
@@ -2581,6 +2620,101 @@ export function ClientApp() {
                               </div>
                             </div>
 
+                            {/* Background Framing - only show when background URL is set */}
+                            {desktopMobileImageUrl && (
+                            <details className="slds-m-top_medium slds-m-bottom_medium bg-framing-details">
+                              <summary className="slds-text-title_caps slds-m-bottom_small" style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', letterSpacing: '0.05em', color: '#706e6b' }}>
+                                <svg style={{ width: '0.75rem', height: '0.75rem', fill: 'currentColor', transition: 'transform 150ms' }} className="bg-framing-chevron" aria-hidden="true">
+                                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevronright"></use>
+                                </svg>
+                                Background Framing ({desktopMobileVersion === 'desktop' ? 'Desktop' : 'Mobile'})
+                              </summary>
+                              <div className="slds-box slds-box_x-small slds-theme_shade" style={{ borderRadius: '0.25rem' }}>
+                                <div className="slds-form-element">
+                                  <label className="slds-form-element__label" htmlFor={`${desktopMobileVersion}BgZoom`}>
+                                    Zoom: {Math.round((desktopMobileVersion === 'desktop' ? formState.desktopBgZoom : formState.mobileBgZoom) * 100)}%
+                                  </label>
+                                  <div className="slds-form-element__control">
+                                    <div className="slds-slider custom-slider">
+                                      <input
+                                        type="range"
+                                        id={`${desktopMobileVersion}BgZoom`}
+                                        name={`${desktopMobileVersion}BgZoom`}
+                                        min={1}
+                                        max={3}
+                                        step={0.05}
+                                        value={desktopMobileVersion === 'desktop' ? formState.desktopBgZoom : formState.mobileBgZoom}
+                                        onChange={handleInputChange}
+                                        className="slds-slider__range"
+                                        aria-valuemin={1}
+                                        aria-valuemax={3}
+                                        aria-valuenow={desktopMobileVersion === 'desktop' ? formState.desktopBgZoom : formState.mobileBgZoom}
+                                        aria-valuetext={`Background zoom: ${Math.round((desktopMobileVersion === 'desktop' ? formState.desktopBgZoom : formState.mobileBgZoom) * 100)}%`}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="slds-grid slds-gutters_small slds-m-top_small">
+                                  <div className="slds-col">
+                                    <div className="slds-form-element">
+                                      <label className="slds-form-element__label" htmlFor={`${desktopMobileVersion}BgX`}>
+                                        Horizontal: {desktopMobileVersion === 'desktop' ? formState.desktopBgX : formState.mobileBgX}%
+                                      </label>
+                                      <div className="slds-form-element__control">
+                                        <div className="slds-slider custom-slider">
+                                          <input
+                                            type="range"
+                                            id={`${desktopMobileVersion}BgX`}
+                                            name={`${desktopMobileVersion}BgX`}
+                                            min={0}
+                                            max={100}
+                                            value={desktopMobileVersion === 'desktop' ? formState.desktopBgX : formState.mobileBgX}
+                                            onChange={handleInputChange}
+                                            className="slds-slider__range"
+                                            aria-valuemin={0}
+                                            aria-valuemax={100}
+                                            aria-valuenow={desktopMobileVersion === 'desktop' ? formState.desktopBgX : formState.mobileBgX}
+                                            aria-valuetext={`Horizontal position: ${desktopMobileVersion === 'desktop' ? formState.desktopBgX : formState.mobileBgX}%`}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="slds-col">
+                                    <div className="slds-form-element">
+                                      <label className="slds-form-element__label" htmlFor={`${desktopMobileVersion}BgY`}>
+                                        Vertical: {desktopMobileVersion === 'desktop' ? formState.desktopBgY : formState.mobileBgY}%
+                                      </label>
+                                      <div className="slds-form-element__control">
+                                        <div className="slds-slider custom-slider">
+                                          <input
+                                            type="range"
+                                            id={`${desktopMobileVersion}BgY`}
+                                            name={`${desktopMobileVersion}BgY`}
+                                            min={0}
+                                            max={100}
+                                            value={desktopMobileVersion === 'desktop' ? formState.desktopBgY : formState.mobileBgY}
+                                            onChange={handleInputChange}
+                                            className="slds-slider__range"
+                                            aria-valuemin={0}
+                                            aria-valuemax={100}
+                                            aria-valuenow={desktopMobileVersion === 'desktop' ? formState.desktopBgY : formState.mobileBgY}
+                                            aria-valuetext={`Vertical position: ${desktopMobileVersion === 'desktop' ? formState.desktopBgY : formState.mobileBgY}%`}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="slds-form-element__help slds-m-top_x-small">
+                                  <p className="position-tip">
+                                    <strong>Tip:</strong> Zoom in and reposition to frame the background differently for {desktopMobileVersion === 'desktop' ? 'desktop' : 'mobile'}
+                                  </p>
+                                </div>
+                              </div>
+                            </details>
+                            )}
+
                             {/* Milwaukee Logo Toggle */}
                             <div className="slds-form-element slds-m-top_medium">
                               <div className="slds-form-element__control">
@@ -3442,6 +3576,15 @@ export function ClientApp() {
                 <div className="preview-canvas-wrapper">
                   <CanvasGenerator
                     {...formState}
+                    imageZoom={activeImageSourceTab === 'desktop-mobile'
+                      ? (desktopMobileVersion === 'desktop' ? formState.desktopBgZoom : formState.mobileBgZoom)
+                      : formState.imageZoom}
+                    imageX={activeImageSourceTab === 'desktop-mobile'
+                      ? (desktopMobileVersion === 'desktop' ? formState.desktopBgX : formState.mobileBgX)
+                      : formState.imageX}
+                    imageY={activeImageSourceTab === 'desktop-mobile'
+                      ? (desktopMobileVersion === 'desktop' ? formState.desktopBgY : formState.mobileBgY)
+                      : formState.imageY}
                     onLoad={() => setIsLoading(false)}
                     onError={handleError}
                     onImageLoad={handleImageLoad}

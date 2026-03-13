@@ -296,16 +296,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       const backgroundBuffer = Buffer.from(await imageResponse.arrayBuffer());
       
-      // Resize background image to fit the fixed dimensions
-      const backgroundImage = sharp(backgroundBuffer)
-        .resize(imageWidth, imageHeight, { fit: 'cover' })
-        .ensureAlpha(); // Ensure alpha channel for proper overlay compositing
+      // Parse background framing values (zoom and position)
+      const bgZoomValue = typeof imageZoom === 'number' ? imageZoom : parseFloat(imageZoom as string) || 1;
+      const bgXPercent = typeof imageX === 'number' ? imageX / 100 : parseFloat(imageX as string) / 100 || 0;
+      const bgYPercent = typeof imageY === 'number' ? imageY / 100 : parseFloat(imageY as string) / 100 || 0;
       
-      // Keep background separate - don't composite logo yet
+      if (bgZoomValue > 1) {
+        // Cover-fit first, then apply zoom and position
+        const coverBuffer = await sharp(backgroundBuffer)
+          .resize(imageWidth, imageHeight, { fit: 'cover' })
+          .toBuffer();
+        
+        const scaledW = Math.round(imageWidth * bgZoomValue);
+        const scaledH = Math.round(imageHeight * bgZoomValue);
+        const maxOffX = scaledW - imageWidth;
+        const maxOffY = scaledH - imageHeight;
+        const offX = Math.min(Math.round(maxOffX * bgXPercent), maxOffX);
+        const offY = Math.min(Math.round(maxOffY * bgYPercent), maxOffY);
+        
+        transformedImage = sharp(coverBuffer)
+          .resize(scaledW, scaledH)
+          .extract({
+            left: Math.max(0, offX),
+            top: Math.max(0, offY),
+            width: imageWidth,
+            height: imageHeight
+          })
+          .ensureAlpha();
+        
+        console.log('Background framing applied:', { zoom: bgZoomValue, x: bgXPercent, y: bgYPercent, offX, offY });
+      } else {
+        // No zoom - simple cover fit
+        transformedImage = sharp(backgroundBuffer)
+          .resize(imageWidth, imageHeight, { fit: 'cover' })
+          .ensureAlpha();
+      }
+      
       console.log('Background image prepared for desktop/mobile mode');
-      transformedImage = backgroundImage;
-      
-      hasAlpha = true; // Set to true since we're ensuring alpha channel
+      hasAlpha = true;
       console.log('Desktop/mobile image prepared:', { width: imageWidth, height: imageHeight, version: desktopMobileVersion });
     } else {
       // Fetch and process image
