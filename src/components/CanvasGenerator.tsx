@@ -451,8 +451,14 @@ export function CanvasGenerator({
     image.crossOrigin = 'anonymous';
     
     image.onload = () => {
-      const imageWidth = image.width;
-      const imageHeight = image.height;
+      const srcWidth = image.width;
+      const srcHeight = image.height;
+      
+      // In desktop-mobile mode, use target dimensions for canvas
+      // and do cover-fit + zoom + position of the source image
+      const imageWidth = isDesktopMobileMode ? width : srcWidth;
+      const imageHeight = isDesktopMobileMode ? height : srcHeight;
+      
       setImageAspectRatio(imageWidth / imageHeight);
       
       onImageLoad?.({ width: imageWidth, height: imageHeight });
@@ -464,22 +470,33 @@ export function CanvasGenerator({
       const displayCtx = canvas.getContext('2d');
       if (!displayCtx) return;
 
-      // Calculate scaled dimensions based on zoom
-      const scaledWidth = imageWidth * imageZoom;
-      const scaledHeight = imageHeight * imageZoom;
-      
-      // Calculate position offsets
-      const offsetX = ((imageX / 100) * (scaledWidth - imageWidth));
-      const offsetY = ((imageY / 100) * (scaledHeight - imageHeight));
-      
       // Clear the canvas
       displayCtx.clearRect(0, 0, imageWidth, imageHeight);
       
-      // Draw the image with transformations
-      displayCtx.save();
-      displayCtx.translate(-offsetX, -offsetY);
-      displayCtx.drawImage(image, 0, 0, scaledWidth, scaledHeight);
-      displayCtx.restore();
+      if (isDesktopMobileMode) {
+        // Cover-fit: scale so the image fully covers the canvas, then zoom + position
+        const coverScale = Math.max(imageWidth / srcWidth, imageHeight / srcHeight);
+        const drawW = srcWidth * coverScale * imageZoom;
+        const drawH = srcHeight * coverScale * imageZoom;
+        const overflowX = Math.max(0, drawW - imageWidth);
+        const overflowY = Math.max(0, drawH - imageHeight);
+        const offsetX = overflowX * (imageX / 100);
+        const offsetY = overflowY * (imageY / 100);
+        
+        displayCtx.drawImage(image, -offsetX, -offsetY, drawW, drawH);
+      } else {
+        // Standard zoom + position (non-desktop-mobile modes)
+        const scaledWidth = imageWidth * imageZoom;
+        const scaledHeight = imageHeight * imageZoom;
+        
+        const offsetX = ((imageX / 100) * (scaledWidth - imageWidth));
+        const offsetY = ((imageY / 100) * (scaledHeight - imageHeight));
+        
+        displayCtx.save();
+        displayCtx.translate(-offsetX, -offsetY);
+        displayCtx.drawImage(image, 0, 0, scaledWidth, scaledHeight);
+        displayCtx.restore();
+      }
       
       // Apply brightness filter
       applyBrightnessFilter(displayCtx, imageWidth, imageHeight, brightness);
@@ -565,7 +582,7 @@ export function CanvasGenerator({
       ctx.textAlign = 'center';
       ctx.fillText('Please enter an image URL', canvas.width / 2, canvas.height / 2);
     }
-  }, [textOverlays, imageOverlays, imageUrl, brightness, tintColor, tintOpacity, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion, showMilwaukeeLogo, milwaukeeLogoLoaded]);
+  }, [textOverlays, imageOverlays, imageUrl, width, height, brightness, tintColor, tintOpacity, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion, showMilwaukeeLogo, milwaukeeLogoLoaded]);
 
   // Draw hover effects on the overlay canvas (separate from main canvas to prevent flicker)
   const drawHoverEffects = (hoveredId: string | null) => {
