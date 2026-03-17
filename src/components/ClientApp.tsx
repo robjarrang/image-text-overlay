@@ -159,11 +159,11 @@ export function ClientApp() {
     imageY: 0,
     // Per-version background framing defaults
     desktopBgZoom: 1,
-    desktopBgX: 50,
-    desktopBgY: 50,
+    desktopBgX: 0,
+    desktopBgY: 0,
     mobileBgZoom: 1,
-    mobileBgX: 50,
-    mobileBgY: 50
+    mobileBgX: 0,
+    mobileBgY: 0
   });
   const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
   const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload' | 'transparent' | 'desktop-mobile'>('desktop-mobile');
@@ -225,8 +225,7 @@ export function ClientApp() {
   const [previewCache, setPreviewCache] = useState<{
     desktop: { url: string; sourceUrl: string; width: number; height: number; showLogo: boolean } | null;
     mobile: { url: string; sourceUrl: string; width: number; height: number; showLogo: boolean } | null;
-    rawImage: { url: string; sourceUrl: string } | null;
-  }>({ desktop: null, mobile: null, rawImage: null });
+  }>({ desktop: null, mobile: null });
 
   // Validation function for dimensions
   const validateDimension = (value: number, type: 'width' | 'height'): { isValid: boolean; message?: string } => {
@@ -261,9 +260,10 @@ export function ClientApp() {
     return validation.isValid ? 'slds-input' : 'slds-input slds-has-error';
   };
 
-  // Effect to handle dimension changes — update canvas dims for CanvasGenerator
+  // Effect to handle dimension changes and regenerate preview
   useEffect(() => {
     if (activeImageSourceTab === 'desktop-mobile' && desktopMobileImageUrl) {
+      // Validate current dimensions before generating preview
       const currentWidth = desktopMobileVersion === 'desktop' ? formState.desktopWidth : formState.mobileWidth;
       const currentHeight = desktopMobileVersion === 'desktop' ? formState.desktopHeight : formState.mobileHeight;
       
@@ -271,13 +271,17 @@ export function ClientApp() {
       const heightValidation = validateDimension(currentHeight, 'height');
       
       if (widthValidation.isValid && heightValidation.isValid) {
-        // Just update canvas dimensions — CanvasGenerator handles cover-fit client-side
-        const timer = setTimeout(() => {
-          setFormState(prev => ({
+        // Invalidate cache for the current version when dimensions change
+        const cached = previewCache[desktopMobileVersion];
+        if (cached && (cached.width !== currentWidth || cached.height !== currentHeight)) {
+          setPreviewCache(prev => ({
             ...prev,
-            width: currentWidth,
-            height: currentHeight
+            [desktopMobileVersion]: null
           }));
+        }
+        
+        const timer = setTimeout(() => {
+          generateDesktopMobilePreview(desktopMobileImageUrl, desktopMobileVersion);
         }, 300);
         return () => clearTimeout(timer);
       }
@@ -294,7 +298,6 @@ export function ClientApp() {
       if (previewCache.mobile?.url) {
         URL.revokeObjectURL(previewCache.mobile.url);
       }
-      // rawImage uses base64 data URLs, no revocation needed
     };
   }, []);
   
@@ -863,12 +866,12 @@ export function ClientApp() {
           imageX: shareData.x !== undefined ? shareData.x : 0, // Default to 0 if not specified
           imageY: shareData.y !== undefined ? shareData.y : 0, // Default to 0 if not specified
           // Per-version background framing
-          desktopBgZoom: shareData.dbz !== undefined ? shareData.dbz : 1,
-          desktopBgX: shareData.dbx !== undefined ? shareData.dbx : 50,
-          desktopBgY: shareData.dby !== undefined ? shareData.dby : 50,
-          mobileBgZoom: shareData.mbz !== undefined ? shareData.mbz : 1,
-          mobileBgX: shareData.mbx !== undefined ? shareData.mbx : 50,
-          mobileBgY: shareData.mby !== undefined ? shareData.mby : 50
+          ...(shareData.dbz !== undefined && { desktopBgZoom: shareData.dbz }),
+          ...(shareData.dbx !== undefined && { desktopBgX: shareData.dbx }),
+          ...(shareData.dby !== undefined && { desktopBgY: shareData.dby }),
+          ...(shareData.mbz !== undefined && { mobileBgZoom: shareData.mbz }),
+          ...(shareData.mbx !== undefined && { mobileBgX: shareData.mbx }),
+          ...(shareData.mby !== undefined && { mobileBgY: shareData.mby })
         };
         console.log('🔍 URL state to apply:', urlState);
 
@@ -1475,9 +1478,7 @@ export function ClientApp() {
     setIsLoading(true);
     setShowLanguagePicker(false); // Ensure language picker is closed for single downloads
     try {
-      const dimensions = version === 'desktop' 
-        ? { width: formState.desktopWidth, height: formState.desktopHeight } 
-        : { width: formState.mobileWidth, height: formState.mobileHeight };
+      const dimensions = version === 'desktop' ? { width: 1240, height: 968 } : { width: 1240, height: 1400 };
       const payload = { 
         ...formState, 
         ...dimensions,
@@ -1708,11 +1709,11 @@ export function ClientApp() {
           ...(showMilwaukeeLogo === false && { ml: 0 }), // Only include if false (default is true)
           // Per-version background framing (only include non-default values)
           ...(formState.desktopBgZoom !== 1 && { dbz: formState.desktopBgZoom }),
-          ...(formState.desktopBgX !== 50 && { dbx: formState.desktopBgX }),
-          ...(formState.desktopBgY !== 50 && { dby: formState.desktopBgY }),
+          ...(formState.desktopBgX !== 0 && { dbx: formState.desktopBgX }),
+          ...(formState.desktopBgY !== 0 && { dby: formState.desktopBgY }),
           ...(formState.mobileBgZoom !== 1 && { mbz: formState.mobileBgZoom }),
-          ...(formState.mobileBgX !== 50 && { mbx: formState.mobileBgX }),
-          ...(formState.mobileBgY !== 50 && { mby: formState.mobileBgY })
+          ...(formState.mobileBgX !== 0 && { mbx: formState.mobileBgX }),
+          ...(formState.mobileBgY !== 0 && { mby: formState.mobileBgY })
         }),
         // Core state with ultra-short keys
         w: formState.width,
@@ -2005,22 +2006,26 @@ export function ClientApp() {
     console.log('Version change requested:', version, 'Current tab:', activeImageSourceTab, 'Background URL:', desktopMobileImageUrl);
     setDesktopMobileVersion(version);
     if (activeImageSourceTab === 'desktop-mobile' && desktopMobileImageUrl) {
-      // Both versions share the same raw image — just update canvas dimensions
+      // Check if we have a cached preview for this version with matching source URL and dimensions
+      const cached = previewCache[version];
       const expectedWidth = version === 'desktop' ? formState.desktopWidth : formState.mobileWidth;
       const expectedHeight = version === 'desktop' ? formState.desktopHeight : formState.mobileHeight;
       
-      // If we have a cached raw image, reuse it; otherwise re-fetch
-      const cached = previewCache.rawImage;
-      if (cached && cached.sourceUrl === desktopMobileImageUrl) {
-        console.log('Using cached raw image, switching to version:', version);
+      if (cached && 
+          cached.sourceUrl === desktopMobileImageUrl && 
+          cached.width === expectedWidth && 
+          cached.height === expectedHeight) {
+        console.log('Using cached preview for version:', version);
+        // Use cached preview immediately - no loading state needed
         setFormState(prev => ({ 
           ...prev, 
           imageUrl: cached.url,
-          width: expectedWidth,
-          height: expectedHeight
+          width: cached.width,
+          height: cached.height
         }));
       } else {
-        console.log('No cached raw image, loading for version:', version);
+        console.log('Cache miss, regenerating preview for version:', version);
+        // Regenerate preview with new dimensions
         generateDesktopMobilePreview(desktopMobileImageUrl, version);
       }
     }
@@ -2030,7 +2035,7 @@ export function ClientApp() {
   const handleDesktopMobileImageUrlChange = (url: string) => {
     setDesktopMobileImageUrl(url);
     // Clear cache when source URL changes
-    setPreviewCache({ desktop: null, mobile: null, rawImage: null });
+    setPreviewCache({ desktop: null, mobile: null });
     if (activeImageSourceTab === 'desktop-mobile') {
       // Generate preview with logo for desktop-mobile mode
       generateDesktopMobilePreview(url, desktopMobileVersion);
@@ -2038,23 +2043,28 @@ export function ClientApp() {
     }
   };
 
-  // Generate desktop/mobile preview by loading the raw background image
-  // CanvasGenerator handles cover-fit + zoom + position client-side
+  // Generate desktop/mobile preview with logo
   const generateDesktopMobilePreview = async (backgroundUrl: string, version?: 'desktop' | 'mobile', showLogo?: boolean) => {
     if (!backgroundUrl) {
       console.log('No background URL provided');
       return;
     }
     
+    // Use provided showLogo value or fall back to state
+    const shouldShowLogo = showLogo !== undefined ? showLogo : showMilwaukeeLogo;
+    
     const versionToUse = version || desktopMobileVersion;
     const dimensions = versionToUse === 'desktop' 
       ? { width: Number(formState.desktopWidth), height: Number(formState.desktopHeight) } 
       : { width: Number(formState.mobileWidth), height: Number(formState.mobileHeight) };
     
-    // Check if we already have the raw image cached for this source URL
-    const cached = previewCache.rawImage;
-    if (cached && cached.sourceUrl === backgroundUrl) {
-      console.log('Using cached raw image for version:', versionToUse);
+    // Check cache first
+    const cached = previewCache[versionToUse];
+    if (cached && 
+        cached.sourceUrl === backgroundUrl && 
+        cached.width === dimensions.width && 
+        cached.height === dimensions.height) {
+      console.log('Using cached preview for version:', versionToUse);
       setFormState(prev => ({ 
         ...prev, 
         imageUrl: cached.url,
@@ -2064,86 +2074,198 @@ export function ClientApp() {
       return;
     }
     
-    console.log('Loading raw background image for version:', versionToUse, 'URL:', backgroundUrl);
+    console.log('Generating preview for version:', versionToUse, 'URL:', backgroundUrl);
     
     try {
       setIsLoading(true);
+      const payload = {
+        ...formState,
+        ...dimensions,
+        imageUrl: backgroundUrl,
+        textOverlays: [], // Empty for preview, we'll add text overlays in the canvas
+        imageOverlays: [], // Empty for preview, we'll add image overlays in the canvas
+        isDesktopMobileMode: true,
+        desktopMobileVersion: versionToUse,
+        showMilwaukeeLogo: false, // Logo is drawn client-side in CanvasGenerator to avoid tint affecting it
+        download: false
+      };
       
-      // Load the raw image via load-images API (just proxy, no processing)
-      const response = await fetch('/api/load-images', {
+      console.log('Sending API request with payload:', payload);
+      const response = await fetch('/api/overlay', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ images: [backgroundUrl] })
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
       });
       
       if (!response.ok) {
-        throw new Error(`Failed to load image: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to generate preview: ${response.status} ${response.statusText}`);
       }
       
-      const data = await response.json();
-      const rawImageUrl = data.images?.[0];
+      const blob = await response.blob();
+      const previewUrl = URL.createObjectURL(blob);
+      console.log('Preview generated successfully:', previewUrl);
       
-      if (!rawImageUrl) {
-        throw new Error('No image data returned from server');
-      }
-      
-      console.log('Raw image loaded successfully');
-      
-      // Cache the raw image (same for both versions — CanvasGenerator handles cover-fit)
+      // Cache the generated preview
       setPreviewCache(prev => ({
         ...prev,
-        rawImage: {
-          url: rawImageUrl,
-          sourceUrl: backgroundUrl
+        [versionToUse]: {
+          url: previewUrl,
+          sourceUrl: backgroundUrl,
+          width: dimensions.width,
+          height: dimensions.height,
+          showLogo: shouldShowLogo
         }
       }));
       
       setFormState(prev => ({ 
         ...prev, 
-        imageUrl: rawImageUrl,
+        imageUrl: previewUrl,
         width: dimensions.width,
         height: dimensions.height
       }));
+      
+      // Preload the other version in the background for instant switching
+      preloadOtherVersion(backgroundUrl, versionToUse);
     } catch (error) {
       console.error('Preview generation failed:', error);
-      setError('Failed to load background image. Please check the URL.');
+      setError('Failed to generate preview. Please check the background image URL.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Preload the other version is no longer needed — both versions use the same raw image.
-  // CanvasGenerator handles cover-fit for the active version's dimensions client-side.
-  const preloadOtherVersion = (_backgroundUrl: string, _currentVersion: 'desktop' | 'mobile') => {
-    // No-op: raw image is shared between desktop and mobile
+  // Preload the other version (desktop/mobile) in the background for instant switching
+  const preloadOtherVersion = async (backgroundUrl: string, currentVersion: 'desktop' | 'mobile') => {
+    const otherVersion = currentVersion === 'desktop' ? 'mobile' : 'desktop';
+    const otherDimensions = otherVersion === 'desktop' 
+      ? { width: Number(formState.desktopWidth), height: Number(formState.desktopHeight) } 
+      : { width: Number(formState.mobileWidth), height: Number(formState.mobileHeight) };
+    
+    // Check if already cached
+    const cached = previewCache[otherVersion];
+    if (cached && 
+        cached.sourceUrl === backgroundUrl && 
+        cached.width === otherDimensions.width && 
+        cached.height === otherDimensions.height) {
+      console.log('Other version already cached:', otherVersion);
+      return;
+    }
+    
+    console.log('Preloading other version in background:', otherVersion);
+    
+    try {
+      const payload = {
+        ...formState,
+        ...otherDimensions,
+        imageUrl: backgroundUrl,
+        textOverlays: [],
+        imageOverlays: [],
+        isDesktopMobileMode: true,
+        desktopMobileVersion: otherVersion,
+        showMilwaukeeLogo: false, // Logo is drawn client-side in CanvasGenerator
+        download: false
+      };
+      
+      const response = await fetch('/api/overlay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        console.warn('Background preload failed:', response.status);
+        return;
+      }
+      
+      const blob = await response.blob();
+      const previewUrl = URL.createObjectURL(blob);
+      console.log('Background preload complete for:', otherVersion);
+      
+      // Cache the preloaded preview (don't update form state, just cache it)
+      setPreviewCache(prev => ({
+        ...prev,
+        [otherVersion]: {
+          url: previewUrl,
+          sourceUrl: backgroundUrl,
+          width: otherDimensions.width,
+          height: otherDimensions.height,
+          showLogo: showMilwaukeeLogo
+        }
+      }));
+    } catch (error) {
+      // Silently fail for background preload - it's just an optimization
+      console.warn('Background preload error:', error);
+    }
   };
 
   // Generate desktop/mobile preview with explicit dimensions (for dimension changes)
-  // Now simply loads the raw image if not cached and sets canvas dimensions
   const generateDesktopMobilePreviewWithDimensions = async (backgroundUrl: string, version: 'desktop' | 'mobile', state: FormState) => {
     if (!backgroundUrl) {
       console.log('No background URL provided');
       return;
     }
     
-    const dimensions = version === 'desktop' 
-      ? { width: Number(state.desktopWidth), height: Number(state.desktopHeight) } 
-      : { width: Number(state.mobileWidth), height: Number(state.mobileHeight) };
+    console.log('Generating preview with custom dimensions for version:', version, 'URL:', backgroundUrl);
     
-    // Check if raw image is already cached
-    const cached = previewCache.rawImage;
-    if (cached && cached.sourceUrl === backgroundUrl) {
+    try {
+      setIsLoading(true);
+      const dimensions = version === 'desktop' 
+        ? { width: Number(state.desktopWidth), height: Number(state.desktopHeight) } 
+        : { width: Number(state.mobileWidth), height: Number(state.mobileHeight) };
+      const payload = {
+        ...state,
+        ...dimensions,
+        imageUrl: backgroundUrl,
+        textOverlays: [], // Empty for preview, we'll add text overlays in the canvas
+        imageOverlays: [], // Empty for preview, we'll add image overlays in the canvas
+        isDesktopMobileMode: true,
+        desktopMobileVersion: version,
+        showMilwaukeeLogo: false, // Logo is drawn client-side in CanvasGenerator
+        download: false
+      };
+      
+      console.log('Sending API request with custom dimensions:', {
+        ...payload,
+        imageUrl: payload.imageUrl.substring(0, 50) + '...' // Truncate URL for readability
+      });
+      const response = await fetch('/api/overlay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      console.log('Response status:', response.status, response.statusText);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('Error response:', errorText);
+        throw new Error(`Failed to generate preview: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+      
+      const blob = await response.blob();
+      console.log('Blob received:', blob.size, 'bytes, type:', blob.type);
+      const previewUrl = URL.createObjectURL(blob);
+      console.log('Preview with custom dimensions generated successfully:', previewUrl);
+      
       setFormState(prev => ({ 
         ...prev, 
-        imageUrl: cached.url,
+        imageUrl: previewUrl,
         width: dimensions.width,
         height: dimensions.height
       }));
-      return;
+    } catch (error) {
+      console.error('Preview generation with custom dimensions failed:', error);
+      setError('Failed to generate preview. Please check the background image URL and dimensions.');
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Fall back to full load
-    await generateDesktopMobilePreview(backgroundUrl, version);
   };
 
   return (

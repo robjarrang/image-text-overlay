@@ -296,44 +296,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       const backgroundBuffer = Buffer.from(await imageResponse.arrayBuffer());
       
-      // Get source image dimensions for cover-fit calculation
-      const srcMeta = await sharp(backgroundBuffer).metadata();
-      const srcW = srcMeta.width || imageWidth;
-      const srcH = srcMeta.height || imageHeight;
-      
       // Parse background framing values (zoom and position)
       const bgZoomValue = typeof imageZoom === 'number' ? imageZoom : parseFloat(imageZoom as string) || 1;
-      const bgXRaw = typeof imageX === 'number' ? imageX : parseFloat(imageX as string);
-      const bgYRaw = typeof imageY === 'number' ? imageY : parseFloat(imageY as string);
-      const bgXPercent = isNaN(bgXRaw) ? 0.5 : bgXRaw / 100;
-      const bgYPercent = isNaN(bgYRaw) ? 0.5 : bgYRaw / 100;
+      const bgXPercent = typeof imageX === 'number' ? imageX / 100 : parseFloat(imageX as string) / 100 || 0;
+      const bgYPercent = typeof imageY === 'number' ? imageY / 100 : parseFloat(imageY as string) / 100 || 0;
       
-      // Cover-fit + zoom + position (same math as CanvasGenerator client-side)
-      // coverScale: the minimum scale factor so the image fully covers the canvas
-      const coverScale = Math.max(imageWidth / srcW, imageHeight / srcH);
-      const drawW = Math.round(srcW * coverScale * bgZoomValue);
-      const drawH = Math.round(srcH * coverScale * bgZoomValue);
-      const overflowX = Math.max(0, drawW - imageWidth);
-      const overflowY = Math.max(0, drawH - imageHeight);
-      const offX = Math.min(Math.round(overflowX * bgXPercent), overflowX);
-      const offY = Math.min(Math.round(overflowY * bgYPercent), overflowY);
+      if (bgZoomValue > 1) {
+        // Cover-fit first, then apply zoom and position
+        const coverBuffer = await sharp(backgroundBuffer)
+          .resize(imageWidth, imageHeight, { fit: 'cover' })
+          .toBuffer();
+        
+        const scaledW = Math.round(imageWidth * bgZoomValue);
+        const scaledH = Math.round(imageHeight * bgZoomValue);
+        const maxOffX = scaledW - imageWidth;
+        const maxOffY = scaledH - imageHeight;
+        const offX = Math.min(Math.round(maxOffX * bgXPercent), maxOffX);
+        const offY = Math.min(Math.round(maxOffY * bgYPercent), maxOffY);
+        
+        transformedImage = sharp(coverBuffer)
+          .resize(scaledW, scaledH)
+          .extract({
+            left: Math.max(0, offX),
+            top: Math.max(0, offY),
+            width: imageWidth,
+            height: imageHeight
+          })
+          .ensureAlpha();
+        
+        console.log('Background framing applied:', { zoom: bgZoomValue, x: bgXPercent, y: bgYPercent, offX, offY });
+      } else {
+        // No zoom - simple cover fit
+        transformedImage = sharp(backgroundBuffer)
+          .resize(imageWidth, imageHeight, { fit: 'cover' })
+          .ensureAlpha();
+      }
       
-      transformedImage = sharp(backgroundBuffer)
-        .resize(drawW, drawH)
-        .extract({
-          left: Math.max(0, offX),
-          top: Math.max(0, offY),
-          width: imageWidth,
-          height: imageHeight
-        })
-        .ensureAlpha();
-      
-      console.log('Background framing applied:', { 
-        src: `${srcW}x${srcH}`, coverScale: coverScale.toFixed(3),
-        zoom: bgZoomValue, draw: `${drawW}x${drawH}`, 
-        overflow: `${overflowX}x${overflowY}`, offset: `${offX},${offY}` 
-      });
-      
+      console.log('Background image prepared for desktop/mobile mode');
       hasAlpha = true;
       console.log('Desktop/mobile image prepared:', { width: imageWidth, height: imageHeight, version: desktopMobileVersion });
     } else {
