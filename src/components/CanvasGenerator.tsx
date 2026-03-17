@@ -72,6 +72,11 @@ export function CanvasGenerator({
   const [initialFontSize, setInitialFontSize] = useState(0);
   const [resizeStartDistance, setResizeStartDistance] = useState(0);
 
+  // Background image dragging state (for desktop-mobile mode)
+  const [isDraggingBg, setIsDraggingBg] = useState(false);
+  const bgDragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number } | null>(null);
+  const srcDimensionsRef = useRef<{ width: number; height: number } | null>(null);
+
   // Milwaukee logo preloading for desktop-mobile mode
   const milwaukeeLogoRef = useRef<HTMLImageElement | null>(null);
   const [milwaukeeLogoLoaded, setMilwaukeeLogoLoaded] = useState(false);
@@ -451,8 +456,17 @@ export function CanvasGenerator({
     image.crossOrigin = 'anonymous';
     
     image.onload = () => {
-      const imageWidth = image.width;
-      const imageHeight = image.height;
+      const srcWidth = image.width;
+      const srcHeight = image.height;
+
+      // Store source dimensions for background dragging calculations
+      srcDimensionsRef.current = { width: srcWidth, height: srcHeight };
+      
+      // In desktop-mobile mode, use target dimensions for canvas
+      // and do cover-fit + zoom + position of the source image
+      const imageWidth = isDesktopMobileMode ? width : srcWidth;
+      const imageHeight = isDesktopMobileMode ? height : srcHeight;
+      
       setImageAspectRatio(imageWidth / imageHeight);
       
       onImageLoad?.({ width: imageWidth, height: imageHeight });
@@ -464,22 +478,33 @@ export function CanvasGenerator({
       const displayCtx = canvas.getContext('2d');
       if (!displayCtx) return;
 
-      // Calculate scaled dimensions based on zoom
-      const scaledWidth = imageWidth * imageZoom;
-      const scaledHeight = imageHeight * imageZoom;
-      
-      // Calculate position offsets
-      const offsetX = ((imageX / 100) * (scaledWidth - imageWidth));
-      const offsetY = ((imageY / 100) * (scaledHeight - imageHeight));
-      
       // Clear the canvas
       displayCtx.clearRect(0, 0, imageWidth, imageHeight);
       
-      // Draw the image with transformations
-      displayCtx.save();
-      displayCtx.translate(-offsetX, -offsetY);
-      displayCtx.drawImage(image, 0, 0, scaledWidth, scaledHeight);
-      displayCtx.restore();
+      if (isDesktopMobileMode) {
+        // Cover-fit: scale so the image fully covers the canvas, then zoom + position
+        const coverScale = Math.max(imageWidth / srcWidth, imageHeight / srcHeight);
+        const drawW = srcWidth * coverScale * imageZoom;
+        const drawH = srcHeight * coverScale * imageZoom;
+        const overflowX = Math.max(0, drawW - imageWidth);
+        const overflowY = Math.max(0, drawH - imageHeight);
+        const offsetX = overflowX * (imageX / 100);
+        const offsetY = overflowY * (imageY / 100);
+        
+        displayCtx.drawImage(image, -offsetX, -offsetY, drawW, drawH);
+      } else {
+        // Standard zoom + position (non-desktop-mobile modes)
+        const scaledWidth = imageWidth * imageZoom;
+        const scaledHeight = imageHeight * imageZoom;
+        
+        const offsetX = ((imageX / 100) * (scaledWidth - imageWidth));
+        const offsetY = ((imageY / 100) * (scaledHeight - imageHeight));
+        
+        displayCtx.save();
+        displayCtx.translate(-offsetX, -offsetY);
+        displayCtx.drawImage(image, 0, 0, scaledWidth, scaledHeight);
+        displayCtx.restore();
+      }
       
       // Apply brightness filter
       applyBrightnessFilter(displayCtx, imageWidth, imageHeight, brightness);
@@ -565,7 +590,7 @@ export function CanvasGenerator({
       ctx.textAlign = 'center';
       ctx.fillText('Please enter an image URL', canvas.width / 2, canvas.height / 2);
     }
-  }, [textOverlays, imageOverlays, imageUrl, brightness, tintColor, tintOpacity, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion, showMilwaukeeLogo, milwaukeeLogoLoaded]);
+  }, [textOverlays, imageOverlays, imageUrl, width, height, brightness, tintColor, tintOpacity, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion, showMilwaukeeLogo, milwaukeeLogoLoaded]);
 
   // Draw hover effects on the overlay canvas (separate from main canvas to prevent flicker)
   const drawHoverEffects = (hoveredId: string | null) => {
@@ -1039,7 +1064,10 @@ export function CanvasGenerator({
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current || (textOverlays.length === 0 && imageOverlays.length === 0)) return;
+    if (!canvasRef.current) return;
+    const hasOverlays = textOverlays.length > 0 || imageOverlays.length > 0;
+    const canDragBg = isDesktopMobileMode && onImageTransformChange;
+    if (!hasOverlays && !canDragBg) return;
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -1210,6 +1238,13 @@ export function CanvasGenerator({
         return;
       }
     }
+
+    // No overlay was hit — start background drag if in desktop-mobile mode
+    if (isDesktopMobileMode && onImageTransformChange) {
+      setIsDraggingBg(true);
+      bgDragStartRef.current = { mouseX: clickX, mouseY: clickY, startX: imageX, startY: imageY };
+      canvas.style.cursor = 'grabbing';
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1282,6 +1317,27 @@ export function CanvasGenerator({
         
         onImageSizeChange?.(resizeOverlayId, newWidth);
       }
+    } else if (isDraggingBg && bgDragStartRef.current && srcDimensionsRef.current && isDesktopMobileMode) {
+      // Handle background image dragging in desktop-mobile mode
+      const src = srcDimensionsRef.current;
+      const coverScale = Math.max(canvas.width / src.width, canvas.height / src.height);
+      const drawW = src.width * coverScale * imageZoom;
+      const drawH = src.height * coverScale * imageZoom;
+      const overflowX = Math.max(0, drawW - canvas.width);
+      const overflowY = Math.max(0, drawH - canvas.height);
+
+      const deltaX = mouseX - bgDragStartRef.current.mouseX;
+      const deltaY = mouseY - bgDragStartRef.current.mouseY;
+
+      // Dragging right → image moves right → visible window shifts left → position value decreases
+      const newX = overflowX > 0
+        ? Math.max(0, Math.min(100, bgDragStartRef.current.startX - (deltaX / overflowX * 100)))
+        : bgDragStartRef.current.startX;
+      const newY = overflowY > 0
+        ? Math.max(0, Math.min(100, bgDragStartRef.current.startY - (deltaY / overflowY * 100)))
+        : bgDragStartRef.current.startY;
+
+      onImageTransformChange?.({ zoom: imageZoom, x: Math.round(newX), y: Math.round(newY) });
     } else if (isDragging && draggedOverlayId) {
       // Handle dragging
       const deltaX = mouseX - dragOffset.x;
@@ -1355,7 +1411,11 @@ export function CanvasGenerator({
   };
 
   const handleMouseUp = () => {
-    if (isResizing && canvasRef.current) {
+    if (isDraggingBg && canvasRef.current) {
+      canvasRef.current.style.cursor = 'grab';
+      setIsDraggingBg(false);
+      bgDragStartRef.current = null;
+    } else if (isResizing && canvasRef.current) {
       canvasRef.current.style.cursor = 'nw-resize';
       setIsResizing(false);
       setResizeOverlayId(null);
@@ -1369,6 +1429,10 @@ export function CanvasGenerator({
   const handleMouseLeave = () => {
     if (canvasRef.current) {
       canvasRef.current.style.cursor = 'default';
+    }
+    if (isDraggingBg) {
+      setIsDraggingBg(false);
+      bgDragStartRef.current = null;
     }
     if (isDragging) {
       setIsDragging(false);
@@ -1386,7 +1450,10 @@ export function CanvasGenerator({
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current || e.touches.length !== 1 || (textOverlays.length === 0 && imageOverlays.length === 0)) return;
+    if (!canvasRef.current || e.touches.length !== 1) return;
+    const hasOverlays = textOverlays.length > 0 || imageOverlays.length > 0;
+    const canDragBg = isDesktopMobileMode && onImageTransformChange;
+    if (!hasOverlays && !canDragBg) return;
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -1420,10 +1487,51 @@ export function CanvasGenerator({
         return; // Exit after finding the first match
       }
     }
+
+    // No overlay was hit — start background drag if in desktop-mobile mode
+    if (isDesktopMobileMode && onImageTransformChange) {
+      setIsDraggingBg(true);
+      bgDragStartRef.current = { mouseX: touchX, mouseY: touchY, startX: imageX, startY: imageY };
+      e.preventDefault();
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDragging || !draggedOverlayId || !canvasRef.current || e.touches.length !== 1) return;
+    if (!canvasRef.current || e.touches.length !== 1) return;
+
+    // Handle background drag (touch)
+    if (isDraggingBg && bgDragStartRef.current && srcDimensionsRef.current && isDesktopMobileMode) {
+      const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      const scaleFactorX = canvas.width / rect.width;
+      const scaleFactorY = canvas.height / rect.height;
+      const touch = e.touches[0];
+      const touchX = (touch.clientX - rect.left) * scaleFactorX;
+      const touchY = (touch.clientY - rect.top) * scaleFactorY;
+
+      const src = srcDimensionsRef.current;
+      const coverScale = Math.max(canvas.width / src.width, canvas.height / src.height);
+      const drawW = src.width * coverScale * imageZoom;
+      const drawH = src.height * coverScale * imageZoom;
+      const overflowX = Math.max(0, drawW - canvas.width);
+      const overflowY = Math.max(0, drawH - canvas.height);
+
+      const deltaX = touchX - bgDragStartRef.current.mouseX;
+      const deltaY = touchY - bgDragStartRef.current.mouseY;
+
+      const newX = overflowX > 0
+        ? Math.max(0, Math.min(100, bgDragStartRef.current.startX - (deltaX / overflowX * 100)))
+        : bgDragStartRef.current.startX;
+      const newY = overflowY > 0
+        ? Math.max(0, Math.min(100, bgDragStartRef.current.startY - (deltaY / overflowY * 100)))
+        : bgDragStartRef.current.startY;
+
+      onImageTransformChange?.({ zoom: imageZoom, x: Math.round(newX), y: Math.round(newY) });
+      e.preventDefault();
+      return;
+    }
+
+    if (!isDragging || !draggedOverlayId) return;
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -1445,6 +1553,10 @@ export function CanvasGenerator({
   };
 
   const handleTouchEnd = () => {
+    if (isDraggingBg) {
+      setIsDraggingBg(false);
+      bgDragStartRef.current = null;
+    }
     setIsDragging(false);
     setDraggedOverlayId(null);
   };
@@ -1483,7 +1595,7 @@ export function CanvasGenerator({
             maxWidth: '100%',
             height: 'auto',
             aspectRatio: imageAspectRatio,
-            cursor: isDragging ? 'grabbing' : 'grab',
+            cursor: (isDragging || isDraggingBg) ? 'grabbing' : 'grab',
             borderRadius: '8px',
             display: 'block',
           }}
