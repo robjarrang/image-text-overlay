@@ -5,9 +5,10 @@ import { base64FontData } from '../../utils/fontData';
 import { TextOverlay, ImageOverlay } from '../../components/ClientApp';
 
 export const config = {
+  maxDuration: 60,
   api: {
     bodyParser: {
-      sizeLimit: '2mb'
+      sizeLimit: '10mb'
     },
     responseLimit: false
   },
@@ -258,6 +259,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let transformedImage: sharp.Sharp;
     let hasAlpha: boolean;
 
+    // Pre-fetch logo in parallel with all other processing to avoid sequential network waits
+    let logoFetchPromise: Promise<Buffer | null> | null = null;
+    if (isDesktopMobileMode && params.showMilwaukeeLogo !== false) {
+      const logoUrl = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
+      logoFetchPromise = fetch(logoUrl)
+        .then(resp => resp.ok ? resp.arrayBuffer().then(ab => Buffer.from(ab)) : null)
+        .catch(() => null);
+    }
+
     if (isTransparentMode) {
       // Handle transparent canvas mode
       console.log('Creating transparent canvas...');
@@ -296,44 +306,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       const backgroundBuffer = Buffer.from(await imageResponse.arrayBuffer());
       
+      // Get source image dimensions for cover-fit calculation
+      const srcMeta = await sharp(backgroundBuffer).metadata();
+      const srcW = srcMeta.width || imageWidth;
+      const srcH = srcMeta.height || imageHeight;
+      
       // Parse background framing values (zoom and position)
       const bgZoomValue = typeof imageZoom === 'number' ? imageZoom : parseFloat(imageZoom as string) || 1;
-      const bgXPercent = typeof imageX === 'number' ? imageX / 100 : parseFloat(imageX as string) / 100 || 0;
-      const bgYPercent = typeof imageY === 'number' ? imageY / 100 : parseFloat(imageY as string) / 100 || 0;
+      const bgXRaw = typeof imageX === 'number' ? imageX : parseFloat(imageX as string);
+      const bgYRaw = typeof imageY === 'number' ? imageY : parseFloat(imageY as string);
+      const bgXPercent = isNaN(bgXRaw) ? 0.5 : bgXRaw / 100;
+      const bgYPercent = isNaN(bgYRaw) ? 0.5 : bgYRaw / 100;
       
-      if (bgZoomValue > 1) {
-        // Cover-fit first, then apply zoom and position
-        const coverBuffer = await sharp(backgroundBuffer)
-          .resize(imageWidth, imageHeight, { fit: 'cover' })
-          .toBuffer();
-        
-        const scaledW = Math.round(imageWidth * bgZoomValue);
-        const scaledH = Math.round(imageHeight * bgZoomValue);
-        const maxOffX = scaledW - imageWidth;
-        const maxOffY = scaledH - imageHeight;
-        const offX = Math.min(Math.round(maxOffX * bgXPercent), maxOffX);
-        const offY = Math.min(Math.round(maxOffY * bgYPercent), maxOffY);
-        
-        transformedImage = sharp(coverBuffer)
-          .resize(scaledW, scaledH)
-          .extract({
-            left: Math.max(0, offX),
-            top: Math.max(0, offY),
-            width: imageWidth,
-            height: imageHeight
-          })
-          .ensureAlpha();
-        
-        console.log('Background framing applied:', { zoom: bgZoomValue, x: bgXPercent, y: bgYPercent, offX, offY });
-      } else {
-        // No zoom - simple cover fit
-        transformedImage = sharp(backgroundBuffer)
-          .resize(imageWidth, imageHeight, { fit: 'cover' })
-          .ensureAlpha();
-      }
+      // Cover-fit + zoom + position (same math as CanvasGenerator client-side)
+      // coverScale: the minimum scale factor so the image fully covers the canvas
+      const coverScale = Math.max(imageWidth / srcW, imageHeight / srcH);
+      const drawW = Math.round(srcW * coverScale * bgZoomValue);
+      const drawH = Math.round(srcH * coverScale * bgZoomValue);
+      const overflowX = Math.max(0, drawW - imageWidth);
+      const overflowY = Math.max(0, drawH - imageHeight);
+      const offX = Math.min(Math.round(overflowX * bgXPercent), overflowX);
+      const offY = Math.min(Math.round(overflowY * bgYPercent), overflowY);
       
-      console.log('Background image prepared for desktop/mobile mode');
-      hasAlpha = true;
+      transformedImage = sharp(backgroundBuffer)
+        .resize(drawW, drawH)
+        .extract({
+          left: Math.max(0, offX),
+          top: Math.max(0, offY),
+          width: imageWidth,
+          height: imageHeight
+        })
+        .ensureAlpha();
+      
+      console.log('Background framing applied:', { 
+        src: `${srcW}x${srcH}`, coverScale: coverScale.toFixed(3),
+        zoom: bgZoomValue, draw: `${drawW}x${drawH}`, 
+        overflow: `${overflowX}x${overflowY}`, offset: `${offX},${offY}` 
+      });
+      
+      // Background is opaque — no real transparency needed.
+      // ensureAlpha() above is for compositing compatibility only; output can be JPEG.
+      hasAlpha = false;
       console.log('Desktop/mobile image prepared:', { width: imageWidth, height: imageHeight, version: desktopMobileVersion });
     } else {
       // Fetch and process image
@@ -629,16 +642,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       allComposites.push(...imageComposites);
       
       // Add built-in logo for desktop/mobile mode (goes on top of user image overlays)
-      // Only add logo if showMilwaukeeLogo is true (defaults to true if not specified)
-      const shouldShowLogo = params.showMilwaukeeLogo !== false;
-      if (isDesktopMobileMode && desktopMobileVersion && shouldShowLogo) {
+      // Logo was pre-fetched in parallel at the start of the handler
+      if (logoFetchPromise) {
         try {
-          const logoUrl = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
-          console.log('Fetching built-in logo for compositing from:', logoUrl);
-          const logoResponse = await fetch(logoUrl);
-          if (logoResponse.ok) {
-            console.log('Built-in logo fetch successful, response status:', logoResponse.status);
-            const logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
+          const logoBuffer = await logoFetchPromise;
+          if (logoBuffer) {
             console.log('Built-in logo buffer size:', logoBuffer.length);
             const logoWidth = desktopMobileVersion === 'desktop' ? 360 : 484;
             console.log('Resizing built-in logo to width:', logoWidth);
@@ -647,22 +655,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             const resizedLogo = await sharp(logoBuffer)
               .resize(logoWidth, null, { 
                 withoutEnlargement: false,
-                background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
+                background: { r: 0, g: 0, b: 0, alpha: 0 }
               })
-              .ensureAlpha() // Ensure alpha channel is present
+              .ensureAlpha()
               .png({ 
-                compressionLevel: 6,
-                adaptiveFiltering: true,
+                compressionLevel: 3,
                 force: true
               })
               .toBuffer();
             
-            // Add logo to composites (it will appear on top of user image overlays)
             allComposites.push({
               input: resizedLogo,
               top: 0,
               left: 20,
-              blend: 'over' // Use 'over' blend mode for proper alpha compositing
+              blend: 'over'
             });
             
             console.log('Built-in logo added to compositing stack at top-left corner');
@@ -690,9 +696,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .composite(allComposites)
             .png({ 
               quality: 90,
-              compressionLevel: 6,
-              adaptiveFiltering: true,
-              force: true // Force PNG output to preserve alpha
+              compressionLevel: 3,
+              adaptiveFiltering: false,
+              force: true
             })
             .toBuffer();
           contentType = 'image/png';
@@ -713,8 +719,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           finalImage = await transformedImage
             .png({ 
               quality: 90,
-              compressionLevel: 6,
-              adaptiveFiltering: true,
+              compressionLevel: 3,
+              adaptiveFiltering: false,
               force: true
             })
             .toBuffer();
