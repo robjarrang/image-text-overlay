@@ -1303,20 +1303,16 @@ export function CanvasGenerator({
         
         onFontSizeChange?.(resizeOverlayId, newFontSize);
         
-        // Adjust position for right/center aligned text so text expands in drag direction
-        // (keeps the opposite edge fixed instead of the anchor point)
+        // Adjust position for right-aligned text so text expands in drag direction
+        // (keeps the left edge fixed instead of the anchor point)
+        // Center-aligned text already expands equally from its anchor, so no shift needed.
         const alignment = resizeAlignmentRef.current;
-        if (alignment === 'right' || alignment === 'center') {
+        if (alignment === 'right') {
           const widthRatio = newFontSize / initialFontSize;
           const initialWidthPercent = (resizeInitialWidthRef.current / canvas.width) * 100;
           const widthChangePercent = initialWidthPercent * (widthRatio - 1);
           
-          let newX = resizeInitialPositionRef.current.x;
-          if (alignment === 'right') {
-            newX += widthChangePercent;
-          } else {
-            newX += widthChangePercent / 2;
-          }
+          const newX = resizeInitialPositionRef.current.x + widthChangePercent;
           
           onPositionChange?.(resizeOverlayId, newX, resizeInitialPositionRef.current.y);
         }
