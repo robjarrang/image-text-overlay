@@ -71,6 +71,11 @@ export function CanvasGenerator({
   const [resizeOverlayId, setResizeOverlayId] = useState<string | null>(null);
   const [initialFontSize, setInitialFontSize] = useState(0);
   const [resizeStartDistance, setResizeStartDistance] = useState(0);
+  // Refs for alignment-aware resize (keep opposite edge fixed)
+  const resizeInitialCenterRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const resizeInitialPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const resizeInitialWidthRef = useRef(0);
+  const resizeAlignmentRef = useRef<'left' | 'center' | 'right'>('left');
 
   // Background image dragging state (for desktop-mobile mode)
   const [isDraggingBg, setIsDraggingBg] = useState(false);
@@ -1181,7 +1186,7 @@ export function CanvasGenerator({
         }
         setInitialFontSize(effectiveFontSize);
         
-        // Calculate initial distance from text center for resize calculation
+        // Calculate initial distance using bounding box center for stable resize
         let effectiveX = overlay.x;
         let effectiveY = overlay.y;
         if (isDesktopMobileMode && desktopMobileVersion) {
@@ -1194,9 +1199,26 @@ export function CanvasGenerator({
           }
         }
         
-        const actualX = (effectiveX / 100) * canvas.width;
-        const actualY = (effectiveY / 100) * canvas.height;
-        const distance = Math.sqrt(Math.pow(clickX - actualX, 2) + Math.pow(clickY - actualY, 2));
+        // Store initial state for alignment-aware resizing
+        resizeInitialPositionRef.current = { x: effectiveX, y: effectiveY };
+        resizeAlignmentRef.current = overlay.alignment || 'left';
+        
+        // Use bounding box center as distance reference (not anchor point)
+        // This avoids tiny initial distances for right-aligned text
+        const bounds = getTextOverlayBounds(overlay, canvas.width, canvas.height);
+        let refX: number, refY: number;
+        if (bounds) {
+          refX = bounds.x + bounds.width / 2;
+          refY = bounds.y + bounds.height / 2;
+          resizeInitialWidthRef.current = bounds.width;
+        } else {
+          refX = (effectiveX / 100) * canvas.width;
+          refY = (effectiveY / 100) * canvas.height;
+          resizeInitialWidthRef.current = 0;
+        }
+        resizeInitialCenterRef.current = { x: refX, y: refY };
+        
+        const distance = Math.sqrt(Math.pow(clickX - refX, 2) + Math.pow(clickY - refY, 2));
         setResizeStartDistance(distance);
         
         canvas.style.cursor = 'nw-resize';
@@ -1268,29 +1290,36 @@ export function CanvasGenerator({
       
       if (textOverlay) {
         // Handle font size resizing for text
-        let effectiveX = textOverlay.x;
-        let effectiveY = textOverlay.y;
-        if (isDesktopMobileMode && desktopMobileVersion) {
-          if (desktopMobileVersion === 'desktop') {
-            effectiveX = textOverlay.desktopX ?? textOverlay.x;
-            effectiveY = textOverlay.desktopY ?? textOverlay.y;
-          } else if (desktopMobileVersion === 'mobile') {
-            effectiveX = textOverlay.mobileX ?? textOverlay.x;
-            effectiveY = textOverlay.mobileY ?? textOverlay.y;
-          }
-        }
+        // Use stored initial bounding box center for stable distance calculation
+        const refX = resizeInitialCenterRef.current.x;
+        const refY = resizeInitialCenterRef.current.y;
         
-        const actualX = (effectiveX / 100) * canvas.width;
-        const actualY = (effectiveY / 100) * canvas.height;
-        
-        // Calculate current distance from text center
-        const currentDistance = Math.sqrt(Math.pow(mouseX - actualX, 2) + Math.pow(mouseY - actualY, 2));
+        // Calculate current distance from initial bounding box center
+        const currentDistance = Math.sqrt(Math.pow(mouseX - refX, 2) + Math.pow(mouseY - refY, 2));
         
         // Calculate font size change based on distance change
         const distanceRatio = currentDistance / resizeStartDistance;
         const newFontSize = Math.max(1, Math.min(50, initialFontSize * distanceRatio));
         
         onFontSizeChange?.(resizeOverlayId, newFontSize);
+        
+        // Adjust position for right/center aligned text so text expands in drag direction
+        // (keeps the opposite edge fixed instead of the anchor point)
+        const alignment = resizeAlignmentRef.current;
+        if (alignment === 'right' || alignment === 'center') {
+          const widthRatio = newFontSize / initialFontSize;
+          const initialWidthPercent = (resizeInitialWidthRef.current / canvas.width) * 100;
+          const widthChangePercent = initialWidthPercent * (widthRatio - 1);
+          
+          let newX = resizeInitialPositionRef.current.x;
+          if (alignment === 'right') {
+            newX += widthChangePercent;
+          } else {
+            newX += widthChangePercent / 2;
+          }
+          
+          onPositionChange?.(resizeOverlayId, newX, resizeInitialPositionRef.current.y);
+        }
       } else if (imageOverlay) {
         // Handle size resizing for image
         let effectiveX = imageOverlay.x;
