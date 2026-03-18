@@ -2212,6 +2212,7 @@ export function ClientApp() {
             </div>
             <div className="slds-no-flex" style={{ display: 'flex', gap: '4px' }}>
               <button
+                type="button"
                 className="slds-button slds-button_icon slds-button_icon-border"
                 onClick={undo}
                 disabled={!canUndo}
@@ -2221,6 +2222,7 @@ export function ClientApp() {
                 <Icons.Undo />
               </button>
               <button
+                type="button"
                 className="slds-button slds-button_icon slds-button_icon-border"
                 onClick={redo}
                 disabled={!canRedo}

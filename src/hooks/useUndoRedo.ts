@@ -1,58 +1,52 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 const MAX_HISTORY = 50;
 
-interface HistoryState<T> {
-  past: T[];
-  present: T;
-  future: T[];
-}
-
 export function useUndoRedo<T>(initialState: T) {
-  const [hist, setHist] = useState<HistoryState<T>>({
-    past: [],
-    present: initialState,
-    future: [],
-  });
+  const presentRef = useRef<T>(initialState);
+  const pastRef = useRef<T[]>([]);
+  const futureRef = useRef<T[]>([]);
+  // Render trigger — incrementing this forces a re-render so the
+  // component sees updated canUndo / canRedo / state values.
+  const [, forceRender] = useState(0);
+  const rerender = useCallback(() => forceRender(n => n + 1), []);
 
   const set = useCallback((updater: T | ((prev: T) => T)) => {
-    setHist(h => {
-      const next = typeof updater === 'function'
-        ? (updater as (prev: T) => T)(h.present)
-        : updater;
-      if (next === h.present) return h;
-      return {
-        past: [...h.past.slice(-(MAX_HISTORY - 1)), h.present],
-        present: next,
-        future: [],
-      };
-    });
-  }, []);
+    const prev = presentRef.current;
+    const next = typeof updater === 'function'
+      ? (updater as (prev: T) => T)(prev)
+      : updater;
+    if (Object.is(next, prev)) return;
+    pastRef.current = [...pastRef.current.slice(-(MAX_HISTORY - 1)), prev];
+    futureRef.current = [];
+    presentRef.current = next;
+    rerender();
+  }, [rerender]);
 
   const undo = useCallback(() => {
-    setHist(h => {
-      if (h.past.length === 0) return h;
-      return {
-        past: h.past.slice(0, -1),
-        present: h.past[h.past.length - 1],
-        future: [h.present, ...h.future],
-      };
-    });
-  }, []);
+    const past = pastRef.current;
+    if (past.length === 0) return;
+    futureRef.current = [presentRef.current, ...futureRef.current];
+    presentRef.current = past[past.length - 1];
+    pastRef.current = past.slice(0, -1);
+    rerender();
+  }, [rerender]);
 
   const redo = useCallback(() => {
-    setHist(h => {
-      if (h.future.length === 0) return h;
-      return {
-        past: [...h.past, h.present],
-        present: h.future[0],
-        future: h.future.slice(1),
-      };
-    });
-  }, []);
+    const future = futureRef.current;
+    if (future.length === 0) return;
+    pastRef.current = [...pastRef.current, presentRef.current];
+    presentRef.current = future[0];
+    futureRef.current = future.slice(1);
+    rerender();
+  }, [rerender]);
 
-  const canUndo = hist.past.length > 0;
-  const canRedo = hist.future.length > 0;
-
-  return { state: hist.present, set, undo, redo, canUndo, canRedo } as const;
+  return {
+    state: presentRef.current,
+    set,
+    undo,
+    redo,
+    canUndo: pastRef.current.length > 0,
+    canRedo: futureRef.current.length > 0,
+  } as const;
 }
