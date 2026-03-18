@@ -2665,10 +2665,20 @@ main,
 }
 
 /* Preview version tabs (Desktop/Mobile) above the canvas */
+.preview-version-tabs .slds-tabs_scoped__nav {
+  display: flex;
+}
+
+.preview-version-tabs .slds-tabs_scoped__item {
+  flex: 1;
+}
+
 .preview-version-tabs .slds-tabs_scoped__link {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.25rem;
+  width: 100%;
 }
 
 .preview-version-tabs .slds-tabs_scoped__link .slds-icon {
