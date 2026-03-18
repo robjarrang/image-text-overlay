@@ -2421,45 +2421,6 @@ export function ClientApp() {
                             </div>
                           </div>
                           <div id="desktop-mobile-tab-content" className={`slds-tabs_scoped__content ${activeImageSourceTab === 'desktop-mobile' ? '' : 'slds-hide'}`} role="tabpanel" aria-labelledby="desktop-mobile-tab">
-                            {/* Version Selection */}
-                            <div className="slds-form-element slds-m-bottom_large">
-                              <fieldset className="slds-form-element__legend">
-                                <legend className="slds-form-element__legend slds-form-element__label">
-                                  Version
-                                </legend>
-                                <div className="slds-form-element__control">
-                                  <div className="slds-button-group" role="group">
-                                    <button
-                                      type="button"
-                                      className={`slds-button ${desktopMobileVersion === 'desktop' ? 'slds-button_brand' : 'slds-button_neutral'}`}
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        console.log('Desktop button clicked!');
-                                        handleDesktopMobileVersionChange('desktop');
-                                      }}
-                                      style={{ pointerEvents: 'auto', zIndex: 10 }}
-                                    >
-                                      Desktop
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className={`slds-button ${desktopMobileVersion === 'mobile' ? 'slds-button_brand' : 'slds-button_neutral'}`}
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        console.log('Mobile button clicked!');
-                                        handleDesktopMobileVersionChange('mobile');
-                                      }}
-                                      style={{ pointerEvents: 'auto', zIndex: 10 }}
-                                    >
-                                      Mobile
-                                    </button>
-                                  </div>
-                                </div>
-                              </fieldset>
-                            </div>
-
                             {/* Canvas Dimensions - Separate Row */}
                             <div className="slds-form-element slds-m-bottom_medium slds-m-top_x-large" style={{ clear: 'both', width: '100%' }}>
                               <fieldset className="slds-form-element">
@@ -3461,6 +3422,47 @@ export function ClientApp() {
             </div>
           </div>
           <div className="slds-card__body slds-p-around_medium">
+            {/* Desktop/Mobile version tabs above preview */}
+            {activeImageSourceTab === 'desktop-mobile' && (
+              <div className="preview-version-tabs slds-m-bottom_small">
+                <div className="slds-tabs_scoped">
+                  <ul className="slds-tabs_scoped__nav" role="tablist">
+                    <li className={`slds-tabs_scoped__item${desktopMobileVersion === 'desktop' ? ' slds-is-active' : ''}`} role="presentation">
+                      <button
+                        className="slds-tabs_scoped__link"
+                        role="tab"
+                        aria-selected={desktopMobileVersion === 'desktop'}
+                        id="preview-desktop-tab"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDesktopMobileVersionChange('desktop');
+                        }}
+                      >
+                        <Icons.Desktop size="x-small" />
+                        <span className="slds-m-left_xx-small">Desktop</span>
+                      </button>
+                    </li>
+                    <li className={`slds-tabs_scoped__item${desktopMobileVersion === 'mobile' ? ' slds-is-active' : ''}`} role="presentation">
+                      <button
+                        className="slds-tabs_scoped__link"
+                        role="tab"
+                        aria-selected={desktopMobileVersion === 'mobile'}
+                        id="preview-mobile-tab"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDesktopMobileVersionChange('mobile');
+                        }}
+                      >
+                        <Icons.PhonePortrait size="x-small" />
+                        <span className="slds-m-left_xx-small">Mobile</span>
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            )}
             {isLoading ? (
               <div className="slds-illustration slds-illustration_small slds-p-around_large animate-pulse">
                 <div className="slds-align_absolute-center">

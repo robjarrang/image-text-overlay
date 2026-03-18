@@ -2664,6 +2664,19 @@ main,
   box-sizing: border-box !important;
 }
 
+/* Preview version tabs (Desktop/Mobile) above the canvas */
+.preview-version-tabs .slds-tabs_scoped__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.preview-version-tabs .slds-tabs_scoped__link .slds-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+}
+
 .sticky-preview-column .canvas-container {
   max-width: 100% !important;
   overflow: hidden !important;
