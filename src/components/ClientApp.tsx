@@ -2990,17 +2990,42 @@ export function ClientApp() {
                                       </span>
                                     </div>
                                   </button>
-                                  <div className="slds-no-flex">
-                                    <button 
-                                      className="slds-button slds-button_icon" 
-                                      onClick={() => confirmDelete(overlay.id)}
-                                      title="Delete this overlay"
-                                    >
-                                      <svg className="slds-button__icon" aria-hidden="true">
-                                        <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#delete"></use>
-                                      </svg>
-                                      <span className="slds-assistive-text">Delete this overlay</span>
-                                    </button>
+                                  <div className="slds-no-flex inline-delete-actions">
+                                    {pendingDeleteId === overlay.id ? (
+                                      <>
+                                        <button 
+                                          className="slds-button slds-button_icon inline-delete-confirm" 
+                                          onClick={(e) => { e.stopPropagation(); handleDeleteConfirmed(); }}
+                                          title="Confirm delete"
+                                        >
+                                          <svg className="slds-button__icon" aria-hidden="true">
+                                            <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#check"></use>
+                                          </svg>
+                                          <span className="slds-assistive-text">Confirm delete</span>
+                                        </button>
+                                        <button 
+                                          className="slds-button slds-button_icon inline-delete-cancel" 
+                                          onClick={(e) => { e.stopPropagation(); cancelDelete(); }}
+                                          title="Cancel delete"
+                                        >
+                                          <svg className="slds-button__icon" aria-hidden="true">
+                                            <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#close"></use>
+                                          </svg>
+                                          <span className="slds-assistive-text">Cancel delete</span>
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button 
+                                        className="slds-button slds-button_icon" 
+                                        onClick={(e) => { e.stopPropagation(); confirmDelete(overlay.id); }}
+                                        title="Delete this overlay"
+                                      >
+                                        <svg className="slds-button__icon" aria-hidden="true">
+                                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#delete"></use>
+                                        </svg>
+                                        <span className="slds-assistive-text">Delete this overlay</span>
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               </li>
@@ -3741,44 +3766,7 @@ export function ClientApp() {
           </div>
         </div>
       )}
-      {pendingDeleteId && (
-        <div className="slds-backdrop slds-backdrop_open" role="presentation"></div>
-      )}
-      {pendingDeleteId && (
-        <section
-          role="dialog"
-          tabIndex={-1}
-          aria-modal="true"
-          aria-labelledby="modal-heading-01"
-          aria-describedby="modal-content-id-1"
-          className="slds-modal slds-fade-in-open"
-        >
-          <div className="slds-modal__container">
-            <header className="slds-modal__header">
-              <button
-                className="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
-                title="Close"
-                onClick={cancelDelete}
-              >
-                <svg className="slds-button__icon slds-button__icon_large" aria-hidden="true">
-                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#close"></use>
-                </svg>
-                <span className="slds-assistive-text">Cancel</span>
-              </button>
-              <h2 id="modal-heading-01" className="slds-modal__title slds-hyphenate">
-                Delete Text Overlay
-              </h2>
-            </header>
-            <div className="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
-              <p>Are you sure you want to delete this text overlay? This action cannot be undone.</p>
-            </div>
-            <footer className="slds-modal__footer">
-              <button className="slds-button slds-button_neutral" onClick={cancelDelete}>Cancel</button>
-              <button className="slds-button slds-button_destructive" onClick={handleDeleteConfirmed}>Delete</button>
-            </footer>
-          </div>
-        </section>
-      )}
+
     </div>
   );
 }

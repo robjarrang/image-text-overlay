@@ -3335,3 +3335,39 @@ input.font-size-percentage-input {
 .slds-theme_dark .bg-framing-details summary {
   color: var(--slds-g-color-neutral-base-70, #aeaeae);
 }
+
+/* Inline delete confirm/cancel actions */
+.inline-delete-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.inline-delete-confirm.slds-button_icon {
+  color: #2e844a;
+}
+.inline-delete-confirm.slds-button_icon:hover {
+  color: #22683e;
+}
+
+.inline-delete-cancel.slds-button_icon {
+  color: #ba0517;
+}
+.inline-delete-cancel.slds-button_icon:hover {
+  color: #8e030f;
+}
+
+.slds-theme_dark .inline-delete-confirm.slds-button_icon {
+  color: #4bca81;
+}
+.slds-theme_dark .inline-delete-confirm.slds-button_icon:hover {
+  color: #91db8b;
+}
+
+.slds-theme_dark .inline-delete-cancel.slds-button_icon {
+  color: #fe5c4c;
+}
+.slds-theme_dark .inline-delete-cancel.slds-button_icon:hover {
+  color: #ff8e85;
+}
+}
