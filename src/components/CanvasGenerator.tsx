@@ -23,6 +23,7 @@ interface CanvasGeneratorProps {
   onFontSizeChange?: (overlayId: string, newFontSize: number) => void;
   onImageSizeChange?: (overlayId: string, newWidth: number) => void;
   onImageTransformChange?: (transform: { zoom: number; x: number; y: number }) => void;
+  onTextChange?: (overlayId: string, newText: string) => void;
   className?: string;
   isDesktopMobileMode?: boolean;
   desktopMobileVersion?: 'desktop' | 'mobile';
@@ -50,6 +51,7 @@ export function CanvasGenerator({
   onFontSizeChange,
   onImageSizeChange,
   onImageTransformChange,
+  onTextChange,
   className = '',
   isDesktopMobileMode = false,
   desktopMobileVersion = 'desktop',
@@ -76,6 +78,12 @@ export function CanvasGenerator({
   const resizeInitialPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const resizeInitialWidthRef = useRef(0);
   const resizeAlignmentRef = useRef<'left' | 'center' | 'right'>('left');
+
+  // Inline text editing state
+  const [inlineEditOverlayId, setInlineEditOverlayId] = useState<string | null>(null);
+  const [inlineEditText, setInlineEditText] = useState('');
+  const inlineEditRef = useRef<HTMLTextAreaElement>(null);
+  const [inlineEditStyle, setInlineEditStyle] = useState<React.CSSProperties>({});
 
   // Background image dragging state (for desktop-mobile mode)
   const [isDraggingBg, setIsDraggingBg] = useState(false);
@@ -1068,7 +1076,148 @@ export function CanvasGenerator({
     return x >= handleX && x <= handleX + handleSize && y >= handleY && y <= handleY + handleSize;
   };
 
+  // Commit inline text edit
+  const commitInlineEdit = () => {
+    if (inlineEditOverlayId && onTextChange) {
+      onTextChange(inlineEditOverlayId, inlineEditText);
+    }
+    setInlineEditOverlayId(null);
+    setInlineEditText('');
+  };
+
+  // Cancel inline text edit
+  const cancelInlineEdit = () => {
+    setInlineEditOverlayId(null);
+    setInlineEditText('');
+  };
+
+  // Handle double-click to start inline editing
+  const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!canvasRef.current || !onTextChange) return;
+    if (textOverlays.length === 0) return;
+
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleFactorX = canvas.width / rect.width;
+    const scaleFactorY = canvas.height / rect.height;
+    const clickX = (e.clientX - rect.left) * scaleFactorX;
+    const clickY = (e.clientY - rect.top) * scaleFactorY;
+
+    // Check text overlays (reverse order for z-index priority)
+    for (let i = textOverlays.length - 1; i >= 0; i--) {
+      const overlay = textOverlays[i];
+      if (isPointInTextOverlay(overlay, clickX, clickY, canvas.width, canvas.height)) {
+        // Calculate position in display coordinates for the textarea
+        let effectiveX = overlay.x;
+        let effectiveY = overlay.y;
+        let effectiveFontSize = overlay.fontSize;
+
+        if (isDesktopMobileMode && desktopMobileVersion) {
+          if (desktopMobileVersion === 'desktop') {
+            effectiveX = overlay.desktopX ?? overlay.x;
+            effectiveY = overlay.desktopY ?? overlay.y;
+            if (overlay.desktopFontSize !== undefined) effectiveFontSize = overlay.desktopFontSize;
+          } else if (desktopMobileVersion === 'mobile') {
+            effectiveX = overlay.mobileX ?? overlay.x;
+            effectiveY = overlay.mobileY ?? overlay.y;
+            if (overlay.mobileFontSize !== undefined) effectiveFontSize = overlay.mobileFontSize;
+          }
+        }
+
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const actualX = (effectiveX / 100) * canvasWidth;
+        const actualY = (effectiveY / 100) * canvasHeight;
+        const scaledFontSize = (effectiveFontSize / 100) * canvasWidth;
+
+        // Process text to get bounds for positioning
+        const lines = processText(overlay.text, overlay.alignment);
+        let maxLineWidth = 0;
+        lines.forEach(line => {
+          let lineWidth = 0;
+          line.parts.forEach(part => {
+            const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+              const displayText = overlay.allCaps ? part.text.toUpperCase() : part.text;
+              lineWidth += ctx.measureText(displayText).width;
+            }
+          });
+          if (lineWidth > maxLineWidth) maxLineWidth = lineWidth;
+        });
+
+        // Calculate display coordinates (canvas coords → CSS coords)
+        const displayScaleX = rect.width / canvasWidth;
+        const displayScaleY = rect.height / canvasHeight;
+
+        // Position textarea at the text location
+        let displayX = actualX * displayScaleX;
+        const displayY = (actualY - scaledFontSize) * displayScaleY;
+        const displayFontSize = scaledFontSize * displayScaleX;
+        const displayWidth = Math.max(maxLineWidth * displayScaleX + displayFontSize, 100);
+        const displayHeight = (lines.length * scaledFontSize * 1.2 + scaledFontSize * 0.5) * displayScaleY;
+
+        // Adjust X based on alignment
+        const alignment = overlay.alignment || 'left';
+        if (alignment === 'center') {
+          displayX -= displayWidth / 2;
+        } else if (alignment === 'right') {
+          displayX -= displayWidth;
+        }
+
+        setInlineEditOverlayId(overlay.id);
+        setInlineEditText(overlay.text);
+        setInlineEditStyle({
+          position: 'absolute',
+          left: `${Math.max(0, displayX)}px`,
+          top: `${Math.max(0, displayY)}px`,
+          width: `${displayWidth}px`,
+          minHeight: `${Math.max(displayHeight, displayFontSize * 1.5)}px`,
+          fontSize: `${displayFontSize}px`,
+          fontFamily: 'HelveticaNeue-Condensed, Arial Narrow, sans-serif',
+          color: overlay.fontColor,
+          textTransform: overlay.allCaps ? 'uppercase' : 'none',
+          textAlign: alignment,
+          lineHeight: '1.2',
+          background: 'rgba(0, 0, 0, 0.7)',
+          border: '2px solid rgba(0, 123, 255, 0.8)',
+          borderRadius: '4px',
+          padding: '4px 6px',
+          outline: 'none',
+          resize: 'none',
+          overflow: 'hidden',
+          zIndex: 10,
+          caretColor: overlay.fontColor === '#000000' ? '#FFFFFF' : overlay.fontColor,
+          boxSizing: 'border-box',
+        } as React.CSSProperties);
+
+        // Also make this overlay active
+        if (overlay.id !== activeOverlayId) {
+          onPositionChange?.(overlay.id, -1, -1);
+        }
+
+        // Focus the textarea after state update
+        setTimeout(() => {
+          if (inlineEditRef.current) {
+            inlineEditRef.current.focus();
+            inlineEditRef.current.select();
+          }
+        }, 50);
+
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    }
+  };
+
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // If inline editing is active, commit it first
+    if (inlineEditOverlayId) {
+      commitInlineEdit();
+      return;
+    }
     if (!canvasRef.current) return;
     const hasOverlays = textOverlays.length > 0 || imageOverlays.length > 0;
     const canDragBg = isDesktopMobileMode && onImageTransformChange;
@@ -1629,6 +1778,7 @@ export function CanvasGenerator({
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseLeave}
           onMouseEnter={handleMouseEnter}
+          onDoubleClick={handleDoubleClick}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -1646,6 +1796,26 @@ export function CanvasGenerator({
             borderRadius: '8px',
           }}
         />
+        {/* Inline text editing textarea */}
+        {inlineEditOverlayId && (
+          <textarea
+            ref={inlineEditRef}
+            value={inlineEditText}
+            onChange={(e) => setInlineEditText(e.target.value)}
+            onBlur={commitInlineEdit}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                cancelInlineEdit();
+              } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                commitInlineEdit();
+              }
+            }}
+            style={inlineEditStyle}
+            spellCheck={false}
+            autoComplete="off"
+          />
+        )}
       </div>
       {showDragHint && (
         <div className="drag-instruction">
@@ -1653,7 +1823,7 @@ export function CanvasGenerator({
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8 9L12 5L16 9M8 15L12 19L16 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            <span>Drag text to reposition</span>
+            <span>Drag to reposition &middot; Double-click to edit text</span>
           </div>
         </div>
       )}

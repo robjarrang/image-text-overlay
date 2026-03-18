@@ -3530,6 +3530,14 @@ export function ClientApp() {
                     onFontSizeChange={handleFontSizeChange}
                     onImageSizeChange={handleImageSizeChange}
                     onImageTransformChange={handleImageTransformChange}
+                    onTextChange={(overlayId, newText) => {
+                      setFormState(prev => ({
+                        ...prev,
+                        textOverlays: prev.textOverlays.map(overlay =>
+                          overlay.id === overlayId ? { ...overlay, text: newText } : overlay
+                        )
+                      }));
+                    }}
                     className="preview-canvas"
                     isDesktopMobileMode={activeImageSourceTab === 'desktop-mobile'}
                     desktopMobileVersion={desktopMobileVersion}
