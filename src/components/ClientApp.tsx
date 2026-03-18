@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import LZString from 'lz-string';
 import { Icons } from './Icons';
-import { useUndoRedo } from '../hooks/useUndoRedo';
 
 const CanvasGenerator = dynamic(() => import('./CanvasGenerator').then(mod => ({ default: mod.CanvasGenerator })), {
   ssr: false
@@ -140,7 +139,7 @@ const normalizeFontSize = (value: number): number => {
 };
 
 export function ClientApp() {
-  const { state: formState, set: setFormState, undo, redo, canUndo, canRedo } = useUndoRedo<FormState>({
+  const [formState, setFormState] = useState<FormState>({
     textOverlays: [],
     imageOverlays: [],
     activeOverlayId: null,
@@ -298,25 +297,6 @@ export function ClientApp() {
     };
   }, []);
   
-  // Undo/redo keyboard shortcuts (Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-      if (!mod || e.key.toLowerCase() !== 'z') return;
-      // Don't intercept when typing in an input/textarea/contenteditable
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
-      e.preventDefault();
-      if (e.shiftKey) {
-        redo();
-      } else {
-        undo();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
-
   // Auto-load preset logos on component mount
   useEffect(() => {
     loadPresetLogos();
@@ -2209,28 +2189,6 @@ export function ClientApp() {
               <h1 className="slds-text-heading_medium slds-text-color_default slds-truncate">
                 Image Settings
               </h1>
-            </div>
-            <div className="slds-no-flex" style={{ display: 'flex', gap: '4px' }}>
-              <button
-                type="button"
-                className="slds-button slds-button_icon slds-button_icon-border"
-                onClick={undo}
-                disabled={!canUndo}
-                title="Undo (Ctrl+Z)"
-                aria-label="Undo"
-              >
-                <Icons.Undo />
-              </button>
-              <button
-                type="button"
-                className="slds-button slds-button_icon slds-button_icon-border"
-                onClick={redo}
-                disabled={!canRedo}
-                title="Redo (Ctrl+Shift+Z)"
-                aria-label="Redo"
-              >
-                <Icons.Redo />
-              </button>
             </div>
           </div>
           <div className="slds-card__body slds-p-around_large">

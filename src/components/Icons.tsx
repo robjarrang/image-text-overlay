@@ -27,7 +27,5 @@ export const Icons = {
   Error: (props: IconProps) => <UtilityIcon {...props} iconName="error" />,
   Keyboard: (props: IconProps) => <UtilityIcon {...props} iconName="keyboard" />,
   Settings: (props: IconProps) => <UtilityIcon {...props} iconName="settings" />,
-  Help: (props: IconProps) => <UtilityIcon {...props} iconName="help" />,
-  Undo: (props: IconProps) => <UtilityIcon {...props} iconName="undo" />,
-  Redo: (props: IconProps) => <UtilityIcon {...props} iconName="redo" />
+  Help: (props: IconProps) => <UtilityIcon {...props} iconName="help" />
 };
