@@ -341,6 +341,17 @@ export function ClientApp() {
     return `overlay-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
   
+  // Track newly added overlay for auto-focusing the text input
+  const [newlyAddedOverlayId, setNewlyAddedOverlayId] = useState<string | null>(null);
+
+  // Clear the newlyAddedOverlayId after focus has been applied
+  useEffect(() => {
+    if (newlyAddedOverlayId) {
+      const timer = setTimeout(() => setNewlyAddedOverlayId(null), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [newlyAddedOverlayId]);
+
   // Function to add a new text overlay
   const addTextOverlay = () => {
     const newOverlay: TextOverlay = {
@@ -362,6 +373,9 @@ export function ClientApp() {
     
     // Auto-open the Text Content accordion so the user can start typing immediately
     setOpenAccordions(prev => ({ ...prev, textContent: true }));
+    
+    // Flag the new overlay so the RichTextEditor auto-focuses
+    setNewlyAddedOverlayId(newOverlay.id);
   };
   
   // Function to update an active text overlay
@@ -3036,6 +3050,8 @@ export function ClientApp() {
                             <RichTextEditor
                               value={activeOverlay?.text || ''}
                               onChange={handleOverlayTextChange}
+                              autoFocus={formState.activeOverlayId === newlyAddedOverlayId && newlyAddedOverlayId !== null}
+                              key={formState.activeOverlayId}
                               fontSize={fontPercentToPixels(
                                 activeImageSourceTab === 'desktop-mobile'
                                   ? (desktopMobileVersion === 'desktop' 

@@ -24,6 +24,7 @@ interface RichTextEditorProps {
   onAllCapsChange?: (enabled: boolean) => void;
   alignment?: 'left' | 'center' | 'right';
   onAlignmentChange?: (alignment: 'left' | 'center' | 'right') => void;
+  autoFocus?: boolean;
 }
 
 export function RichTextEditor({ 
@@ -38,7 +39,8 @@ export function RichTextEditor({
   allCaps, 
   onAllCapsChange,
   alignment = 'left',
-  onAlignmentChange
+  onAlignmentChange,
+  autoFocus = false
 }: RichTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showHelp, setShowHelp] = useState<boolean>(false);
@@ -49,6 +51,17 @@ export function RichTextEditor({
 
   // Filter font sizes based on min/max
   const availableFontSizes = FONT_SIZE_OPTIONS.filter(size => size >= minFontSize && size <= maxFontSize);
+
+  // Auto-focus the textarea when autoFocus prop is true
+  useEffect(() => {
+    if (autoFocus && textareaRef.current) {
+      // Use a short delay to ensure the DOM is fully rendered and accordion is open
+      const timer = setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [autoFocus]);
   
   // Close dropdown when clicking outside
   useEffect(() => {
