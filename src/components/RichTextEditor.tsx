@@ -25,6 +25,7 @@ interface RichTextEditorProps {
   alignment?: 'left' | 'center' | 'right';
   onAlignmentChange?: (alignment: 'left' | 'center' | 'right') => void;
   autoFocus?: boolean;
+  focusTrigger?: number;
 }
 
 export function RichTextEditor({ 
@@ -40,7 +41,8 @@ export function RichTextEditor({
   onAllCapsChange,
   alignment = 'left',
   onAlignmentChange,
-  autoFocus = false
+  autoFocus = false,
+  focusTrigger = 0
 }: RichTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showHelp, setShowHelp] = useState<boolean>(false);
@@ -62,6 +64,16 @@ export function RichTextEditor({
       return () => clearTimeout(timer);
     }
   }, [autoFocus]);
+
+  // Focus textarea when focusTrigger changes (e.g. double-click on canvas layer)
+  useEffect(() => {
+    if (focusTrigger > 0 && textareaRef.current) {
+      const timer = setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [focusTrigger]);
   
   // Close dropdown when clicking outside
   useEffect(() => {

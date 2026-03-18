@@ -344,6 +344,9 @@ export function ClientApp() {
   // Track newly added overlay for auto-focusing the text input
   const [newlyAddedOverlayId, setNewlyAddedOverlayId] = useState<string | null>(null);
 
+  // Counter to trigger focus on the RichTextEditor (e.g. on canvas double-click)
+  const [editorFocusTrigger, setEditorFocusTrigger] = useState(0);
+
   // Clear the newlyAddedOverlayId after focus has been applied
   useEffect(() => {
     if (newlyAddedOverlayId) {
@@ -1924,6 +1927,16 @@ export function ClientApp() {
     setFormState(prev => ({ ...prev, fontColor: color }));
   };
 
+  // Handle double-click on a text overlay in the canvas — focus the text editor
+  const handleTextOverlayDoubleClick = (overlayId: string) => {
+    // Ensure the overlay is active
+    setActiveOverlay(overlayId, 'text');
+    // Open the Text Content accordion so the editor is visible
+    setOpenAccordions(prev => ({ ...prev, textContent: true }));
+    // Trigger focus on the RichTextEditor textarea
+    setEditorFocusTrigger(prev => prev + 1);
+  };
+
   // Handle position change for a text or image overlay
   const handlePositionChange = (overlayId: string, newX: number, newY: number) => {
     // Special case: If newX and newY are both -1, this is a signal to just select the overlay
@@ -3076,6 +3089,7 @@ export function ClientApp() {
                               value={activeOverlay?.text || ''}
                               onChange={handleOverlayTextChange}
                               autoFocus={formState.activeOverlayId === newlyAddedOverlayId && newlyAddedOverlayId !== null}
+                              focusTrigger={editorFocusTrigger}
                               key={formState.activeOverlayId}
                               fontSize={fontPercentToPixels(
                                 activeImageSourceTab === 'desktop-mobile'
@@ -3530,14 +3544,7 @@ export function ClientApp() {
                     onFontSizeChange={handleFontSizeChange}
                     onImageSizeChange={handleImageSizeChange}
                     onImageTransformChange={handleImageTransformChange}
-                    onTextChange={(overlayId, newText) => {
-                      setFormState(prev => ({
-                        ...prev,
-                        textOverlays: prev.textOverlays.map(overlay =>
-                          overlay.id === overlayId ? { ...overlay, text: newText } : overlay
-                        )
-                      }));
-                    }}
+                    onTextOverlayDoubleClick={handleTextOverlayDoubleClick}
                     className="preview-canvas"
                     isDesktopMobileMode={activeImageSourceTab === 'desktop-mobile'}
                     desktopMobileVersion={desktopMobileVersion}

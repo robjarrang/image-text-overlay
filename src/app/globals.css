@@ -489,20 +489,6 @@ body {
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
-/* Inline canvas text editor */
-.canvas-container textarea {
-  font-weight: 900;
-  letter-spacing: 0.02em;
-  word-break: break-word;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  animation: inlineEditFadeIn 0.15s ease;
-}
-
-@keyframes inlineEditFadeIn {
-  from { opacity: 0; transform: scale(0.97); }
-  to { opacity: 1; transform: scale(1); }
-}
-
 /* Loading animation */
 .loading-dots:after {
   content: '.';
