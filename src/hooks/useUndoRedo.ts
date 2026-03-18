@@ -1,47 +1,105 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 const MAX_HISTORY = 50;
+const DEBOUNCE_MS = 500;
+
+interface HistoryState<T> {
+  past: T[];
+  present: T;
+  future: T[];
+  /** Snapshot of state before the current batch of rapid changes */
+  batch: T | null;
+}
 
 export function useUndoRedo<T>(initialState: T) {
-  const [state, setState] = useState<T>(initialState);
-  const pastRef = useRef<T[]>([]);
-  const futureRef = useRef<T[]>([]);
+  const [hist, setHist] = useState<HistoryState<T>>({
+    past: [],
+    present: initialState,
+    future: [],
+    batch: null,
+  });
 
-  // Wrap setState to push current state onto the undo stack
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
   const set = useCallback((updater: T | ((prev: T) => T)) => {
-    setState(prev => {
-      const next = typeof updater === 'function' ? (updater as (prev: T) => T)(prev) : updater;
-      // Only record history if the state actually changed
-      if (next !== prev) {
-        pastRef.current = [...pastRef.current.slice(-(MAX_HISTORY - 1)), prev];
-        futureRef.current = [];
-      }
-      return next;
+    setHist(h => {
+      const next = typeof updater === 'function'
+        ? (updater as (prev: T) => T)(h.present)
+        : updater;
+      if (next === h.present) return h;
+      return {
+        ...h,
+        present: next,
+        future: [],
+        // Capture the state before this batch of rapid changes
+        batch: h.batch ?? h.present,
+      };
     });
+
+    // Debounce: commit the batch to the undo stack after a pause
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setHist(h => {
+        if (h.batch === null) return h;
+        return {
+          ...h,
+          past: [...h.past.slice(-(MAX_HISTORY - 1)), h.batch],
+          batch: null,
+        };
+      });
+    }, DEBOUNCE_MS);
   }, []);
 
   const undo = useCallback(() => {
-    setState(prev => {
-      if (pastRef.current.length === 0) return prev;
-      const previous = pastRef.current[pastRef.current.length - 1];
-      pastRef.current = pastRef.current.slice(0, -1);
-      futureRef.current = [...futureRef.current, prev];
-      return previous;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setHist(h => {
+      // If there's an uncommitted batch, revert to the batch start
+      if (h.batch !== null) {
+        return {
+          ...h,
+          present: h.batch,
+          future: [h.present, ...h.future],
+          batch: null,
+        };
+      }
+      if (h.past.length === 0) return h;
+      return {
+        past: h.past.slice(0, -1),
+        present: h.past[h.past.length - 1],
+        future: [h.present, ...h.future],
+        batch: null,
+      };
     });
   }, []);
 
   const redo = useCallback(() => {
-    setState(prev => {
-      if (futureRef.current.length === 0) return prev;
-      const next = futureRef.current[futureRef.current.length - 1];
-      futureRef.current = futureRef.current.slice(0, -1);
-      pastRef.current = [...pastRef.current, prev];
-      return next;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setHist(h => {
+      if (h.future.length === 0) return h;
+      return {
+        past: [...h.past, h.present],
+        present: h.future[0],
+        future: h.future.slice(1),
+        batch: null,
+      };
     });
   }, []);
 
-  const canUndo = pastRef.current.length > 0;
-  const canRedo = futureRef.current.length > 0;
+  const canUndo = hist.past.length > 0 || hist.batch !== null;
+  const canRedo = hist.future.length > 0;
 
-  return { state, set, undo, redo, canUndo, canRedo } as const;
+  return { state: hist.present, set, undo, redo, canUndo, canRedo } as const;
 }
