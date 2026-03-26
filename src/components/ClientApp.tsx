@@ -2133,8 +2133,40 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
         shareUrl = finalUrl;
       }
 
-      await navigator.clipboard.writeText(shareUrl);
-      setToastMessage('Share link copied to clipboard!');
+      // Copy to clipboard with fallback for iframe/permissions-policy restrictions
+      let copied = false;
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          copied = true;
+        } catch {
+          // Clipboard API blocked (e.g. iframe permissions policy) — fall through to fallback
+        }
+      }
+      if (!copied) {
+        const textarea = document.createElement('textarea');
+        textarea.value = shareUrl;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          copied = true;
+        } catch {
+          // execCommand also failed
+        }
+        document.body.removeChild(textarea);
+      }
+
+      if (copied) {
+        setToastMessage('Share link copied to clipboard!');
+      } else {
+        // Last resort: prompt the user to copy manually
+        window.prompt('Copy this share link:', shareUrl);
+        setToastMessage('Share link generated — copy it from the prompt above.');
+      }
       setShowToast(true);
       setShowShareSuccess(true);
       setTimeout(() => {
