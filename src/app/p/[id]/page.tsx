@@ -7,7 +7,7 @@ interface ProjectPageProps {
 }
 
 async function getProject(id: string) {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
   if (!databaseUrl) {
     return null;
   }
