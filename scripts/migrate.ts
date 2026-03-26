@@ -90,6 +90,16 @@ async function migrate() {
     END $$
   `;
 
+  // --- Add parent_id for nested folders ---
+  console.log('Adding parent_id column to folders for subfolder support...');
+  await sql`
+    ALTER TABLE folders ADD COLUMN IF NOT EXISTS parent_id TEXT REFERENCES folders(id) ON DELETE CASCADE
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_folders_parent_id ON folders (parent_id)
+  `;
+
   console.log('Migration complete! The folders and projects tables are ready.');
 }
 

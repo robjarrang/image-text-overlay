@@ -6,9 +6,20 @@ import { Icons } from './Icons';
 interface Folder {
   id: string;
   name: string;
+  parent_id: string | null;
   project_count: number;
+  subfolder_count: number;
   created_at: string;
   updated_at: string;
+}
+
+interface FolderTreeItem {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  path: string;
+  depth: number;
+  project_count: number;
 }
 
 interface ProjectSummary {
@@ -17,6 +28,11 @@ interface ProjectSummary {
   folder_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface BreadcrumbItem {
+  id: string | null; // null = root
+  name: string;
 }
 
 interface ProjectsBrowserProps {
@@ -33,6 +49,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
   const [folders, setFolders] = useState<Folder[]>([]);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
+  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([{ id: null, name: 'Projects' }]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,6 +65,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
 
   // Move project state
   const [movingProject, setMovingProject] = useState<ProjectSummary | null>(null);
+  const [moveTargetFolders, setMoveTargetFolders] = useState<FolderTreeItem[]>([]);
 
   // Delete confirmation
   const [confirmDelete, setConfirmDelete] = useState<{ type: 'folder' | 'project'; id: string; name: string } | null>(null);
@@ -55,13 +73,13 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
   const editInputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Fetch folders and unfiled projects for root view
+  // Fetch top-level folders and unfiled projects for root view
   const fetchRoot = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [foldersRes, projectsRes] = await Promise.all([
-        fetch('/api/folders'),
+        fetch('/api/folders?parent_id=root'),
         fetch('/api/projects?unfiled=true'),
       ]);
       const foldersData = await foldersRes.json();
@@ -76,18 +94,26 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
     }
   }, []);
 
-  // Fetch projects in a specific folder
-  const fetchFolder = useCallback(async (folder: Folder) => {
+  // Fetch subfolders and projects in a specific folder
+  const fetchFolder = useCallback(async (folder: Folder, newBreadcrumbs?: BreadcrumbItem[]) => {
     setLoading(true);
     setError(null);
     setCurrentFolder(folder);
     setView('folder');
+    if (newBreadcrumbs) {
+      setBreadcrumbs(newBreadcrumbs);
+    }
     try {
-      const res = await fetch(`/api/projects?folder_id=${folder.id}`);
-      const data = await res.json();
-      setProjects(data.projects || []);
+      const [subfoldersRes, projectsRes] = await Promise.all([
+        fetch(`/api/folders?parent_id=${folder.id}`),
+        fetch(`/api/projects?folder_id=${folder.id}`),
+      ]);
+      const subfoldersData = await subfoldersRes.json();
+      const projectsData = await projectsRes.json();
+      setFolders(subfoldersData.folders || []);
+      setProjects(projectsData.projects || []);
     } catch (err) {
-      console.error('Error fetching folder projects:', err);
+      console.error('Error fetching folder contents:', err);
       setError('Failed to load folder');
     } finally {
       setLoading(false);
@@ -116,6 +142,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
     if (isOpen) {
       setView('root');
       setCurrentFolder(null);
+      setBreadcrumbs([{ id: null, name: 'Projects' }]);
       fetchRoot();
     }
   }, [isOpen, fetchRoot]);
@@ -132,15 +159,20 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
     try {
+      const parentId = view === 'folder' && currentFolder ? currentFolder.id : null;
       const res = await fetch('/api/folders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newFolderName.trim() }),
+        body: JSON.stringify({ name: newFolderName.trim(), parent_id: parentId }),
       });
       if (res.ok) {
         setNewFolderName('');
         setIsCreatingFolder(false);
-        fetchRoot();
+        if (view === 'folder' && currentFolder) {
+          fetchFolder(currentFolder);
+        } else {
+          fetchRoot();
+        }
       }
     } catch (err) {
       console.error('Error creating folder:', err);
@@ -156,9 +188,16 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
         body: JSON.stringify({ name: editingFolderName.trim() }),
       });
       setEditingFolderId(null);
-      if (view === 'root') fetchRoot();
-      else if (currentFolder?.id === folderId) {
-        setCurrentFolder({ ...currentFolder, name: editingFolderName.trim() });
+      // Refresh the current view
+      if (view === 'folder' && currentFolder) {
+        if (currentFolder.id === folderId) {
+          setCurrentFolder({ ...currentFolder, name: editingFolderName.trim() });
+          // Update breadcrumbs too
+          setBreadcrumbs(prev => prev.map(b => b.id === folderId ? { ...b, name: editingFolderName.trim() } : b));
+        }
+        fetchFolder(currentFolder);
+      } else {
+        fetchRoot();
       }
     } catch (err) {
       console.error('Error renaming folder:', err);
@@ -169,7 +208,16 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
     try {
       await fetch(`/api/folders/${folderId}`, { method: 'DELETE' });
       setConfirmDelete(null);
-      fetchRoot();
+      if (view === 'folder' && currentFolder) {
+        // If we deleted the current folder, go up
+        if (currentFolder.id === folderId) {
+          navigateUp();
+        } else {
+          fetchFolder(currentFolder);
+        }
+      } else {
+        fetchRoot();
+      }
     } catch (err) {
       console.error('Error deleting folder:', err);
     }
@@ -216,11 +264,80 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
         body: JSON.stringify({ folderId: targetFolderId }),
       });
       setMovingProject(null);
+      setMoveTargetFolders([]);
       if (view === 'root') fetchRoot();
       else if (view === 'folder' && currentFolder) fetchFolder(currentFolder);
       else fetchAll();
     } catch (err) {
       console.error('Error moving project:', err);
+    }
+  };
+
+  // Open the move picker with the full folder tree
+  const openMovePicker = async (project: ProjectSummary) => {
+    setMovingProject(project);
+    try {
+      const res = await fetch('/api/folders?tree=true');
+      const data = await res.json();
+      setMoveTargetFolders(data.folders || []);
+    } catch {
+      setMoveTargetFolders([]);
+    }
+  };
+
+  // Navigate up one level in breadcrumbs
+  const navigateUp = () => {
+    if (breadcrumbs.length <= 1) {
+      // Already at root
+      setView('root');
+      setCurrentFolder(null);
+      setBreadcrumbs([{ id: null, name: 'Projects' }]);
+      fetchRoot();
+      return;
+    }
+    const newBreadcrumbs = breadcrumbs.slice(0, -1);
+    const parentCrumb = newBreadcrumbs[newBreadcrumbs.length - 1];
+    if (parentCrumb.id === null) {
+      // Go to root
+      setView('root');
+      setCurrentFolder(null);
+      setBreadcrumbs(newBreadcrumbs);
+      fetchRoot();
+    } else {
+      // Go to parent folder
+      const parentFolder: Folder = {
+        id: parentCrumb.id,
+        name: parentCrumb.name,
+        parent_id: null,
+        project_count: 0,
+        subfolder_count: 0,
+        created_at: '',
+        updated_at: '',
+      };
+      fetchFolder(parentFolder, newBreadcrumbs);
+    }
+  };
+
+  // Navigate to a specific breadcrumb
+  const navigateToBreadcrumb = (index: number) => {
+    const crumb = breadcrumbs[index];
+    const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
+    if (crumb.id === null) {
+      setView('root');
+      setCurrentFolder(null);
+      setBreadcrumbs(newBreadcrumbs);
+      fetchRoot();
+    } else {
+      const folder: Folder = {
+        id: crumb.id,
+        name: crumb.name,
+        parent_id: null,
+        project_count: 0,
+        subfolder_count: 0,
+        created_at: '',
+        updated_at: '',
+      };
+      fetchFolder(folder, newBreadcrumbs);
     }
   };
 
@@ -247,42 +364,73 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
       >
         {/* Header */}
         <div className="projects-browser-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {view !== 'root' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1 }}>
+            {view !== 'root' && view !== 'all' && (
               <button
                 className="slds-button slds-button_icon slds-button_icon-border-filled"
                 aria-label="Back"
-                onClick={() => { setView('root'); setCurrentFolder(null); fetchRoot(); }}
+                onClick={navigateUp}
+                style={{ flexShrink: 0 }}
               >
                 <Icons.Back size="x-small" />
               </button>
             )}
-            <h2 className="slds-text-heading_medium" style={{ margin: 0 }}>
-              {view === 'root' && 'Projects'}
-              {view === 'folder' && currentFolder?.name}
-              {view === 'all' && 'All Projects'}
-            </h2>
-          </div>
-          <div style={{ display: 'flex', gap: '0.25rem' }}>
+            {view === 'all' && (
+              <button
+                className="slds-button slds-button_icon slds-button_icon-border-filled"
+                aria-label="Back"
+                onClick={() => { setView('root'); setCurrentFolder(null); setBreadcrumbs([{ id: null, name: 'Projects' }]); fetchRoot(); }}
+                style={{ flexShrink: 0 }}
+              >
+                <Icons.Back size="x-small" />
+              </button>
+            )}
             {view === 'root' && (
-              <>
-                <button
-                  className="slds-button slds-button_icon slds-button_icon-border-filled"
-                  aria-label="View all projects"
-                  title="View all projects"
-                  onClick={fetchAll}
-                >
-                  <Icons.List size="x-small" />
-                </button>
-                <button
-                  className="slds-button slds-button_icon slds-button_icon-border-filled"
-                  aria-label="New folder"
-                  title="New folder"
-                  onClick={() => { setIsCreatingFolder(true); setNewFolderName('New Folder'); }}
-                >
-                  <Icons.New size="x-small" />
-                </button>
-              </>
+              <h2 className="slds-text-heading_medium" style={{ margin: 0 }}>Projects</h2>
+            )}
+            {view === 'all' && (
+              <h2 className="slds-text-heading_medium" style={{ margin: 0 }}>All Projects</h2>
+            )}
+            {view === 'folder' && breadcrumbs.length > 0 && (
+              <nav className="projects-browser-breadcrumbs" aria-label="Folder navigation" style={{ minWidth: 0 }}>
+                {breadcrumbs.map((crumb, i) => (
+                  <span key={crumb.id ?? 'root'} className="projects-browser-breadcrumb-item">
+                    {i > 0 && <span className="projects-browser-breadcrumb-sep">/</span>}
+                    {i < breadcrumbs.length - 1 ? (
+                      <button
+                        className="projects-browser-breadcrumb-link"
+                        onClick={() => navigateToBreadcrumb(i)}
+                      >
+                        {crumb.name}
+                      </button>
+                    ) : (
+                      <span className="projects-browser-breadcrumb-current">{crumb.name}</span>
+                    )}
+                  </span>
+                ))}
+              </nav>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
+            {view === 'root' && (
+              <button
+                className="slds-button slds-button_icon slds-button_icon-border-filled"
+                aria-label="View all projects"
+                title="View all projects"
+                onClick={fetchAll}
+              >
+                <Icons.List size="x-small" />
+              </button>
+            )}
+            {(view === 'root' || view === 'folder') && (
+              <button
+                className="slds-button slds-button_icon slds-button_icon-border-filled"
+                aria-label="New folder"
+                title="New folder"
+                onClick={() => { setIsCreatingFolder(true); setNewFolderName('New Folder'); }}
+              >
+                <Icons.New size="x-small" />
+              </button>
             )}
             <button
               className="slds-button slds-button_icon slds-button_icon-border-filled"
@@ -334,10 +482,11 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                           <span>No Folder (Unfiled)</span>
                         </button>
                       </li>
-                      {folders.map((folder) => (
+                      {moveTargetFolders.map((folder) => (
                         <li key={folder.id} className="slds-item">
                           <button
                             className="projects-browser-move-item"
+                            style={{ paddingLeft: `${(folder.depth || 0) * 1.25 + 0.75}rem` }}
                             onClick={() => handleMoveProject(movingProject.id, folder.id)}
                           >
                             <Icons.OpenFolder size="x-small" />
@@ -348,7 +497,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                     </ul>
                     <button
                       className="slds-button slds-button_neutral slds-m-top_small"
-                      onClick={() => setMovingProject(null)}
+                      onClick={() => { setMovingProject(null); setMoveTargetFolders([]); }}
                     >
                       Cancel
                     </button>
@@ -365,7 +514,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                     </h3>
                     <p className="slds-text-body_regular slds-m-bottom_medium" style={{ color: 'var(--slds-g-color-neutral-base-30, #706e6b)' }}>
                       {confirmDelete.type === 'folder'
-                        ? 'The folder will be deleted. Projects inside it will become unfiled.'
+                        ? 'This folder and all its subfolders will be deleted. Projects inside will become unfiled.'
                         : 'This project will be permanently deleted.'}
                     </p>
                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
@@ -390,7 +539,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
               )}
 
               {/* Create new folder inline */}
-              {isCreatingFolder && view === 'root' && (
+              {isCreatingFolder && (view === 'root' || view === 'folder') && (
                 <div className="projects-browser-item projects-browser-item--editing">
                   <Icons.OpenFolder size="x-small" />
                   <input
@@ -422,56 +571,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                   )}
 
                   {/* Folders */}
-                  {folders.map((folder) => (
-                    <div key={folder.id} className="projects-browser-item projects-browser-item--folder">
-                      {editingFolderId === folder.id ? (
-                        <>
-                          <Icons.OpenedFolder size="x-small" />
-                          <input
-                            ref={editInputRef}
-                            className="slds-input projects-browser-inline-input"
-                            value={editingFolderName}
-                            onChange={(e) => setEditingFolderName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleRenameFolder(folder.id);
-                              if (e.key === 'Escape') setEditingFolderId(null);
-                            }}
-                            onBlur={() => handleRenameFolder(folder.id)}
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            className="projects-browser-item-main"
-                            onClick={() => fetchFolder(folder)}
-                          >
-                            <Icons.OpenFolder size="x-small" />
-                            <span className="projects-browser-item-name">{folder.name}</span>
-                            <span className="projects-browser-item-badge">{folder.project_count}</span>
-                            <Icons.ChevronRight size="x-small" />
-                          </button>
-                          <div className="projects-browser-item-actions">
-                            <button
-                              className="slds-button slds-button_icon slds-button_icon-x-small"
-                              aria-label="Rename folder"
-                              title="Rename"
-                              onClick={(e) => { e.stopPropagation(); setEditingFolderId(folder.id); setEditingFolderName(folder.name); }}
-                            >
-                              <Icons.Edit size="x-small" />
-                            </button>
-                            <button
-                              className="slds-button slds-button_icon slds-button_icon-x-small"
-                              aria-label="Delete folder"
-                              title="Delete"
-                              onClick={(e) => { e.stopPropagation(); setConfirmDelete({ type: 'folder', id: folder.id, name: folder.name }); }}
-                            >
-                              <Icons.Delete size="x-small" />
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
+                  {folders.map((folder) => renderFolderItem(folder, [{ id: null, name: 'Projects' }]))}
 
                   {/* Unfiled projects */}
                   {projects.length > 0 && folders.length > 0 && (
@@ -483,13 +583,21 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                 </>
               )}
 
-              {/* Folder view */}
+              {/* Folder view: subfolders + projects */}
               {view === 'folder' && (
                 <>
-                  {projects.length === 0 && (
+                  {folders.length === 0 && projects.length === 0 && !isCreatingFolder && (
                     <div className="projects-browser-empty">
                       <Icons.File size="medium" />
                       <p className="slds-m-top_small">This folder is empty.</p>
+                    </div>
+                  )}
+                  {/* Subfolders */}
+                  {folders.map((folder) => renderFolderItem(folder, breadcrumbs))}
+                  {/* Projects in this folder */}
+                  {projects.length > 0 && folders.length > 0 && (
+                    <div className="projects-browser-divider">
+                      <span>Projects</span>
                     </div>
                   )}
                   {projects.map((project) => renderProjectItem(project))}
@@ -551,12 +659,6 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                   {isCurrent && <span className="projects-browser-current-badge">Current</span>}
                 </span>
                 <span className="projects-browser-item-date">
-                  {showFolder && project.folder_id && (
-                    <span className="projects-browser-item-folder-tag">
-                      {folders.find(f => f.id === project.folder_id)?.name || 'Folder'}
-                      {' · '}
-                    </span>
-                  )}
                   Updated {formatDate(project.updated_at)}
                 </span>
               </div>
@@ -574,7 +676,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                   className="slds-button slds-button_icon slds-button_icon-x-small"
                   aria-label="Move to folder"
                   title="Move to folder"
-                  onClick={(e) => { e.stopPropagation(); setMovingProject(project); }}
+                  onClick={(e) => { e.stopPropagation(); openMovePicker(project); }}
                 >
                   <Icons.OpenFolder size="x-small" />
                 </button>
@@ -587,6 +689,63 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                   <Icons.Delete size="x-small" />
                 </button>
               </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  function renderFolderItem(folder: Folder, parentBreadcrumbs: BreadcrumbItem[]) {
+    const itemCount = (folder.project_count || 0) + (folder.subfolder_count || 0);
+    return (
+      <div key={folder.id} className="projects-browser-item projects-browser-item--folder">
+        {editingFolderId === folder.id ? (
+          <>
+            <Icons.OpenedFolder size="x-small" />
+            <input
+              ref={editInputRef}
+              className="slds-input projects-browser-inline-input"
+              value={editingFolderName}
+              onChange={(e) => setEditingFolderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRenameFolder(folder.id);
+                if (e.key === 'Escape') setEditingFolderId(null);
+              }}
+              onBlur={() => handleRenameFolder(folder.id)}
+            />
+          </>
+        ) : (
+          <>
+            <button
+              className="projects-browser-item-main"
+              onClick={() => {
+                const newBreadcrumbs = [...parentBreadcrumbs, { id: folder.id, name: folder.name }];
+                fetchFolder(folder, newBreadcrumbs);
+              }}
+            >
+              <Icons.OpenFolder size="x-small" />
+              <span className="projects-browser-item-name">{folder.name}</span>
+              <span className="projects-browser-item-badge">{itemCount}</span>
+              <Icons.ChevronRight size="x-small" />
+            </button>
+            <div className="projects-browser-item-actions">
+              <button
+                className="slds-button slds-button_icon slds-button_icon-x-small"
+                aria-label="Rename folder"
+                title="Rename"
+                onClick={(e) => { e.stopPropagation(); setEditingFolderId(folder.id); setEditingFolderName(folder.name); }}
+              >
+                <Icons.Edit size="x-small" />
+              </button>
+              <button
+                className="slds-button slds-button_icon slds-button_icon-x-small"
+                aria-label="Delete folder"
+                title="Delete"
+                onClick={(e) => { e.stopPropagation(); setConfirmDelete({ type: 'folder', id: folder.id, name: folder.name }); }}
+              >
+                <Icons.Delete size="x-small" />
+              </button>
+            </div>
           </>
         )}
       </div>

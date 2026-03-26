@@ -187,9 +187,10 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveDialogName, setSaveDialogName] = useState('');
   const [saveDialogFolderId, setSaveDialogFolderId] = useState<string | null>(null);
-  const [saveDialogFolders, setSaveDialogFolders] = useState<{id: string; name: string}[]>([]);
+  const [saveDialogFolders, setSaveDialogFolders] = useState<{id: string; name: string; path: string; depth: number; parent_id: string | null}[]>([]);
   const [saveDialogIsNewFolder, setSaveDialogIsNewFolder] = useState(false);
   const [saveDialogNewFolderName, setSaveDialogNewFolderName] = useState('');
+  const [saveDialogNewFolderParentId, setSaveDialogNewFolderParentId] = useState<string | null>(null);
   const saveDialogNameRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2460,9 +2461,10 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
     setSaveDialogFolderId(null);
     setSaveDialogIsNewFolder(false);
     setSaveDialogNewFolderName('');
-    // Fetch folders for the dropdown
+    setSaveDialogNewFolderParentId(null);
+    // Fetch full folder tree for the dropdown
     try {
-      const res = await fetch('/api/folders');
+      const res = await fetch('/api/folders?tree=true');
       const data = await res.json();
       setSaveDialogFolders(data.folders || []);
     } catch {
@@ -2482,7 +2484,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
         const res = await fetch('/api/folders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: saveDialogNewFolderName.trim() }),
+          body: JSON.stringify({ name: saveDialogNewFolderName.trim(), parent_id: saveDialogNewFolderParentId || null }),
         });
         if (res.ok) {
           const newFolder = await res.json();
@@ -4138,6 +4140,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                         if (val === '__new__') {
                           setSaveDialogIsNewFolder(true);
                           setSaveDialogFolderId(null);
+                          setSaveDialogNewFolderParentId(null);
                         } else {
                           setSaveDialogIsNewFolder(false);
                           setSaveDialogFolderId(val || null);
@@ -4146,7 +4149,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                     >
                       <option value="">No folder</option>
                       {saveDialogFolders.map((f: any) => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
+                        <option key={f.id} value={f.id}>{'  '.repeat(f.depth)}{f.depth > 0 ? '└ ' : ''}{f.name}</option>
                       ))}
                       <option value="__new__">+ Create new folder</option>
                     </select>
@@ -4154,24 +4157,44 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                 </div>
               </div>
               {saveDialogIsNewFolder && (
-                <div className="slds-form-element slds-m-bottom_medium">
-                  <label className="slds-form-element__label" htmlFor="save-dialog-new-folder">New Folder Name</label>
-                  <div className="slds-form-element__control">
-                    <input
-                      id="save-dialog-new-folder"
-                      type="text"
-                      className="slds-input"
-                      value={saveDialogNewFolderName}
-                      onChange={(e) => setSaveDialogNewFolderName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSaveDialogConfirm();
-                        if (e.key === 'Escape') setShowSaveDialog(false);
-                      }}
-                      placeholder="Enter folder name"
-                      autoFocus
-                    />
+                <>
+                  <div className="slds-form-element slds-m-bottom_medium">
+                    <label className="slds-form-element__label" htmlFor="save-dialog-new-folder">New Folder Name</label>
+                    <div className="slds-form-element__control">
+                      <input
+                        id="save-dialog-new-folder"
+                        type="text"
+                        className="slds-input"
+                        value={saveDialogNewFolderName}
+                        onChange={(e) => setSaveDialogNewFolderName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveDialogConfirm();
+                          if (e.key === 'Escape') setShowSaveDialog(false);
+                        }}
+                        placeholder="Enter folder name"
+                        autoFocus
+                      />
+                    </div>
                   </div>
-                </div>
+                  <div className="slds-form-element slds-m-bottom_medium">
+                    <label className="slds-form-element__label" htmlFor="save-dialog-new-folder-parent">Create inside (optional)</label>
+                    <div className="slds-form-element__control">
+                      <div className="slds-select_container">
+                        <select
+                          id="save-dialog-new-folder-parent"
+                          className="slds-select"
+                          value={saveDialogNewFolderParentId || ''}
+                          onChange={(e) => setSaveDialogNewFolderParentId(e.target.value || null)}
+                        >
+                          <option value="">Top level</option>
+                          {saveDialogFolders.map((f: any) => (
+                            <option key={f.id} value={f.id}>{'  '.repeat(f.depth)}{f.depth > 0 ? '└ ' : ''}{f.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
             <div className="slds-card__footer slds-grid slds-grid_align-end slds-p-around_medium slds-border_top" style={{ gap: '0.5rem' }}>

@@ -3465,6 +3465,58 @@ input.font-size-percentage-input {
   border-bottom-color: var(--slds-g-color-border-base-4, #444);
 }
 
+/* Breadcrumb navigation */
+.projects-browser-breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.projects-browser-breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.projects-browser-breadcrumb-sep {
+  margin: 0 0.35rem;
+  color: var(--slds-g-color-neutral-base-30, #706e6b);
+  font-size: 0.75rem;
+}
+
+.projects-browser-breadcrumb-link {
+  background: none;
+  border: none;
+  color: var(--slds-g-color-brand-base-50, #0176d3);
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+  text-decoration: none;
+}
+
+.projects-browser-breadcrumb-link:hover {
+  text-decoration: underline;
+}
+
+.projects-browser-breadcrumb-current {
+  color: var(--slds-g-color-neutral-base-10, #181818);
+  font-weight: 600;
+}
+
+.slds-theme_dark .projects-browser-breadcrumb-current {
+  color: var(--slds-g-color-neutral-base-95, #f3f3f3);
+}
+
+.slds-theme_dark .projects-browser-breadcrumb-sep {
+  color: var(--slds-g-color-neutral-base-50, #999);
+}
+
 .projects-browser-content {
   flex: 1;
   overflow-y: auto;
