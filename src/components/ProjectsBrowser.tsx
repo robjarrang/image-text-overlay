@@ -256,6 +256,34 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
     }
   };
 
+  const handleDuplicateProject = async (project: ProjectSummary) => {
+    try {
+      // Fetch the full project data
+      const getRes = await fetch(`/api/projects/${project.id}`);
+      if (!getRes.ok) return;
+      const projectData = await getRes.json();
+
+      // Create a new project with the same data
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${project.name} (Copy)`,
+          folderId: projectData.folderId || null,
+          data: projectData.data,
+        }),
+      });
+      if (res.ok) {
+        // Refresh the current view
+        if (view === 'root') fetchRoot();
+        else if (view === 'folder' && currentFolder) fetchFolder(currentFolder);
+        else fetchAll();
+      }
+    } catch (err) {
+      console.error('Error duplicating project:', err);
+    }
+  };
+
   const handleMoveProject = async (projectId: string, targetFolderId: string | null) => {
     try {
       await fetch(`/api/projects/${projectId}`, {
@@ -671,6 +699,14 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                   onClick={(e) => { e.stopPropagation(); setEditingProjectId(project.id); setEditingProjectName(project.name); }}
                 >
                   <Icons.Edit size="x-small" />
+                </button>
+                <button
+                  className="slds-button slds-button_icon slds-button_icon-x-small"
+                  aria-label="Duplicate project"
+                  title="Duplicate"
+                  onClick={(e) => { e.stopPropagation(); handleDuplicateProject(project); }}
+                >
+                  <Icons.Copy size="x-small" />
                 </button>
                 <button
                   className="slds-button slds-button_icon slds-button_icon-x-small"

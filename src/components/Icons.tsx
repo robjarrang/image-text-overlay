@@ -41,5 +41,6 @@ export const Icons = {
   ChevronLeft: (props: IconProps) => <UtilityIcon {...props} iconName="chevronleft" />,
   File: (props: IconProps) => <UtilityIcon {...props} iconName="file" />,
   Back: (props: IconProps) => <UtilityIcon {...props} iconName="back" />,
-  List: (props: IconProps) => <UtilityIcon {...props} iconName="list" />
+  List: (props: IconProps) => <UtilityIcon {...props} iconName="list" />,
+  Copy: (props: IconProps) => <UtilityIcon {...props} iconName="copy" />
 };
