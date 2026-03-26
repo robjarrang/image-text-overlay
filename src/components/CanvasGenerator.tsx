@@ -88,6 +88,16 @@ export function CanvasGenerator({
   const milwaukeeLogoRef = useRef<HTMLImageElement | null>(null);
   const [milwaukeeLogoLoaded, setMilwaukeeLogoLoaded] = useState(false);
 
+  // Stable refs for callback props to prevent re-render loops.
+  // Without these, every parent render creates new function references,
+  // which would re-trigger the canvas useEffect and cause flickering.
+  const onLoadRef = useRef(onLoad);
+  const onErrorRef = useRef(onError);
+  const onImageLoadRef = useRef(onImageLoad);
+  onLoadRef.current = onLoad;
+  onErrorRef.current = onError;
+  onImageLoadRef.current = onImageLoad;
+
   useEffect(() => {
     // Proxy the logo through our API to avoid CORS issues with the SFMC CDN
     const logoUrl = 'https://image.s50.sfmc-content.com/lib/fe301171756404787c1679/m/1/d9c37e29-bf82-493d-a66d-6202950380ca.png';
@@ -476,7 +486,7 @@ export function CanvasGenerator({
       
       setImageAspectRatio(imageWidth / imageHeight);
       
-      onImageLoad?.({ width: imageWidth, height: imageHeight });
+      onImageLoadRef.current?.({ width: imageWidth, height: imageHeight });
       
       // Set the display canvas size
       canvas.width = imageWidth;
@@ -548,11 +558,11 @@ export function CanvasGenerator({
         drawTextOverlay(displayCtx, overlay, imageWidth, imageHeight);
       });
       
-      onLoad();
+      onLoadRef.current();
     };
     
     image.onerror = () => {
-      onError('Failed to load image');
+      onErrorRef.current('Failed to load image');
     };
     
     if (imageUrl && imageUrl !== 'transparent') {
@@ -563,7 +573,7 @@ export function CanvasGenerator({
       const canvasHeight = height;
       setImageAspectRatio(canvasWidth / canvasHeight);
       
-      onImageLoad?.({ width: canvasWidth, height: canvasHeight });
+      onImageLoadRef.current?.({ width: canvasWidth, height: canvasHeight });
       
       // Set the canvas size
       canvas.width = canvasWidth;
@@ -586,7 +596,7 @@ export function CanvasGenerator({
         drawTextOverlay(displayCtx, overlay, canvasWidth, canvasHeight);
       });
       
-      onLoad();
+      onLoadRef.current();
     } else {
       canvas.width = 800;
       canvas.height = 600;
@@ -597,7 +607,7 @@ export function CanvasGenerator({
       ctx.textAlign = 'center';
       ctx.fillText('Please enter an image URL', canvas.width / 2, canvas.height / 2);
     }
-  }, [textOverlays, imageOverlays, imageUrl, width, height, brightness, tintColor, tintOpacity, imageZoom, imageX, imageY, onLoad, onError, onImageLoad, fontLoaded, isDesktopMobileMode, desktopMobileVersion, showMilwaukeeLogo, milwaukeeLogoLoaded]);
+  }, [textOverlays, imageOverlays, imageUrl, width, height, brightness, tintColor, tintOpacity, imageZoom, imageX, imageY, fontLoaded, isDesktopMobileMode, desktopMobileVersion, showMilwaukeeLogo, milwaukeeLogoLoaded]);
 
   // Draw hover effects on the overlay canvas (separate from main canvas to prevent flicker)
   const drawHoverEffects = (hoveredId: string | null) => {

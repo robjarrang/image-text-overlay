@@ -2159,11 +2159,17 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
 
   // Handle image load
   const handleImageLoad = (dimensions: {width: number; height: number}) => {
-    setFormState(prev => ({
-      ...prev,
-      width: dimensions.width,
-      height: dimensions.height
-    }));
+    setFormState(prev => {
+      // Skip update if dimensions haven't changed to avoid re-render loops
+      if (prev.width === dimensions.width && prev.height === dimensions.height) {
+        return prev;
+      }
+      return {
+        ...prev,
+        width: dimensions.width,
+        height: dimensions.height
+      };
+    });
   };
 
   // Handle background image transform change (drag-to-reposition on canvas)
