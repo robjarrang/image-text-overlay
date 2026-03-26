@@ -4094,8 +4094,8 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
       </div>
       {/* Save Dialog */}
       {showSaveDialog && (
-        <div className="save-dialog-overlay" onClick={() => setShowSaveDialog(false)}>
-          <div className="save-dialog-panel slds-card" onClick={(e) => e.stopPropagation()}>
+        <div className="save-dialog-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowSaveDialog(false); }}>
+          <div className="save-dialog-panel slds-card">
             <div className="slds-card__header slds-grid slds-grid_align-spread slds-p-around_medium slds-border_bottom">
               <h2 className="slds-text-heading_small" style={{ margin: 0 }}>Save Project</h2>
               <button
