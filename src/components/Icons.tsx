@@ -29,5 +29,17 @@ export const Icons = {
   Settings: (props: IconProps) => <UtilityIcon {...props} iconName="settings" />,
   Help: (props: IconProps) => <UtilityIcon {...props} iconName="help" />,
   Desktop: (props: IconProps) => <UtilityIcon {...props} iconName="desktop" />,
-  PhonePortrait: (props: IconProps) => <UtilityIcon {...props} iconName="phone_portrait" />
+  PhonePortrait: (props: IconProps) => <UtilityIcon {...props} iconName="phone_portrait" />,
+  OpenFolder: (props: IconProps) => <UtilityIcon {...props} iconName="open_folder" />,
+  OpenedFolder: (props: IconProps) => <UtilityIcon {...props} iconName="opened_folder" />,
+  New: (props: IconProps) => <UtilityIcon {...props} iconName="new" />,
+  Save: (props: IconProps) => <UtilityIcon {...props} iconName="save" />,
+  Edit: (props: IconProps) => <UtilityIcon {...props} iconName="edit" />,
+  Delete: (props: IconProps) => <UtilityIcon {...props} iconName="delete" />,
+  Search: (props: IconProps) => <UtilityIcon {...props} iconName="search" />,
+  ChevronRight: (props: IconProps) => <UtilityIcon {...props} iconName="chevronright" />,
+  ChevronLeft: (props: IconProps) => <UtilityIcon {...props} iconName="chevronleft" />,
+  File: (props: IconProps) => <UtilityIcon {...props} iconName="file" />,
+  Back: (props: IconProps) => <UtilityIcon {...props} iconName="back" />,
+  List: (props: IconProps) => <UtilityIcon {...props} iconName="list" />
 };

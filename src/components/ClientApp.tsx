@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import LZString from 'lz-string';
 import { Icons } from './Icons';
+import { ProjectsBrowser } from './ProjectsBrowser';
 
 const CanvasGenerator = dynamic(() => import('./CanvasGenerator').then(mod => ({ default: mod.CanvasGenerator })), {
   ssr: false
@@ -138,7 +139,13 @@ const normalizeFontSize = (value: number): number => {
   return fontPercentToPixels(value);
 };
 
-export function ClientApp() {
+interface ClientAppProps {
+  projectId?: string;
+  projectName?: string;
+  projectData?: any;
+}
+
+export function ClientApp({ projectId: initialProjectId, projectName: initialProjectName, projectData }: ClientAppProps = {}) {
   const [formState, setFormState] = useState<FormState>({
     textOverlays: [],
     imageOverlays: [],
@@ -167,6 +174,23 @@ export function ClientApp() {
   });
   const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
   const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload' | 'transparent' | 'desktop-mobile'>('desktop-mobile');
+
+  // Project persistence state
+  const [currentProjectId, setCurrentProjectId] = useState<string | undefined>(initialProjectId);
+  const [currentProjectName, setCurrentProjectName] = useState<string>(initialProjectName || 'Untitled Project');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Projects browser state
+  const [showProjectsBrowser, setShowProjectsBrowser] = useState(false);
+
+  // Save dialog state
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saveDialogName, setSaveDialogName] = useState('');
+  const [saveDialogFolderId, setSaveDialogFolderId] = useState<string | null>(null);
+  const [saveDialogFolders, setSaveDialogFolders] = useState<{id: string; name: string}[]>([]);
+  const [saveDialogIsNewFolder, setSaveDialogIsNewFolder] = useState(false);
+  const [saveDialogNewFolderName, setSaveDialogNewFolderName] = useState('');
+  const saveDialogNameRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -782,6 +806,253 @@ export function ClientApp() {
 
   useEffect(() => {
     console.log('🔍 URL Loading Effect - Starting');
+
+    // --- Project data from DB (via /p/[id] route) ---
+    if (projectData) {
+      console.log('🔍 Loading project from database, id:', initialProjectId);
+      try {
+        const shareData = typeof projectData === 'string' ? JSON.parse(projectData) : projectData;
+
+        if (initialProjectId) {
+          setCurrentProjectId(initialProjectId);
+        }
+
+        // Helper function to decompress URLs (same as URL-based loading)
+        const decompressUrl = (compressedUrl: string): string => {
+          if (!compressedUrl) return compressedUrl;
+          return compressedUrl
+            .replace('S50/', 'https://image.s50.sfmc-content.com/lib/')
+            .replace('S51/', 'https://image.s51.sfmc-content.com/lib/')
+            .replace('S52/', 'https://image.s52.sfmc-content.com/lib/')
+            .replace('V/', 'https://milwaukee-overlay.vercel.app/');
+        };
+
+        // Helper function to restore full overlay IDs
+        const restoreId = (shortId: string): string => {
+          if (!shortId || shortId.includes('overlay-')) return shortId;
+          const parts = shortId.split('.');
+          if (parts.length === 2) {
+            return `overlay-${parts[0]}-${parts[1]}`;
+          }
+          return shortId;
+        };
+
+        // Handle mode
+        const mode = shareData.mode || shareData.m;
+        if (mode && ['url', 'upload', 'transparent', 'desktop-mobile'].includes(mode)) {
+          setActiveImageSourceTab(mode);
+        }
+
+        // Handle desktop/mobile specific parameters
+        if (mode === 'desktop-mobile') {
+          const dmVersion = shareData.dmv || (shareData.v !== undefined ? (shareData.v === 0 ? 'desktop' : 'mobile') : shareData.v);
+          const dmUrl = decompressUrl(shareData.dmUrl || shareData.u);
+          if (dmVersion && ['desktop', 'mobile'].includes(dmVersion)) {
+            setDesktopMobileVersion(dmVersion);
+          }
+          if (dmUrl) {
+            setDesktopMobileImageUrl(dmUrl);
+          }
+          if (shareData.ml !== undefined) {
+            setShowMilwaukeeLogo(shareData.ml !== 0);
+          }
+        }
+
+        // Set form state
+        const urlState: Partial<FormState> = {
+          ...(shareData.w && { width: shareData.w }),
+          ...(shareData.h && { height: shareData.h }),
+          ...(shareData.dw && { desktopWidth: shareData.dw }),
+          ...(shareData.dh && { desktopHeight: shareData.dh }),
+          ...(shareData.mw && { mobileWidth: shareData.mw }),
+          ...(shareData.mh && { mobileHeight: shareData.mh }),
+          brightness: shareData.b !== undefined ? shareData.b : 100,
+          tintColor: shareData.tc !== undefined ? shareData.tc : '#000000',
+          tintOpacity: shareData.to !== undefined ? shareData.to : 0,
+          imageZoom: shareData.z !== undefined ? shareData.z : 1,
+          imageX: shareData.x !== undefined ? shareData.x : 0,
+          imageY: shareData.y !== undefined ? shareData.y : 0,
+          desktopBgZoom: shareData.dbz !== undefined ? shareData.dbz : 1,
+          desktopBgX: shareData.dbx !== undefined ? shareData.dbx : 50,
+          desktopBgY: shareData.dby !== undefined ? shareData.dby : 50,
+          mobileBgZoom: shareData.mbz !== undefined ? shareData.mbz : 1,
+          mobileBgX: shareData.mbx !== undefined ? shareData.mbx : 50,
+          mobileBgY: shareData.mby !== undefined ? shareData.mby : 50
+        };
+
+        if (mode === 'transparent') {
+          urlState.imageUrl = 'transparent';
+          setOriginalImageUrl('transparent');
+        }
+
+        // Handle image URL
+        const imageUrl = decompressUrl(shareData.img || shareData.i);
+        if (imageUrl && mode === 'url') {
+          setOriginalImageUrl(imageUrl);
+          setIsLoading(true);
+          fetch('/api/load-images', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ images: [imageUrl] })
+          })
+          .then(response => response.json())
+          .then(data => {
+            setFormState(prev => ({ ...prev, ...urlState, imageUrl: data.images[0] }));
+            setIsLoading(false);
+          })
+          .catch(error => {
+            console.error('Error loading project image:', error);
+            setError('Failed to load project image');
+            setOriginalImageUrl('');
+            setIsLoading(false);
+          });
+        } else if (imageUrl) {
+          setOriginalImageUrl(imageUrl);
+          setFormState(prev => ({ ...prev, ...urlState }));
+        } else {
+          setFormState(prev => ({ ...prev, ...urlState }));
+          const dmUrl = decompressUrl(shareData.dmUrl || shareData.u);
+          const dmVersion = shareData.dmv || (shareData.v !== undefined ? (shareData.v === 0 ? 'desktop' : 'mobile') : shareData.v);
+          if (mode === 'desktop-mobile' && dmUrl) {
+            setTimeout(() => {
+              generateDesktopMobilePreview(dmUrl, dmVersion);
+            }, 100);
+          }
+        }
+
+        // Handle text overlays
+        const textOverlaysData = shareData.to || shareData.t;
+        if (textOverlaysData && Array.isArray(textOverlaysData)) {
+          const textOverlays = textOverlaysData.map((overlay: any) => {
+            if (Array.isArray(overlay)) {
+              const [id, text, fontSize, color, x, y, extras = {}] = overlay;
+              const expandedColor = color === 'W' ? '#FFFFFF' : color === 'B' ? '#000000' : color;
+              return {
+                id: restoreId(id),
+                text,
+                fontSize,
+                desktopFontSize: extras.df || fontSize,
+                mobileFontSize: extras.mf || fontSize,
+                fontColor: expandedColor,
+                x,
+                y,
+                desktopX: extras.dx !== undefined ? extras.dx : x,
+                desktopY: extras.dy !== undefined ? extras.dy : y,
+                mobileX: extras.mx !== undefined ? extras.mx : x,
+                mobileY: extras.my !== undefined ? extras.my : y,
+                allCaps: extras.ac === 1 || extras.ac === true
+              };
+            } else {
+              return {
+                id: overlay.i,
+                text: overlay.t,
+                fontSize: overlay.f,
+                desktopFontSize: overlay.df || overlay.f,
+                mobileFontSize: overlay.mf || overlay.f,
+                fontColor: overlay.c,
+                x: overlay.x,
+                y: overlay.y,
+                desktopX: overlay.dx !== undefined ? overlay.dx : overlay.x,
+                desktopY: overlay.dy !== undefined ? overlay.dy : overlay.y,
+                mobileX: overlay.mx !== undefined ? overlay.mx : overlay.x,
+                mobileY: overlay.my !== undefined ? overlay.my : overlay.y,
+                allCaps: overlay.ac === 1 || overlay.ac === true
+              };
+            }
+          });
+          urlState.textOverlays = textOverlays;
+          if (textOverlays.length > 0) {
+            urlState.activeOverlayId = textOverlays[0].id;
+            urlState.activeOverlayType = 'text';
+          }
+        }
+
+        // Handle image overlays
+        const imageOverlaysData = shareData.io || shareData.o;
+        if (imageOverlaysData && Array.isArray(imageOverlaysData)) {
+          const imageOverlays = imageOverlaysData.map((overlay: any) => {
+            if (Array.isArray(overlay)) {
+              const [id, originalImageUrl, width, height, x, y, aspectRatio, extras = {}] = overlay;
+              return {
+                id: restoreId(id),
+                imageUrl: '',
+                originalImageUrl: decompressUrl(originalImageUrl),
+                width,
+                height,
+                x,
+                y,
+                desktopX: extras.dx !== undefined ? extras.dx : x,
+                desktopY: extras.dy !== undefined ? extras.dy : y,
+                mobileX: extras.mx !== undefined ? extras.mx : x,
+                mobileY: extras.my !== undefined ? extras.my : y,
+                desktopWidth: extras.dw !== undefined ? extras.dw : width,
+                desktopHeight: extras.dh !== undefined ? extras.dh : height,
+                mobileWidth: extras.mw !== undefined ? extras.mw : width,
+                mobileHeight: extras.mh !== undefined ? extras.mh : height,
+                aspectRatio,
+                presetLogoId: extras.pl,
+                presetLogoType: extras.pt,
+                selectedLanguage: extras.sl,
+                availableLanguages: extras.al
+              };
+            } else {
+              return {
+                id: overlay.i,
+                imageUrl: '',
+                originalImageUrl: decompressUrl(overlay.u),
+                width: overlay.w,
+                height: overlay.h,
+                x: overlay.x,
+                y: overlay.y,
+                desktopX: overlay.dx !== undefined ? overlay.dx : overlay.x,
+                desktopY: overlay.dy !== undefined ? overlay.dy : overlay.y,
+                mobileX: overlay.mx !== undefined ? overlay.mx : overlay.x,
+                mobileY: overlay.my !== undefined ? overlay.my : overlay.y,
+                desktopWidth: overlay.dw !== undefined ? overlay.dw : overlay.w,
+                desktopHeight: overlay.dh !== undefined ? overlay.dh : overlay.h,
+                mobileWidth: overlay.mw !== undefined ? overlay.mw : overlay.w,
+                mobileHeight: overlay.mh !== undefined ? overlay.mh : overlay.h,
+                aspectRatio: overlay.a,
+                presetLogoId: overlay.pl,
+                presetLogoType: overlay.pt,
+                selectedLanguage: overlay.sl,
+                availableLanguages: overlay.al
+              };
+            }
+          });
+
+          const imageUrls = imageOverlays.map((overlay: any) => overlay.originalImageUrl).filter(Boolean);
+          if (imageUrls.length > 0) {
+            fetch('/api/load-images', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ images: imageUrls })
+            })
+            .then(response => response.json())
+            .then(data => {
+              const updatedImageOverlays = imageOverlays.map((overlay: any, index: number) => ({
+                ...overlay,
+                imageUrl: data.images[index] || overlay.imageUrl
+              }));
+              setFormState(prev => ({ ...prev, imageOverlays: updatedImageOverlays }));
+            })
+            .catch(error => {
+              console.error('Error loading project image overlays:', error);
+              urlState.imageOverlays = imageOverlays;
+            });
+          } else {
+            urlState.imageOverlays = imageOverlays;
+          }
+        }
+
+        setFormState(prev => ({ ...prev, ...urlState }));
+        return; // Done — skip URL param parsing below
+      } catch (error) {
+        console.error('Failed to load project data:', error);
+        // Fall through to URL-based parsing
+      }
+    }
+
     const params = new URLSearchParams(window.location.search);
     console.log('🔍 URL params:', params.toString());
     
@@ -1676,204 +1947,193 @@ export function ClientApp() {
     }
   };
 
-  const handleShare = () => {
-    try {
-      const url = new URL(window.location.href);
-      
-      // Helper function to compress URLs - replace common long domains with short codes
-      const compressUrl = (originalUrl: string): string => {
-        if (!originalUrl) return originalUrl;
-        return originalUrl
-          .replace('https://image.s50.sfmc-content.com/lib/', 'S50/')
-          .replace('https://image.s51.sfmc-content.com/lib/', 'S51/')
-          .replace('https://image.s52.sfmc-content.com/lib/', 'S52/')
-          .replace('https://milwaukee-overlay.vercel.app/', 'V/');
-      };
-      
-      // Helper function to decompress URLs
-      const decompressUrl = (compressedUrl: string): string => {
-        if (!compressedUrl) return compressedUrl;
-        return compressedUrl
-          .replace('S50/', 'https://image.s50.sfmc-content.com/lib/')
-          .replace('S51/', 'https://image.s51.sfmc-content.com/lib/')
-          .replace('S52/', 'https://image.s52.sfmc-content.com/lib/')
-          .replace('V/', 'https://milwaukee-overlay.vercel.app/');
-      };
-      
-      // Helper function to create short overlay IDs
-      const shortenId = (id: string): string => {
-        if (!id) return id;
-        // Extract just the timestamp and a few chars from the hash
-        const match = id.match(/overlay-(\d+)-([a-z0-9]{8})/);
-        if (match) {
-          return `${match[1]}.${match[2]}`;
-        }
-        return id;
-      };
-      
-      // Create ultra-compressed data object
-      const shareData: any = {
-        m: activeImageSourceTab, // mode
-        ...(activeImageSourceTab === 'desktop-mobile' && {
-          v: desktopMobileVersion === 'desktop' ? 0 : 1, // 0=desktop, 1=mobile (save chars)
-          ...(desktopMobileImageUrl && { u: compressUrl(desktopMobileImageUrl) }),
-          dw: formState.desktopWidth,
-          dh: formState.desktopHeight,
-          mw: formState.mobileWidth,
-          mh: formState.mobileHeight,
-          ...(showMilwaukeeLogo === false && { ml: 0 }), // Only include if false (default is true)
-          // Per-version background framing (only include non-default values)
-          ...(formState.desktopBgZoom !== 1 && { dbz: formState.desktopBgZoom }),
-          ...(formState.desktopBgX !== 50 && { dbx: formState.desktopBgX }),
-          ...(formState.desktopBgY !== 50 && { dby: formState.desktopBgY }),
-          ...(formState.mobileBgZoom !== 1 && { mbz: formState.mobileBgZoom }),
-          ...(formState.mobileBgX !== 50 && { mbx: formState.mobileBgX }),
-          ...(formState.mobileBgY !== 50 && { mby: formState.mobileBgY })
-        }),
-        // Core state with ultra-short keys
-        w: formState.width,
-        h: formState.height,
-        ...(formState.brightness !== 100 && { b: formState.brightness }), // Only include if not default
-        ...(formState.tintOpacity > 0 && { tc: formState.tintColor, to: formState.tintOpacity }), // Only include if tint is active
-        ...(formState.imageZoom !== 1 && { z: formState.imageZoom }), // Only include if not default
-        ...(formState.imageX !== 0 && { x: formState.imageX }), // Only include if not default
-        ...(formState.imageY !== 0 && { y: formState.imageY }), // Only include if not default
-        ...(activeImageSourceTab !== 'transparent' && activeImageSourceTab !== 'desktop-mobile' && originalImageUrl && {
-          i: compressUrl(originalImageUrl)
-        })
-      };
+  const handleShare = async () => {
+    if (isSaving) return;
 
-      // Ultra-compressed text overlays
-      if (formState.textOverlays.length > 0) {
-        shareData.t = formState.textOverlays.map(overlay => {
-          const compressed: any = [
-            shortenId(overlay.id),
-            overlay.text,
-            overlay.fontSize,
-            overlay.fontColor === '#FFFFFF' ? 'W' : overlay.fontColor === '#000000' ? 'B' : overlay.fontColor, // W=white, B=black
-            overlay.x,
-            overlay.y
-          ];
-          
-          // Add optional fields only if they differ from base values
-          const extras: any = {};
-          if (overlay.desktopX !== undefined && overlay.desktopX !== overlay.x) {
-            extras.dx = overlay.desktopX;
-          }
-          if (overlay.desktopY !== undefined && overlay.desktopY !== overlay.y) {
-            extras.dy = overlay.desktopY;
-          }
-          if (overlay.mobileX !== undefined && overlay.mobileX !== overlay.x) {
-            extras.mx = overlay.mobileX;
-          }
-          if (overlay.mobileY !== undefined && overlay.mobileY !== overlay.y) {
-            extras.my = overlay.mobileY;
-          }
-          if (overlay.desktopFontSize !== undefined && overlay.desktopFontSize !== overlay.fontSize) {
-            extras.df = overlay.desktopFontSize;
-          }
-          if (overlay.mobileFontSize !== undefined && overlay.mobileFontSize !== overlay.fontSize) {
-            extras.mf = overlay.mobileFontSize;
-          }
-          if (overlay.allCaps) {
-            extras.ac = 1;
-          }
-          
-          if (Object.keys(extras).length > 0) {
-            compressed.push(extras);
-          }
-          
-          return compressed;
-        });
-      }
+    // If editing an existing project, update it directly (skip dialog)
+    if (currentProjectId) {
+      await performShare(currentProjectName, null);
+      return;
+    }
 
-      // Ultra-compressed image overlays
-      if (formState.imageOverlays.length > 0) {
-        shareData.o = formState.imageOverlays.map(overlay => {
-          const compressed: any = [
-            shortenId(overlay.id),
-            compressUrl(overlay.originalImageUrl),
-            overlay.width,
-            overlay.height,
-            overlay.x,
-            overlay.y,
-            overlay.aspectRatio
-          ];
-          
-          // Add optional fields only if they differ from base values
-          const extras: any = {};
-          if (overlay.desktopX !== undefined && overlay.desktopX !== overlay.x) {
-            extras.dx = overlay.desktopX;
-          }
-          if (overlay.desktopY !== undefined && overlay.desktopY !== overlay.y) {
-            extras.dy = overlay.desktopY;
-          }
-          if (overlay.mobileX !== undefined && overlay.mobileX !== overlay.x) {
-            extras.mx = overlay.mobileX;
-          }
-          if (overlay.mobileY !== undefined && overlay.mobileY !== overlay.y) {
-            extras.my = overlay.mobileY;
-          }
-          if (overlay.desktopWidth !== undefined && overlay.desktopWidth !== overlay.width) {
-            extras.dw = overlay.desktopWidth;
-          }
-          if (overlay.desktopHeight !== undefined && overlay.desktopHeight !== overlay.height) {
-            extras.dh = overlay.desktopHeight;
-          }
-          if (overlay.mobileWidth !== undefined && overlay.mobileWidth !== overlay.width) {
-            extras.mw = overlay.mobileWidth;
-          }
-          if (overlay.mobileHeight !== undefined && overlay.mobileHeight !== overlay.height) {
-            extras.mh = overlay.mobileHeight;
-          }
-          if (overlay.presetLogoId) {
-            extras.pl = overlay.presetLogoId;
-          }
-          if (overlay.presetLogoType) {
-            extras.pt = overlay.presetLogoType;
-          }
-          if (overlay.selectedLanguage) {
-            extras.sl = overlay.selectedLanguage;
-          }
-          if (overlay.availableLanguages) {
-            extras.al = overlay.availableLanguages;
-          }
-          
-          if (Object.keys(extras).length > 0) {
-            compressed.push(extras);
-          }
-          
-          return compressed;
-        });
-      }
+    // For new projects, open the save dialog to get a name and folder
+    openSaveDialog();
+  };
 
-      // Use lz-string for efficient URL-safe compression
-      const jsonString = JSON.stringify(shareData);
-      const compressed = LZString.compressToEncodedURIComponent(jsonString);
-      
-      // Clear existing params and set the compressed data with 'c' prefix to indicate lz-string compression
-      url.search = '';
-      url.searchParams.set('c', compressed);
+  // Build the compressed shareData object (shared between save paths)
+  const buildShareData = () => {
+    const compressUrl = (originalUrl: string): string => {
+      if (!originalUrl) return originalUrl;
+      return originalUrl
+        .replace('https://image.s50.sfmc-content.com/lib/', 'S50/')
+        .replace('https://image.s51.sfmc-content.com/lib/', 'S51/')
+        .replace('https://image.s52.sfmc-content.com/lib/', 'S52/')
+        .replace('https://milwaukee-overlay.vercel.app/', 'V/');
+    };
+    
+    const shortenId = (id: string): string => {
+      if (!id) return id;
+      const match = id.match(/overlay-(\d+)-([a-z0-9]{8})/);
+      if (match) return `${match[1]}.${match[2]}`;
+      return id;
+    };
+    
+    const shareData: any = {
+      m: activeImageSourceTab,
+      ...(activeImageSourceTab === 'desktop-mobile' && {
+        v: desktopMobileVersion === 'desktop' ? 0 : 1,
+        ...(desktopMobileImageUrl && { u: compressUrl(desktopMobileImageUrl) }),
+        dw: formState.desktopWidth,
+        dh: formState.desktopHeight,
+        mw: formState.mobileWidth,
+        mh: formState.mobileHeight,
+        ...(showMilwaukeeLogo === false && { ml: 0 }),
+        ...(formState.desktopBgZoom !== 1 && { dbz: formState.desktopBgZoom }),
+        ...(formState.desktopBgX !== 50 && { dbx: formState.desktopBgX }),
+        ...(formState.desktopBgY !== 50 && { dby: formState.desktopBgY }),
+        ...(formState.mobileBgZoom !== 1 && { mbz: formState.mobileBgZoom }),
+        ...(formState.mobileBgX !== 50 && { mbx: formState.mobileBgX }),
+        ...(formState.mobileBgY !== 50 && { mby: formState.mobileBgY })
+      }),
+      w: formState.width,
+      h: formState.height,
+      ...(formState.brightness !== 100 && { b: formState.brightness }),
+      ...(formState.tintOpacity > 0 && { tc: formState.tintColor, to: formState.tintOpacity }),
+      ...(formState.imageZoom !== 1 && { z: formState.imageZoom }),
+      ...(formState.imageX !== 0 && { x: formState.imageX }),
+      ...(formState.imageY !== 0 && { y: formState.imageY }),
+      ...(activeImageSourceTab !== 'transparent' && activeImageSourceTab !== 'desktop-mobile' && originalImageUrl && {
+        i: compressUrl(originalImageUrl)
+      })
+    };
 
-      const finalUrl = url.toString();
-      
-      console.log('Final URL length:', finalUrl.length);
-      console.log('Compression details:', {
-        originalData: shareData,
-        jsonLength: jsonString.length,
-        compressedLength: compressed.length,
-        finalUrlLength: finalUrl.length,
-        compressionRatio: ((1 - compressed.length / jsonString.length) * 100).toFixed(1) + '%'
+    if (formState.textOverlays.length > 0) {
+      shareData.t = formState.textOverlays.map(overlay => {
+        const compressed: any = [
+          shortenId(overlay.id),
+          overlay.text,
+          overlay.fontSize,
+          overlay.fontColor === '#FFFFFF' ? 'W' : overlay.fontColor === '#000000' ? 'B' : overlay.fontColor,
+          overlay.x,
+          overlay.y
+        ];
+        
+        const extras: any = {};
+        if (overlay.desktopX !== undefined && overlay.desktopX !== overlay.x) extras.dx = overlay.desktopX;
+        if (overlay.desktopY !== undefined && overlay.desktopY !== overlay.y) extras.dy = overlay.desktopY;
+        if (overlay.mobileX !== undefined && overlay.mobileX !== overlay.x) extras.mx = overlay.mobileX;
+        if (overlay.mobileY !== undefined && overlay.mobileY !== overlay.y) extras.my = overlay.mobileY;
+        if (overlay.desktopFontSize !== undefined && overlay.desktopFontSize !== overlay.fontSize) extras.df = overlay.desktopFontSize;
+        if (overlay.mobileFontSize !== undefined && overlay.mobileFontSize !== overlay.fontSize) extras.mf = overlay.mobileFontSize;
+        if (overlay.allCaps) extras.ac = 1;
+        
+        if (Object.keys(extras).length > 0) compressed.push(extras);
+        return compressed;
       });
-      
-      // With lz-string compression, we can handle much larger configurations
-      // Most browsers support URLs up to 2000-8000 characters
-      if (finalUrl.length > 8000) {
-        throw new Error('Configuration is too complex to share via URL. Try removing some overlays or shortening text.');
+    }
+
+    if (formState.imageOverlays.length > 0) {
+      shareData.o = formState.imageOverlays.map(overlay => {
+        const compressed: any = [
+          shortenId(overlay.id),
+          compressUrl(overlay.originalImageUrl),
+          overlay.width,
+          overlay.height,
+          overlay.x,
+          overlay.y,
+          overlay.aspectRatio
+        ];
+        
+        const extras: any = {};
+        if (overlay.desktopX !== undefined && overlay.desktopX !== overlay.x) extras.dx = overlay.desktopX;
+        if (overlay.desktopY !== undefined && overlay.desktopY !== overlay.y) extras.dy = overlay.desktopY;
+        if (overlay.mobileX !== undefined && overlay.mobileX !== overlay.x) extras.mx = overlay.mobileX;
+        if (overlay.mobileY !== undefined && overlay.mobileY !== overlay.y) extras.my = overlay.mobileY;
+        if (overlay.desktopWidth !== undefined && overlay.desktopWidth !== overlay.width) extras.dw = overlay.desktopWidth;
+        if (overlay.desktopHeight !== undefined && overlay.desktopHeight !== overlay.height) extras.dh = overlay.desktopHeight;
+        if (overlay.mobileWidth !== undefined && overlay.mobileWidth !== overlay.width) extras.mw = overlay.mobileWidth;
+        if (overlay.mobileHeight !== undefined && overlay.mobileHeight !== overlay.height) extras.mh = overlay.mobileHeight;
+        if (overlay.presetLogoId) extras.pl = overlay.presetLogoId;
+        if (overlay.presetLogoType) extras.pt = overlay.presetLogoType;
+        if (overlay.selectedLanguage) extras.sl = overlay.selectedLanguage;
+        if (overlay.availableLanguages) extras.al = overlay.availableLanguages;
+        
+        if (Object.keys(extras).length > 0) compressed.push(extras);
+        return compressed;
+      });
+    }
+
+    return shareData;
+  };
+
+  // Actually save to DB and copy link
+  const performShare = async (name: string, folderId: string | null) => {
+    if (isSaving) return;
+    setIsSaving(true);
+
+    try {
+      const shareData = buildShareData();
+      let shareUrl: string | null = null;
+
+      try {
+        const origin = window.location.origin;
+
+        // If editing an existing project, update it in place
+        if (currentProjectId) {
+          const res = await fetch(`/api/projects/${currentProjectId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: shareData, name }),
+          });
+
+          if (res.ok) {
+            shareUrl = `${origin}/p/${currentProjectId}`;
+            setCurrentProjectName(name);
+            console.log('Project updated:', currentProjectId);
+          } else {
+            console.warn('Failed to update project, creating new one. Status:', res.status);
+          }
+        }
+
+        // Create a new project if we didn't update an existing one
+        if (!shareUrl) {
+          const res = await fetch('/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: shareData, name, folderId }),
+          });
+
+          if (res.ok) {
+            const result = await res.json();
+            setCurrentProjectId(result.id);
+            setCurrentProjectName(name);
+            shareUrl = `${origin}/p/${result.id}`;
+            console.log('Project created:', result.id);
+            window.history.replaceState({}, '', `/p/${result.id}`);
+          }
+        }
+      } catch (dbError) {
+        console.warn('Database save failed, falling back to URL encoding:', dbError);
       }
 
-      navigator.clipboard.writeText(finalUrl);
-      setToastMessage('Settings URL copied to clipboard!');
+      // Fallback: encode into URL if database save failed
+      if (!shareUrl) {
+        console.log('Using LZ-string URL fallback');
+        const url = new URL(window.location.href);
+        const jsonString = JSON.stringify(shareData);
+        const compressed = LZString.compressToEncodedURIComponent(jsonString);
+        url.search = '';
+        url.searchParams.set('c', compressed);
+        const finalUrl = url.toString();
+
+        if (finalUrl.length > 8000) {
+          throw new Error('Configuration is too complex to share via URL and database is unavailable. Try removing some overlays or shortening text.');
+        }
+        shareUrl = finalUrl;
+      }
+
+      await navigator.clipboard.writeText(shareUrl);
+      setToastMessage('Share link copied to clipboard!');
       setShowToast(true);
       setShowShareSuccess(true);
       setTimeout(() => {
@@ -1883,6 +2143,8 @@ export function ClientApp() {
     } catch (error) {
       console.error('Share error:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate share URL');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -2192,16 +2454,85 @@ export function ClientApp() {
     await generateDesktopMobilePreview(backgroundUrl, version);
   };
 
+  // --- Save Dialog helpers ---
+  const openSaveDialog = async () => {
+    setSaveDialogName(currentProjectName || 'Untitled Project');
+    setSaveDialogFolderId(null);
+    setSaveDialogIsNewFolder(false);
+    setSaveDialogNewFolderName('');
+    // Fetch folders for the dropdown
+    try {
+      const res = await fetch('/api/folders');
+      const data = await res.json();
+      setSaveDialogFolders(data.folders || []);
+    } catch {
+      setSaveDialogFolders([]);
+    }
+    setShowSaveDialog(true);
+    // Focus name input after render
+    setTimeout(() => saveDialogNameRef.current?.select(), 100);
+  };
+
+  const handleSaveDialogConfirm = async () => {
+    let folderId = saveDialogFolderId;
+
+    // Create new folder if requested
+    if (saveDialogIsNewFolder && saveDialogNewFolderName.trim()) {
+      try {
+        const res = await fetch('/api/folders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: saveDialogNewFolderName.trim() }),
+        });
+        if (res.ok) {
+          const newFolder = await res.json();
+          folderId = newFolder.id;
+        }
+      } catch (err) {
+        console.error('Error creating folder:', err);
+      }
+    }
+
+    setShowSaveDialog(false);
+    setCurrentProjectName(saveDialogName.trim() || 'Untitled Project');
+
+    // Now trigger the actual save with name and folder
+    await performShare(saveDialogName.trim() || 'Untitled Project', folderId);
+  };
+
+  const handleOpenProject = (projectId: string) => {
+    // Navigate to the project page
+    window.location.href = `/p/${projectId}`;
+  };
+
   return (
     <div className="slds-grid slds-wrap slds-gutters_large slds-p-around_medium preview-container-parent">
       {/* Left column - Controls */}
       <div className="slds-col slds-size_1-of-1 slds-large-size_1-of-2 controls-column">
         <article className="slds-card slds-card_boundary shadow-md">
           <div className="slds-card__header slds-grid slds-grid_align-spread slds-border_bottom slds-p-around_medium">
-            <div className="slds-media__body">
-              <h1 className="slds-text-heading_medium slds-text-color_default slds-truncate">
+            <div className="slds-media__body" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <h1 className="slds-text-heading_medium slds-text-color_default slds-truncate" style={{ margin: 0 }}>
                 Image Settings
               </h1>
+              {currentProjectId && (
+                <span className="slds-badge" style={{ whiteSpace: 'nowrap', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={currentProjectName}>
+                  {currentProjectName}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
+              <button
+                className="slds-button slds-button_neutral"
+                onClick={() => setShowProjectsBrowser(true)}
+                aria-label="Open projects browser"
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true" style={{ fill: 'currentColor' }}>
+                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#open_folder" />
+                </svg>
+                Projects
+              </button>
             </div>
           </div>
           <div className="slds-card__body slds-p-around_large">
@@ -3563,14 +3894,15 @@ export function ClientApp() {
                 <button
                   className="slds-button slds-button_neutral share-button"
                   onClick={handleShare}
-                  aria-label="Share configuration URL"
+                  disabled={isSaving}
+                  aria-label={currentProjectId ? "Update shared project" : "Share configuration URL"}
                   onMouseEnter={() => activeImageSourceTab === 'upload' && setShowShareTooltip(true)}
                   onMouseLeave={() => activeImageSourceTab === 'upload' && setShowShareTooltip(false)}
                 >
                   <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
                     {showShareSuccess ? <Icons.Success /> : <Icons.Share />}
                   </svg>
-                  Share
+                  {isSaving ? 'Saving...' : currentProjectId ? 'Update Link' : 'Share'}
                 </button>
                 {activeImageSourceTab === 'upload' && showShareTooltip && (
                   <div
@@ -3760,6 +4092,112 @@ export function ClientApp() {
           </footer>
         </article>
       </div>
+      {/* Save Dialog */}
+      {showSaveDialog && (
+        <div className="save-dialog-overlay" onClick={() => setShowSaveDialog(false)}>
+          <div className="save-dialog-panel slds-card" onClick={(e) => e.stopPropagation()}>
+            <div className="slds-card__header slds-grid slds-grid_align-spread slds-p-around_medium slds-border_bottom">
+              <h2 className="slds-text-heading_small" style={{ margin: 0 }}>Save Project</h2>
+              <button
+                className="slds-button slds-button_icon"
+                onClick={() => setShowSaveDialog(false)}
+                aria-label="Close save dialog"
+              >
+                <Icons.Close />
+              </button>
+            </div>
+            <div className="slds-card__body slds-p-around_medium">
+              <div className="slds-form-element slds-m-bottom_medium">
+                <label className="slds-form-element__label" htmlFor="save-dialog-name">Project Name</label>
+                <div className="slds-form-element__control">
+                  <input
+                    id="save-dialog-name"
+                    ref={saveDialogNameRef}
+                    type="text"
+                    className="slds-input"
+                    value={saveDialogName}
+                    onChange={(e) => setSaveDialogName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveDialogConfirm();
+                      if (e.key === 'Escape') setShowSaveDialog(false);
+                    }}
+                    placeholder="Enter project name"
+                  />
+                </div>
+              </div>
+              <div className="slds-form-element slds-m-bottom_medium">
+                <label className="slds-form-element__label" htmlFor="save-dialog-folder">Folder (optional)</label>
+                <div className="slds-form-element__control">
+                  <div className="slds-select_container">
+                    <select
+                      id="save-dialog-folder"
+                      className="slds-select"
+                      value={saveDialogIsNewFolder ? '__new__' : (saveDialogFolderId || '')}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '__new__') {
+                          setSaveDialogIsNewFolder(true);
+                          setSaveDialogFolderId(null);
+                        } else {
+                          setSaveDialogIsNewFolder(false);
+                          setSaveDialogFolderId(val || null);
+                        }
+                      }}
+                    >
+                      <option value="">No folder</option>
+                      {saveDialogFolders.map((f: any) => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                      ))}
+                      <option value="__new__">+ Create new folder</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              {saveDialogIsNewFolder && (
+                <div className="slds-form-element slds-m-bottom_medium">
+                  <label className="slds-form-element__label" htmlFor="save-dialog-new-folder">New Folder Name</label>
+                  <div className="slds-form-element__control">
+                    <input
+                      id="save-dialog-new-folder"
+                      type="text"
+                      className="slds-input"
+                      value={saveDialogNewFolderName}
+                      onChange={(e) => setSaveDialogNewFolderName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveDialogConfirm();
+                        if (e.key === 'Escape') setShowSaveDialog(false);
+                      }}
+                      placeholder="Enter folder name"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="slds-card__footer slds-grid slds-grid_align-end slds-p-around_medium slds-border_top" style={{ gap: '0.5rem' }}>
+              <button className="slds-button slds-button_neutral" onClick={() => setShowSaveDialog(false)}>
+                Cancel
+              </button>
+              <button
+                className="slds-button slds-button_brand"
+                onClick={handleSaveDialogConfirm}
+                disabled={isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save & Copy Link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Projects Browser */}
+      <ProjectsBrowser
+        isOpen={showProjectsBrowser}
+        onClose={() => setShowProjectsBrowser(false)}
+        onOpenProject={handleOpenProject}
+        currentProjectId={currentProjectId}
+      />
+
       {showToast && (
         <div className="slds-notify_container slds-is-fixed">
           <div 

@@ -8,11 +8,17 @@ const ClientApp = dynamic(
   { ssr: false }
 );
 
-export function ClientWrapper() {
+interface ClientWrapperProps {
+  projectId?: string;
+  projectName?: string;
+  projectData?: any;
+}
+
+export function ClientWrapper({ projectId, projectName, projectData }: ClientWrapperProps = {}) {
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
       <ErrorBoundary>
-        <ClientApp />
+        <ClientApp projectId={projectId} projectName={projectName} projectData={projectData} />
       </ErrorBoundary>
     </div>
   );
