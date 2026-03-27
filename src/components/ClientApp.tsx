@@ -175,6 +175,16 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
   const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
   const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload' | 'transparent' | 'desktop-mobile'>('desktop-mobile');
 
+  // Ref for programmatic open/close of secondary image source modes disclosure
+  const secondaryModesRef = useRef<HTMLDetailsElement>(null);
+
+  // Sync the secondary modes disclosure open state with the active tab
+  useEffect(() => {
+    if (secondaryModesRef.current) {
+      secondaryModesRef.current.open = activeImageSourceTab !== 'desktop-mobile';
+    }
+  }, [activeImageSourceTab]);
+
   // Project persistence state
   const [currentProjectId, setCurrentProjectId] = useState<string | undefined>(initialProjectId);
   const [currentProjectName, setCurrentProjectName] = useState<string>(initialProjectName || 'Untitled Project');
@@ -2606,58 +2616,33 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                   >
                     <div className="form-section">
                       <div className="slds-form-element slds-form-element_stacked">
-                        <div className="slds-tabs_scoped">
-                          <ul className="slds-tabs_scoped__nav slds-tabs_responsive" role="tablist">
-                            <li className={`slds-tabs_scoped__item ${activeImageSourceTab === 'url' ? 'slds-is-active' : ''}`} role="presentation">
-                              <button
-                                className="slds-tabs_scoped__link"
-                                role="tab"
-                                aria-selected={activeImageSourceTab === 'url'}
-                                aria-controls="image-url-tab-content"
-                                id="image-url-tab"
-                                onClick={() => handleImageSourceTabChange('url')}
-                              >
-                                Image URL
-                              </button>
-                            </li>
-                            <li className={`slds-tabs_scoped__item ${activeImageSourceTab === 'upload' ? 'slds-is-active' : ''}`} role="presentation">
-                              <button
-                                className="slds-tabs_scoped__link"
-                                role="tab"
-                                aria-selected={activeImageSourceTab === 'upload'}
-                                aria-controls="image-upload-tab-content"
-                                id="image-upload-tab"
-                                onClick={() => handleImageSourceTabChange('upload')}
-                              >
-                                Image Upload
-                              </button>
-                            </li>
-                            <li className={`slds-tabs_scoped__item ${activeImageSourceTab === 'transparent' ? 'slds-is-active' : ''}`} role="presentation">
-                              <button
-                                className="slds-tabs_scoped__link"
-                                role="tab"
-                                aria-selected={activeImageSourceTab === 'transparent'}
-                                aria-controls="transparent-canvas-tab-content"
-                                id="transparent-canvas-tab"
-                                onClick={() => handleImageSourceTabChange('transparent')}
-                              >
-                                Transparent Canvas
-                              </button>
-                            </li>
-                            <li className={`slds-tabs_scoped__item ${activeImageSourceTab === 'desktop-mobile' ? 'slds-is-active' : ''}`} role="presentation">
-                              <button
-                                className="slds-tabs_scoped__link"
-                                role="tab"
-                                aria-selected={activeImageSourceTab === 'desktop-mobile'}
-                                aria-controls="desktop-mobile-tab-content"
-                                id="desktop-mobile-tab"
-                                onClick={() => handleImageSourceTabChange('desktop-mobile')}
-                              >
-                                Desktop & Mobile
-                              </button>
-                            </li>
-                          </ul>
-                          <div id="image-url-tab-content" className={`slds-tabs_scoped__content ${activeImageSourceTab === 'url' ? '' : 'slds-hide'}`} role="tabpanel" aria-labelledby="image-url-tab">
+                        <div className="image-source-modes">
+                          {/* Other image source modes - collapsible disclosure */}
+                          <details className="other-source-modes-details" ref={secondaryModesRef}>
+                            <summary className="other-source-summary">
+                              <svg style={{ width: '0.75rem', height: '0.75rem', fill: 'currentColor', transition: 'transform 150ms' }} className="other-source-chevron" aria-hidden="true">
+                                <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevronright"></use>
+                              </svg>
+                              Other image source modes
+                            </summary>
+                            <div className="other-source-modes-content slds-m-top_small">
+                              {activeImageSourceTab !== 'desktop-mobile' && (
+                                <button
+                                  className="slds-button slds-button_neutral slds-button_stretch slds-m-bottom_small"
+                                  onClick={() => handleImageSourceTabChange('desktop-mobile')}
+                                >
+                                  ← Back to Desktop &amp; Mobile
+                                </button>
+                              )}
+                              <div className="source-mode-pills slds-m-bottom_small">
+                                <div className="slds-button-group" role="group">
+                                  <button className={`slds-button ${activeImageSourceTab === 'url' ? 'slds-button_brand' : 'slds-button_neutral'}`} onClick={() => handleImageSourceTabChange('url')}>Image URL</button>
+                                  <button className={`slds-button ${activeImageSourceTab === 'upload' ? 'slds-button_brand' : 'slds-button_neutral'}`} onClick={() => handleImageSourceTabChange('upload')}>Image Upload</button>
+                                  <button className={`slds-button ${activeImageSourceTab === 'transparent' ? 'slds-button_brand' : 'slds-button_neutral'}`} onClick={() => handleImageSourceTabChange('transparent')}>Transparent Canvas</button>
+                                </div>
+                              </div>
+                              {activeImageSourceTab === 'url' && (
+                              <div id="image-url-tab-content">
                             <div className="slds-form-element__control">
                               <label className="slds-form-element__label" htmlFor="imageUrl">
                                 <abbr className="slds-required" title="required">*</abbr>
@@ -2678,15 +2663,17 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                   className="slds-input"
                                   placeholder="https://example.com/image.jpg"
                                   aria-describedby="imageUrlHelp"
-                                  required={activeImageSourceTab !== 'upload'}
+                                  required
                                 />
                               </div>
                               <div className="slds-form-element__help" id="imageUrlHelp">
                                 Enter the URL of the image you want to add text to
                               </div>
                             </div>
-                          </div>
-                          <div id="image-upload-tab-content" className={`slds-tabs_scoped__content ${activeImageSourceTab === 'upload' ? '' : 'slds-hide'}`} role="tabpanel" aria-labelledby="image-upload-tab">
+                              </div>
+                              )}
+                              {activeImageSourceTab === 'upload' && (
+                              <div id="image-upload-tab-content">
                             <div className="slds-notify slds-notify_alert slds-theme_warning slds-m-bottom_small" role="alert">
                               <div className="slds-notify__content">
                                 <div className="slds-media slds-media_center">
@@ -2725,8 +2712,10 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                 Select an image file from your computer (JPG, PNG, or GIF)
                               </div>
                             </div>
-                          </div>
-                          <div id="transparent-canvas-tab-content" className={`slds-tabs_scoped__content ${activeImageSourceTab === 'transparent' ? '' : 'slds-hide'}`} role="tabpanel" aria-labelledby="transparent-canvas-tab">
+                              </div>
+                              )}
+                              {activeImageSourceTab === 'transparent' && (
+                              <div id="transparent-canvas-tab-content">
                             <div className="slds-notify slds-notify_alert slds-theme_info slds-m-bottom_small" role="alert">
                               <div className="slds-notify__content">
                                 <div className="slds-media slds-media_center">
@@ -2790,8 +2779,12 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                             <div className="slds-form-element__help slds-m-top_small">
                               Set custom dimensions for your transparent canvas. Common sizes: 800x600, 1200x630 (social media), 1920x1080 (HD)
                             </div>
-                          </div>
-                          <div id="desktop-mobile-tab-content" className={`slds-tabs_scoped__content ${activeImageSourceTab === 'desktop-mobile' ? '' : 'slds-hide'}`} role="tabpanel" aria-labelledby="desktop-mobile-tab">
+                              </div>
+                              )}
+                            </div>
+                          </details>
+                          {activeImageSourceTab === 'desktop-mobile' && (
+                          <div id="desktop-mobile-tab-content">
                             {/* Canvas Dimensions - Separate Row */}
                             <div className="slds-form-element slds-m-bottom_medium slds-m-top_x-large" style={{ clear: 'both', width: '100%' }}>
                               <fieldset className="slds-form-element">
@@ -2997,6 +2990,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                               </div>
                             </div>
                           </div>
+                          )}
                         </div>
                       </div>
                     </div>

@@ -3359,6 +3359,63 @@ input.font-size-percentage-input {
   color: var(--slds-g-color-neutral-base-70, #aeaeae);
 }
 
+/* Other image source modes disclosure */
+.other-source-modes-details {
+  margin-bottom: 0.75rem;
+}
+.other-source-modes-details summary {
+  list-style: none;
+}
+.other-source-modes-details summary::-webkit-details-marker {
+  display: none;
+}
+.other-source-summary {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: #706e6b;
+  text-transform: uppercase;
+  padding: 0.5rem 0;
+}
+.other-source-summary:hover {
+  color: #514f4d;
+}
+.other-source-modes-details[open] .other-source-chevron {
+  transform: rotate(90deg);
+}
+.other-source-chevron {
+  transition: transform 150ms ease;
+}
+.other-source-modes-content {
+  padding: 0.75rem;
+  background: #f3f3f3;
+  border-radius: 0.25rem;
+  border: 1px solid #e5e5e5;
+}
+.source-mode-pills .slds-button-group {
+  display: flex;
+  width: 100%;
+}
+.source-mode-pills .slds-button-group .slds-button {
+  flex: 1;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.5rem;
+}
+.slds-theme_dark .other-source-summary {
+  color: var(--slds-g-color-neutral-base-70, #aeaeae);
+}
+.slds-theme_dark .other-source-summary:hover {
+  color: var(--slds-g-color-neutral-base-80, #c9c9c9);
+}
+.slds-theme_dark .other-source-modes-content {
+  background: var(--slds-g-color-neutral-base-10, #2a2a2a);
+  border-color: var(--slds-g-color-neutral-base-20, #3a3a3a);
+}
+
 /* Inline delete confirm/cancel actions */
 .inline-delete-actions {
   display: flex;
