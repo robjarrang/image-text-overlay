@@ -141,6 +141,7 @@ body {
 /* Improved preview area */
 .preview-container {
   border-radius: 0.5rem;
+  margin-bottom: 0;
 }
 
 .slds-theme_dark .preview-container {
@@ -157,6 +158,12 @@ body {
   justify-content: center;
   align-items: center;
   width: 100%;
+  margin-bottom: 0;
+}
+
+/* Reduce gap between preview canvas and footer buttons */
+.sticky-preview-column .slds-card__body {
+  padding-bottom: 0.5rem;
 }
 
 /* Enhanced button styling */

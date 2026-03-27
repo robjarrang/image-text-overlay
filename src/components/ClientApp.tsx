@@ -3818,13 +3818,11 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
               </div>
             )}
             {isLoading ? (
-              <div className="slds-illustration slds-illustration_small slds-p-around_large animate-pulse">
-                <div className="slds-align_absolute-center">
-                  <div className="slds-spinner slds-spinner_medium" role="status" aria-live="polite">
-                    <span className="slds-assistive-text">Loading preview</span>
-                    <div className="slds-spinner__dot-a"></div>
-                    <div className="slds-spinner__dot-b"></div>
-                  </div>
+              <div className="slds-illustration slds-illustration_small slds-p-around_large animate-pulse" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }}>
+                <div className="slds-spinner slds-spinner_medium" role="status" aria-live="polite">
+                  <span className="slds-assistive-text">Loading preview</span>
+                  <div className="slds-spinner__dot-a"></div>
+                  <div className="slds-spinner__dot-b"></div>
                 </div>
               </div>
             ) : error ? (
