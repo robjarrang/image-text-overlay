@@ -3416,6 +3416,54 @@ input.font-size-percentage-input {
   border-color: var(--slds-g-color-neutral-base-20, #3a3a3a);
 }
 
+/* Preset Logos disclosure */
+.preset-logos-details {
+  margin-top: 0.25rem;
+}
+.preset-logos-details summary {
+  list-style: none;
+}
+.preset-logos-details summary::-webkit-details-marker {
+  display: none;
+}
+.preset-logos-summary {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: #706e6b;
+  text-transform: uppercase;
+  padding: 0.35rem 0;
+}
+.preset-logos-summary:hover {
+  color: #514f4d;
+}
+.preset-logos-details[open] .preset-logos-chevron {
+  transform: rotate(90deg);
+}
+.preset-logos-chevron {
+  transition: transform 150ms ease;
+}
+.preset-logos-content {
+  padding: 0.5rem 0.75rem;
+  background: #fafaf9;
+  border: 1px solid #e5e5e5;
+  border-radius: 0.25rem;
+}
+.slds-theme_dark .preset-logos-summary {
+  color: var(--slds-g-color-neutral-base-70, #aeaeae);
+}
+.slds-theme_dark .preset-logos-summary:hover {
+  color: var(--slds-g-color-neutral-base-80, #c9c9c9);
+}
+.slds-theme_dark .preset-logos-content {
+  background: var(--slds-g-color-neutral-base-10, #2a2a2a);
+  border-color: var(--slds-g-color-neutral-base-20, #3a3a3a);
+}
+
 /* Inline delete confirm/cancel actions */
 .inline-delete-actions {
   display: flex;

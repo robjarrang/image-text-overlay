@@ -3517,38 +3517,27 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                           </div>
                         </div>
 
-                        {/* Secondary Option: Preset Logos */}
-                        <div 
-                          className="slds-box slds-box_xx-small slds-theme_shade" 
-                          style={{ borderRadius: '4px', backgroundColor: '#fafaf9', padding: '8px 12px' }}
-                        >
-                          <div className="slds-grid slds-grid_align-spread slds-grid_vertical-align-center" style={{ marginBottom: '6px' }}>
-                            <div className="slds-media slds-media_center">
-                              <div className="slds-media__figure">
-                                <svg className="slds-icon slds-icon_x-small slds-icon-text-default" aria-hidden="true">
-                                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#apps"></use>
-                                </svg>
-                              </div>
-                              <div className="slds-media__body">
-                                <span className="slds-text-body_regular">
-                                  Quick Add: Preset Logos
-                                </span>
-                              </div>
-                            </div>
+                        {/* Secondary Option: Preset Logos - collapsible */}
+                        <details className="preset-logos-details">
+                          <summary className="preset-logos-summary">
+                            <svg style={{ width: '0.75rem', height: '0.75rem', fill: 'currentColor', transition: 'transform 150ms' }} className="preset-logos-chevron" aria-hidden="true">
+                              <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevronright"></use>
+                            </svg>
+                            Preset Logos
                             {loadingPresetLogos && (
-                              <div className="slds-text-body_small slds-text-color_weak">
+                              <span className="slds-text-body_small slds-text-color_weak" style={{ marginLeft: '0.5rem' }}>
                                 <div className="slds-spinner slds-spinner_xx-small slds-spinner_inline" role="status" style={{ marginRight: '0.25rem' }}>
                                   <span className="slds-assistive-text">Loading</span>
                                   <div className="slds-spinner__dot-a"></div>
                                   <div className="slds-spinner__dot-b"></div>
                                 </div>
-                                Loading presets...
-                              </div>
+                                Loading...
+                              </span>
                             )}
-                          </div>
+                          </summary>
                           
                           {presetLogos && (
-                            <div>
+                            <div className="preset-logos-content slds-m-top_small">
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
                                 {/* System Logos - Secondary Actions */}
                                 {presetLogos.systemLogos.map((logo) => (
@@ -3591,7 +3580,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                               </div>
                             </div>
                           )}
-                        </div>
+                        </details>
                       </div>
 
                       {/* Image Overlays List - Improved */}
