@@ -2985,9 +2985,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                   </label>
                                 </div>
                               </div>
-                              <div className="slds-form-element__help slds-m-top_xx-small">
-                                When enabled, the Milwaukee logo will be added to the top-left corner of the image
-                              </div>
+                
                             </div>
                           </div>
                           )}

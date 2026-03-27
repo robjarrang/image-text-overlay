@@ -627,10 +627,7 @@ This stays left
             style={{ borderRadius: '8px', overflow: 'hidden' }}
           />
         </div>
-        {/* Help text moved outside the rich-text-editor-wrapper for proper focus handling */}
-        <div className="slds-form-element__help help-text-container" id="textInputHelp">
-          Select text and use the formatting buttons above to apply alignment or superscript formatting
-        </div>
+
       </div>
     </div>
   );
