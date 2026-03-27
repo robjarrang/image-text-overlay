@@ -3778,7 +3778,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
           <div className="slds-card__body slds-p-around_medium">
             {/* Desktop/Mobile version tabs above preview */}
             {activeImageSourceTab === 'desktop-mobile' && (
-              <div className="preview-version-tabs slds-m-bottom_small">
+              <div className="preview-version-tabs slds-m-bottom_xx-small">
                 <div className="slds-tabs_scoped">
                   <ul className="slds-tabs_scoped__nav" role="tablist">
                     <li className={`slds-tabs_scoped__item${desktopMobileVersion === 'desktop' ? ' slds-is-active' : ''}`} role="presentation">

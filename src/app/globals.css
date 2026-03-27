@@ -161,9 +161,16 @@ body {
   margin-bottom: 0;
 }
 
-/* Reduce gap between preview canvas and footer buttons */
+/* Tighten vertical spacing in preview panel to prevent scrollbar */
+.sticky-preview-column .slds-card__header {
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+}
 .sticky-preview-column .slds-card__body {
-  padding-bottom: 0.5rem;
+  padding: 0.5rem 0.75rem 0.25rem;
+}
+.sticky-preview-column .slds-card__footer {
+  padding: 0.5rem 0.75rem;
 }
 
 /* Enhanced button styling */
@@ -2629,7 +2636,7 @@ main,
   overflow-x: hidden !important;
   overflow-y: auto !important;
   z-index: 10 !important;
-  padding-bottom: 20px !important;
+  padding-bottom: 8px !important;
   box-sizing: border-box !important;
 }
 
