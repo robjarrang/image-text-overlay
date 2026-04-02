@@ -63,6 +63,10 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
 
+  // New project creation
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+
   // Move project state
   const [movingProject, setMovingProject] = useState<ProjectSummary | null>(null);
   const [moveTargetFolders, setMoveTargetFolders] = useState<FolderTreeItem[]>([]);
@@ -149,11 +153,11 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
 
   // Focus edit input when editing
   useEffect(() => {
-    if ((editingFolderId || editingProjectId || isCreatingFolder) && editInputRef.current) {
+    if ((editingFolderId || editingProjectId || isCreatingFolder || isCreatingProject) && editInputRef.current) {
       editInputRef.current.focus();
       editInputRef.current.select();
     }
-  }, [editingFolderId, editingProjectId, isCreatingFolder]);
+  }, [editingFolderId, editingProjectId, isCreatingFolder, isCreatingProject]);
 
   // --- Folder CRUD ---
   const handleCreateFolder = async () => {
@@ -176,6 +180,26 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
       }
     } catch (err) {
       console.error('Error creating folder:', err);
+    }
+  };
+
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) return;
+    try {
+      const folderId = view === 'folder' && currentFolder ? currentFolder.id : null;
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newProjectName.trim(), folderId, data: {} }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setNewProjectName('');
+        setIsCreatingProject(false);
+        onOpenProject(result.id);
+      }
+    } catch (err) {
+      console.error('Error creating project:', err);
     }
   };
 
@@ -453,6 +477,16 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
             {(view === 'root' || view === 'folder') && (
               <button
                 className="slds-button slds-button_icon slds-button_icon-border-filled"
+                aria-label="New project"
+                title="New project"
+                onClick={() => { setIsCreatingProject(true); setNewProjectName('New Project'); }}
+              >
+                <Icons.Add size="x-small" />
+              </button>
+            )}
+            {(view === 'root' || view === 'folder') && (
+              <button
+                className="slds-button slds-button_icon slds-button_icon-border-filled"
                 aria-label="New folder"
                 title="New folder"
                 onClick={() => { setIsCreatingFolder(true); setNewFolderName('New Folder'); }}
@@ -563,6 +597,25 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                       </button>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Create new project inline */}
+              {isCreatingProject && (view === 'root' || view === 'folder') && (
+                <div className="projects-browser-item projects-browser-item--editing">
+                  <Icons.File size="x-small" />
+                  <input
+                    ref={editInputRef}
+                    className="slds-input projects-browser-inline-input"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCreateProject();
+                      if (e.key === 'Escape') { setIsCreatingProject(false); setNewProjectName(''); }
+                    }}
+                    onBlur={() => { if (newProjectName.trim()) handleCreateProject(); else setIsCreatingProject(false); }}
+                    placeholder="Project name"
+                  />
                 </div>
               )}
 

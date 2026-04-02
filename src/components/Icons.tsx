@@ -42,5 +42,6 @@ export const Icons = {
   File: (props: IconProps) => <UtilityIcon {...props} iconName="file" />,
   Back: (props: IconProps) => <UtilityIcon {...props} iconName="back" />,
   List: (props: IconProps) => <UtilityIcon {...props} iconName="list" />,
-  Copy: (props: IconProps) => <UtilityIcon {...props} iconName="copy" />
+  Copy: (props: IconProps) => <UtilityIcon {...props} iconName="copy" />,
+  Add: (props: IconProps) => <UtilityIcon {...props} iconName="add" />
 };
