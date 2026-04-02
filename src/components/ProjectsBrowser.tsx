@@ -491,7 +491,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                 title="New folder"
                 onClick={() => { setIsCreatingFolder(true); setNewFolderName('New Folder'); }}
               >
-                <Icons.New size="x-small" />
+                <Icons.OpenFolder size="x-small" />
               </button>
             )}
             <button
