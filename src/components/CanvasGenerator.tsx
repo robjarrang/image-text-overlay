@@ -79,6 +79,9 @@ export function CanvasGenerator({
   const resizeInitialWidthRef = useRef(0);
   const resizeAlignmentRef = useRef<'left' | 'center' | 'right'>('left');
 
+  // Snap guide state for alignment assistance during drag
+  const SNAP_THRESHOLD = 10; // pixels in canvas space
+
   // Background image dragging state (for desktop-mobile mode)
   const [isDraggingBg, setIsDraggingBg] = useState(false);
   const bgDragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number } | null>(null);
@@ -1101,6 +1104,274 @@ export function CanvasGenerator({
     }
   };
 
+  // --- Snap alignment helpers ---
+
+  // Get full bounding box of a text overlay in pixel coordinates
+  const getFullTextOverlayPixelBounds = (
+    overlay: TextOverlay,
+    canvasWidth: number,
+    canvasHeight: number,
+    overrideXPercent?: number,
+    overrideYPercent?: number
+  ): { left: number; right: number; top: number; bottom: number } | null => {
+    let effectiveX = overrideXPercent ?? overlay.x;
+    let effectiveY = overrideYPercent ?? overlay.y;
+    if (overrideXPercent === undefined && overrideYPercent === undefined) {
+      if (isDesktopMobileMode && desktopMobileVersion) {
+        if (desktopMobileVersion === 'desktop') {
+          effectiveX = overlay.desktopX ?? overlay.x;
+          effectiveY = overlay.desktopY ?? overlay.y;
+        } else if (desktopMobileVersion === 'mobile') {
+          effectiveX = overlay.mobileX ?? overlay.x;
+          effectiveY = overlay.mobileY ?? overlay.y;
+        }
+      }
+    }
+
+    let effectiveFontSize = overlay.fontSize;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop' && overlay.desktopFontSize !== undefined) {
+        effectiveFontSize = overlay.desktopFontSize;
+      } else if (desktopMobileVersion === 'mobile' && overlay.mobileFontSize !== undefined) {
+        effectiveFontSize = overlay.mobileFontSize;
+      }
+    }
+
+    const actualX = (effectiveX / 100) * canvasWidth;
+    const actualY = (effectiveY / 100) * canvasHeight;
+    const scaledFontSize = (effectiveFontSize / 100) * canvasWidth;
+    const lineHeight = scaledFontSize * 1.2;
+    const lines = processText(overlay.text, overlay.alignment);
+    if (lines.length === 0) return null;
+
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return null;
+
+    let minLeft = Infinity;
+    let maxRight = -Infinity;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      let totalWidth = 0;
+      line.parts.forEach(part => {
+        const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+        const text = overlay.allCaps ? part.text.toUpperCase() : part.text;
+        totalWidth += ctx.measureText(text).width;
+      });
+
+      let lineStartX = actualX;
+      if (line.align === 'center') lineStartX = actualX - totalWidth / 2;
+      else if (line.align === 'right') lineStartX = actualX - totalWidth;
+
+      minLeft = Math.min(minLeft, lineStartX);
+      maxRight = Math.max(maxRight, lineStartX + totalWidth);
+    }
+
+    const top = actualY - scaledFontSize;
+    const bottom = actualY + (lines.length - 1) * lineHeight;
+
+    return { left: minLeft, right: maxRight, top, bottom };
+  };
+
+  // Get full bounding box of an image overlay in pixel coordinates
+  const getFullImageOverlayPixelBounds = (
+    overlay: ImageOverlay,
+    canvasWidth: number,
+    canvasHeight: number,
+    overrideXPercent?: number,
+    overrideYPercent?: number
+  ): { left: number; right: number; top: number; bottom: number } => {
+    let effectiveX = overrideXPercent ?? overlay.x;
+    let effectiveY = overrideYPercent ?? overlay.y;
+    if (overrideXPercent === undefined && overrideYPercent === undefined) {
+      if (isDesktopMobileMode && desktopMobileVersion) {
+        if (desktopMobileVersion === 'desktop') {
+          effectiveX = overlay.desktopX ?? overlay.x;
+          effectiveY = overlay.desktopY ?? overlay.y;
+        } else if (desktopMobileVersion === 'mobile') {
+          effectiveX = overlay.mobileX ?? overlay.x;
+          effectiveY = overlay.mobileY ?? overlay.y;
+        }
+      }
+    }
+
+    let effectiveWidth = overlay.width;
+    let effectiveHeight = overlay.height;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop') {
+        effectiveWidth = overlay.desktopWidth ?? overlay.width;
+        effectiveHeight = overlay.desktopHeight ?? overlay.height;
+      } else if (desktopMobileVersion === 'mobile') {
+        effectiveWidth = overlay.mobileWidth ?? overlay.width;
+        effectiveHeight = overlay.mobileHeight ?? overlay.height;
+      }
+    }
+
+    const left = (effectiveX / 100) * canvasWidth;
+    const top = (effectiveY / 100) * canvasHeight;
+    const right = left + (effectiveWidth / 100) * canvasWidth;
+    const bottom = top + (effectiveHeight / 100) * canvasWidth; // height uses canvasWidth per existing code
+
+    return { left, right, top, bottom };
+  };
+
+  // Collect snap target lines from all overlays except the dragged one, plus canvas edges
+  const collectSnapTargets = (excludeId: string, canvasWidth: number, canvasHeight: number) => {
+    const xLines: number[] = [];
+    const yLines: number[] = [];
+
+    // Canvas edges and center
+    xLines.push(0, canvasWidth / 2, canvasWidth);
+    yLines.push(0, canvasHeight / 2, canvasHeight);
+
+    for (const overlay of textOverlays) {
+      if (overlay.id === excludeId) continue;
+      const bounds = getFullTextOverlayPixelBounds(overlay, canvasWidth, canvasHeight);
+      if (!bounds) continue;
+      xLines.push(bounds.left, bounds.right, (bounds.left + bounds.right) / 2);
+      yLines.push(bounds.top, bounds.bottom, (bounds.top + bounds.bottom) / 2);
+    }
+
+    for (const overlay of imageOverlays) {
+      if (overlay.id === excludeId) continue;
+      const bounds = getFullImageOverlayPixelBounds(overlay, canvasWidth, canvasHeight);
+      xLines.push(bounds.left, bounds.right, (bounds.left + bounds.right) / 2);
+      yLines.push(bounds.top, bounds.bottom, (bounds.top + bounds.bottom) / 2);
+    }
+
+    return { xLines, yLines };
+  };
+
+  // Find best snap offset and active guide lines
+  const computeSnap = (
+    draggedBounds: { left: number; right: number; top: number; bottom: number },
+    targets: { xLines: number[]; yLines: number[] },
+    threshold: number
+  ) => {
+    const draggedCenterX = (draggedBounds.left + draggedBounds.right) / 2;
+    const draggedCenterY = (draggedBounds.top + draggedBounds.bottom) / 2;
+
+    let bestXDist = threshold + 1;
+    let snapDeltaX = 0;
+    const guideXLines: number[] = [];
+
+    const xEdges = [draggedBounds.left, draggedBounds.right, draggedCenterX];
+    for (const target of targets.xLines) {
+      for (const edge of xEdges) {
+        const dist = Math.abs(edge - target);
+        if (dist < bestXDist) {
+          bestXDist = dist;
+          snapDeltaX = target - edge;
+          guideXLines.length = 0;
+          guideXLines.push(target);
+        }
+      }
+    }
+    if (bestXDist > threshold) {
+      snapDeltaX = 0;
+      guideXLines.length = 0;
+    }
+
+    let bestYDist = threshold + 1;
+    let snapDeltaY = 0;
+    const guideYLines: number[] = [];
+
+    const yEdges = [draggedBounds.top, draggedBounds.bottom, draggedCenterY];
+    for (const target of targets.yLines) {
+      for (const edge of yEdges) {
+        const dist = Math.abs(edge - target);
+        if (dist < bestYDist) {
+          bestYDist = dist;
+          snapDeltaY = target - edge;
+          guideYLines.length = 0;
+          guideYLines.push(target);
+        }
+      }
+    }
+    if (bestYDist > threshold) {
+      snapDeltaY = 0;
+      guideYLines.length = 0;
+    }
+
+    return { snapDeltaX, snapDeltaY, guideXLines, guideYLines };
+  };
+
+  // Draw snap guide lines on the overlay canvas
+  const drawSnapGuides = (guideXLines: number[], guideYLines: number[]) => {
+    const overlayCanvas = overlayCanvasRef.current;
+    const mainCanvas = canvasRef.current;
+    if (!overlayCanvas || !mainCanvas) return;
+
+    if (overlayCanvas.width !== mainCanvas.width || overlayCanvas.height !== mainCanvas.height) {
+      overlayCanvas.width = mainCanvas.width;
+      overlayCanvas.height = mainCanvas.height;
+    }
+
+    const ctx = overlayCanvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+    if (guideXLines.length === 0 && guideYLines.length === 0) return;
+
+    ctx.save();
+    ctx.strokeStyle = '#FF00FF';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6, 3]);
+    ctx.globalAlpha = 0.85;
+
+    for (const x of guideXLines) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, overlayCanvas.height);
+      ctx.stroke();
+    }
+
+    for (const y of guideYLines) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(overlayCanvas.width, y);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  };
+
+  // Apply snapping to a proposed position during drag
+  const applySnapToPosition = (
+    draggedOverlay: string,
+    proposedX: number,
+    proposedY: number,
+    canvasWidth: number,
+    canvasHeight: number
+  ): { x: number; y: number } => {
+    const textOv = textOverlays.find(o => o.id === draggedOverlay);
+    const imageOv = imageOverlays.find(o => o.id === draggedOverlay);
+
+    let draggedBounds: { left: number; right: number; top: number; bottom: number } | null = null;
+    if (textOv) {
+      draggedBounds = getFullTextOverlayPixelBounds(textOv, canvasWidth, canvasHeight, proposedX, proposedY);
+    } else if (imageOv) {
+      draggedBounds = getFullImageOverlayPixelBounds(imageOv, canvasWidth, canvasHeight, proposedX, proposedY);
+    }
+
+    if (!draggedBounds) {
+      drawSnapGuides([], []);
+      return { x: proposedX, y: proposedY };
+    }
+
+    const targets = collectSnapTargets(draggedOverlay, canvasWidth, canvasHeight);
+    const snap = computeSnap(draggedBounds, targets, SNAP_THRESHOLD);
+
+    const snappedX = Math.max(0, Math.min(100, proposedX + (snap.snapDeltaX / canvasWidth) * 100));
+    const snappedY = Math.max(0, Math.min(100, proposedY + (snap.snapDeltaY / canvasHeight) * 100));
+
+    drawSnapGuides(snap.guideXLines, snap.guideYLines);
+
+    return { x: snappedX, y: snappedY };
+  };
+
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current) return;
     const hasOverlays = textOverlays.length > 0 || imageOverlays.length > 0;
@@ -1405,10 +1676,13 @@ export function CanvasGenerator({
       const deltaXPercent = (deltaX / canvas.width) * 100;
       const deltaYPercent = (deltaY / canvas.height) * 100;
       
-      const newX = Math.max(0, Math.min(100, initialDragPosition.x + deltaXPercent));
-      const newY = Math.max(0, Math.min(100, initialDragPosition.y + deltaYPercent));
+      const proposedX = Math.max(0, Math.min(100, initialDragPosition.x + deltaXPercent));
+      const proposedY = Math.max(0, Math.min(100, initialDragPosition.y + deltaYPercent));
       
-      onPositionChange?.(draggedOverlayId, newX, newY);
+      // Apply snapping
+      const snapped = applySnapToPosition(draggedOverlayId, proposedX, proposedY, canvas.width, canvas.height);
+      
+      onPositionChange?.(draggedOverlayId, snapped.x, snapped.y);
     } else if (textOverlays.length > 0 || imageOverlays.length > 0) {
       // Handle hover detection when not dragging or resizing
       let foundHover = false;
@@ -1481,6 +1755,7 @@ export function CanvasGenerator({
       canvasRef.current.style.cursor = 'grab';
       setIsDragging(false);
       setDraggedOverlayId(null);
+      drawSnapGuides([], []);
     }
   };
 
@@ -1495,6 +1770,7 @@ export function CanvasGenerator({
     if (isDragging) {
       setIsDragging(false);
       setDraggedOverlayId(null);
+      drawSnapGuides([], []);
     }
     if (isResizing) {
       setIsResizing(false);
@@ -1603,10 +1879,13 @@ export function CanvasGenerator({
     const touchY = (touch.clientY - rect.top) * scaleFactorY;
     
     // Calculate new position as percentage of canvas dimensions - fixing Y axis to use height
-    const newX = Math.max(0, Math.min(100, ((touchX - dragOffset.x) / canvas.width) * 100));
-    const newY = Math.max(0, Math.min(100, ((touchY - dragOffset.y) / canvas.height) * 100));
+    const proposedX = Math.max(0, Math.min(100, ((touchX - dragOffset.x) / canvas.width) * 100));
+    const proposedY = Math.max(0, Math.min(100, ((touchY - dragOffset.y) / canvas.height) * 100));
     
-    onPositionChange?.(draggedOverlayId, newX, newY);
+    // Apply snapping
+    const snapped = applySnapToPosition(draggedOverlayId, proposedX, proposedY, canvas.width, canvas.height);
+    
+    onPositionChange?.(draggedOverlayId, snapped.x, snapped.y);
     e.preventDefault(); // Prevent scrolling while dragging
   };
 
@@ -1617,6 +1896,7 @@ export function CanvasGenerator({
     }
     setIsDragging(false);
     setDraggedOverlayId(null);
+    drawSnapGuides([], []);
   };
 
   const handleMouseEnter = () => {
