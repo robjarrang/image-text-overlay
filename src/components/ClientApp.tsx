@@ -1755,7 +1755,8 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `overlay-${Date.now()}.${fileExtension}`;
+      const baseName = currentProjectName ? currentProjectName.replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '_') : `overlay-${Date.now()}`;
+      a.download = `${baseName}.${fileExtension}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1812,7 +1813,8 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
       const contentType = response.headers.get('content-type') || 'image/png';
       const fileExtension = contentType.includes('jpeg') ? 'jpg' : 'png';
       
-      a.download = `overlay-${version}-${Date.now()}.${fileExtension}`;
+      const baseName = currentProjectName ? currentProjectName.replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '_') : `overlay-${Date.now()}`;
+      a.download = `${baseName}_${version}.${fileExtension}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -1943,7 +1945,8 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
       a.style.display = 'none';
       a.href = url;
       const tradeName = tradeOverlays.map(o => o.presetLogoId || 'badge').join('-');
-      a.download = `${tradeName}-all-languages-${Date.now()}.zip`;
+      const zipBaseName = currentProjectName ? currentProjectName.replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '_') : tradeName;
+      a.download = `${zipBaseName}-all-languages-${Date.now()}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
