@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import * as opentype from 'opentype.js';
 import { Icons } from './Icons';
 import { TextOverlay, ImageOverlay } from './ClientApp';
 
@@ -62,6 +63,7 @@ export function CanvasGenerator({
   const [imageAspectRatio, setImageAspectRatio] = useState<number>(1);
   const [fontLoaded, setFontLoaded] = useState(false);
   const fontLoadingAttempted = useRef(false);
+  const opentypeFontRef = useRef<opentype.Font | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [draggedOverlayId, setDraggedOverlayId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -135,16 +137,29 @@ export function CanvasGenerator({
     fontLoadingAttempted.current = true;
 
     const loadFont = async () => {
+      const localUrl = '/fonts/Helvetica%20Neue%20LT%20Pro%2093%20Black%20Extended.otf';
+      const backupUrl = 'https://jarrang-font.s3.eu-west-2.amazonaws.com/milwaukee/Helvetica%20Neue%20LT%20Pro%2093%20Black%20Extended.otf';
+
+      let fontArrayBuffer: ArrayBuffer | null = null;
+
       try {
         // Try loading from local first
         const font = new FontFace(
           'HelveticaNeue-Condensed',
-          'url(/fonts/Helvetica%20Neue%20LT%20Pro%2093%20Black%20Extended.otf)'
+          `url(${localUrl})`
         );
 
         await font.load();
         document.fonts.add(font);
         setFontLoaded(true);
+
+        // Also fetch the raw font data for opentype.js parsing
+        try {
+          const resp = await fetch(localUrl);
+          fontArrayBuffer = await resp.arrayBuffer();
+        } catch (e) {
+          console.warn('Failed to fetch font for opentype.js:', e);
+        }
       } catch (localError) {
         console.warn('Failed to load font locally, trying backup URL:', localError);
         
@@ -152,16 +167,32 @@ export function CanvasGenerator({
           // Fallback to S3 URL as a last resort
           const font = new FontFace(
             'HelveticaNeue-Condensed',
-            'url(https://jarrang-font.s3.eu-west-2.amazonaws.com/milwaukee/Helvetica%20Neue%20LT%20Pro%2093%20Black%20Extended.otf)'
+            `url(${backupUrl})`
           );
 
           await font.load();
           document.fonts.add(font);
           setFontLoaded(true);
+
+          try {
+            const resp = await fetch(backupUrl);
+            fontArrayBuffer = await resp.arrayBuffer();
+          } catch (e) {
+            console.warn('Failed to fetch backup font for opentype.js:', e);
+          }
         } catch (backupError) {
           console.error('Failed to load font from backup source:', backupError);
           // Continue with system fonts
           setFontLoaded(true);
+        }
+      }
+
+      // Parse the font with opentype.js for accurate glyph bounds measurement
+      if (fontArrayBuffer) {
+        try {
+          opentypeFontRef.current = opentype.parse(fontArrayBuffer);
+        } catch (e) {
+          console.warn('Failed to parse font with opentype.js:', e);
         }
       }
     };
@@ -1175,7 +1206,9 @@ export function CanvasGenerator({
       if (line.align === 'center') lineStartX = actualX - advanceWidth / 2;
       else if (line.align === 'right') lineStartX = actualX - advanceWidth;
 
-      // Second pass: measure true visual edges using TextMetrics on the main canvas
+      // Second pass: measure true visual edges using opentype.js glyph paths
+      // (falls back to TextMetrics if opentype font not available)
+      const otFont = opentypeFontRef.current;
       let cursorX = lineStartX;
       for (let p = 0; p < line.parts.length; p++) {
         const part = line.parts[p];
@@ -1183,21 +1216,40 @@ export function CanvasGenerator({
         const textY = currentY - (part.isSuper ? scaledFontSize * 0.3 : 0);
         ctx.font = `${partSize}px HelveticaNeue-Condensed`;
         const text = overlay.allCaps ? part.text.toUpperCase() : part.text;
-        const metrics = ctx.measureText(text);
 
-        // actualBoundingBoxLeft: positive = ink extends left of origin
-        // actualBoundingBoxRight: positive = ink extends right of origin
-        const left = cursorX - metrics.actualBoundingBoxLeft;
-        const right = cursorX + metrics.actualBoundingBoxRight;
-        const top = textY - metrics.actualBoundingBoxAscent;
-        const bottom = textY + metrics.actualBoundingBoxDescent;
+        if (otFont && text.trim().length > 0) {
+          // opentype.js getPath returns paths in canvas coordinate space
+          // x,y are the baseline origin — same as fillText(text, x, y)
+          const path = otFont.getPath(text, 0, 0, partSize);
+          const bbox = path.getBoundingBox();
 
-        minLeft = Math.min(minLeft, left);
-        maxRight = Math.max(maxRight, right);
-        minTop = Math.min(minTop, top);
-        maxBottom = Math.max(maxBottom, bottom);
+          // bbox.x1/x2 are relative to the origin (0), offset by cursorX
+          // bbox.y1/y2 are relative to the baseline (0), offset by textY
+          const left = cursorX + bbox.x1;
+          const right = cursorX + bbox.x2;
+          const top = textY + bbox.y1;
+          const bottom = textY + bbox.y2;
 
-        cursorX += metrics.width;
+          minLeft = Math.min(minLeft, left);
+          maxRight = Math.max(maxRight, right);
+          minTop = Math.min(minTop, top);
+          maxBottom = Math.max(maxBottom, bottom);
+        } else {
+          // Fallback: use TextMetrics (less accurate for side bearings)
+          const metrics = ctx.measureText(text);
+          const left = cursorX - metrics.actualBoundingBoxLeft;
+          const right = cursorX + metrics.actualBoundingBoxRight;
+          const top = textY - metrics.actualBoundingBoxAscent;
+          const bottom = textY + metrics.actualBoundingBoxDescent;
+
+          minLeft = Math.min(minLeft, left);
+          maxRight = Math.max(maxRight, right);
+          minTop = Math.min(minTop, top);
+          maxBottom = Math.max(maxBottom, bottom);
+        }
+
+        // Advance cursor using canvas measureText width (matches fillText rendering)
+        cursorX += ctx.measureText(text).width;
       }
     }
 
