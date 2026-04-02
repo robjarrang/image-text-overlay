@@ -81,6 +81,8 @@ export function CanvasGenerator({
 
   // Snap guide state for alignment assistance during drag
   const SNAP_THRESHOLD = 10; // pixels in canvas space
+  // Cache for pixel-scanned glyph edge measurements (survives re-renders, cleared on unmount)
+  const visualEdgeCacheRef = useRef<Map<string, number>>(new Map());
 
   // Background image dragging state (for desktop-mobile mode)
   const [isDraggingBg, setIsDraggingBg] = useState(false);
@@ -1106,6 +1108,78 @@ export function CanvasGenerator({
 
   // --- Snap alignment helpers ---
 
+  // Measure the pixel offset from fillText origin to the leftmost visible pixel of a glyph.
+  // Uses offscreen canvas rendering + pixel scanning for accuracy with custom fonts.
+  // Returns a positive number if the glyph starts to the right of the origin (left side bearing).
+  const measureGlyphLeftOffset = (char: string, fontSpec: string, fontSize: number): number => {
+    const cacheKey = `L|${fontSpec}|${char}`;
+    const cached = visualEdgeCacheRef.current.get(cacheKey);
+    if (cached !== undefined) return cached;
+
+    const canvasSize = Math.ceil(fontSize * 3) || 1;
+    const offscreen = document.createElement('canvas');
+    offscreen.width = canvasSize;
+    offscreen.height = canvasSize;
+    const ctx = offscreen.getContext('2d');
+    if (!ctx) { visualEdgeCacheRef.current.set(cacheKey, 0); return 0; }
+
+    ctx.font = fontSpec;
+    ctx.fillStyle = '#FFF';
+    ctx.textBaseline = 'alphabetic';
+    const drawX = Math.ceil(fontSize);
+    const drawY = Math.ceil(fontSize * 2);
+    ctx.fillText(char, drawX, drawY);
+
+    const imgData = ctx.getImageData(0, 0, canvasSize, canvasSize);
+    const data = imgData.data;
+    for (let x = 0; x < canvasSize; x++) {
+      for (let y = 0; y < canvasSize; y++) {
+        if (data[(y * canvasSize + x) * 4 + 3] > 10) {
+          const offset = x - drawX;
+          visualEdgeCacheRef.current.set(cacheKey, offset);
+          return offset;
+        }
+      }
+    }
+    visualEdgeCacheRef.current.set(cacheKey, 0);
+    return 0;
+  };
+
+  // Measure the pixel offset from fillText origin to the rightmost visible pixel of a glyph.
+  const measureGlyphRightExtent = (char: string, fontSpec: string, fontSize: number): number => {
+    const cacheKey = `R|${fontSpec}|${char}`;
+    const cached = visualEdgeCacheRef.current.get(cacheKey);
+    if (cached !== undefined) return cached;
+
+    const canvasSize = Math.ceil(fontSize * 3) || 1;
+    const offscreen = document.createElement('canvas');
+    offscreen.width = canvasSize;
+    offscreen.height = canvasSize;
+    const ctx = offscreen.getContext('2d');
+    if (!ctx) return 0;
+
+    ctx.font = fontSpec;
+    ctx.fillStyle = '#FFF';
+    ctx.textBaseline = 'alphabetic';
+    const drawX = Math.ceil(fontSize);
+    const drawY = Math.ceil(fontSize * 2);
+    ctx.fillText(char, drawX, drawY);
+
+    const imgData = ctx.getImageData(0, 0, canvasSize, canvasSize);
+    const data = imgData.data;
+    for (let x = canvasSize - 1; x >= 0; x--) {
+      for (let y = 0; y < canvasSize; y++) {
+        if (data[(y * canvasSize + x) * 4 + 3] > 10) {
+          const offset = x - drawX;
+          visualEdgeCacheRef.current.set(cacheKey, offset);
+          return offset;
+        }
+      }
+    }
+    visualEdgeCacheRef.current.set(cacheKey, 0);
+    return 0;
+  };
+
   // Get full bounding box of a text overlay in pixel coordinates
   const getFullTextOverlayPixelBounds = (
     overlay: TextOverlay,
@@ -1149,53 +1223,61 @@ export function CanvasGenerator({
 
     let minLeft = Infinity;
     let maxRight = -Infinity;
-    let minTop = Infinity;
-    let maxBottom = -Infinity;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const currentY = actualY + i * lineHeight;
 
-      // First pass: measure advance widths to determine line start X per alignment
+      // Measure advance widths per part to determine line start X per alignment
       let advanceWidth = 0;
+      const partAdvances: number[] = [];
       line.parts.forEach(part => {
         const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
         ctx.font = `${partSize}px HelveticaNeue-Condensed`;
         const text = overlay.allCaps ? part.text.toUpperCase() : part.text;
-        advanceWidth += ctx.measureText(text).width;
+        const w = ctx.measureText(text).width;
+        partAdvances.push(w);
+        advanceWidth += w;
       });
 
       let lineStartX = actualX;
       if (line.align === 'center') lineStartX = actualX - advanceWidth / 2;
       else if (line.align === 'right') lineStartX = actualX - advanceWidth;
 
-      // Second pass: compute true visual bounds using actualBoundingBox metrics
-      let cursorX = lineStartX;
-      for (let p = 0; p < line.parts.length; p++) {
-        const part = line.parts[p];
-        const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
-        const textY = currentY - (part.isSuper ? scaledFontSize * 0.3 : 0);
-        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
-        const text = overlay.allCaps ? part.text.toUpperCase() : part.text;
-        const metrics = ctx.measureText(text);
+      // Visual LEFT edge: pixel-scan the first character of the first part
+      if (line.parts.length > 0 && line.parts[0].text.length > 0) {
+        const firstPart = line.parts[0];
+        const firstPartSize = firstPart.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+        const fontSpec = `${firstPartSize}px HelveticaNeue-Condensed`;
+        const firstChar = overlay.allCaps ? firstPart.text.charAt(0).toUpperCase() : firstPart.text.charAt(0);
+        const leftOffset = measureGlyphLeftOffset(firstChar, fontSpec, firstPartSize);
+        minLeft = Math.min(minLeft, lineStartX + leftOffset);
+      } else {
+        minLeft = Math.min(minLeft, lineStartX);
+      }
 
-        // actualBoundingBoxLeft: distance left of the origin to the visual edge (positive = left)
-        // actualBoundingBoxRight: distance right of the origin to the visual edge
-        const visualLeft = cursorX - (metrics.actualBoundingBoxLeft ?? 0);
-        const visualRight = cursorX + (metrics.actualBoundingBoxRight ?? metrics.width);
-        const visualTop = textY - (metrics.actualBoundingBoxAscent ?? partSize);
-        const visualBottom = textY + (metrics.actualBoundingBoxDescent ?? 0);
-
-        minLeft = Math.min(minLeft, visualLeft);
-        maxRight = Math.max(maxRight, visualRight);
-        minTop = Math.min(minTop, visualTop);
-        maxBottom = Math.max(maxBottom, visualBottom);
-
-        cursorX += metrics.width;
+      // Visual RIGHT edge: pixel-scan the last character of the last part
+      const lastIdx = line.parts.length - 1;
+      if (lastIdx >= 0 && line.parts[lastIdx].text.length > 0) {
+        const lastPart = line.parts[lastIdx];
+        const lastPartSize = lastPart.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+        const fontSpec = `${lastPartSize}px HelveticaNeue-Condensed`;
+        const lastChar = overlay.allCaps
+          ? lastPart.text.charAt(lastPart.text.length - 1).toUpperCase()
+          : lastPart.text.charAt(lastPart.text.length - 1);
+        ctx.font = fontSpec;
+        const lastCharAdvance = ctx.measureText(lastChar).width;
+        const lastCharOrigin = lineStartX + advanceWidth - lastCharAdvance;
+        const rightExtent = measureGlyphRightExtent(lastChar, fontSpec, lastPartSize);
+        maxRight = Math.max(maxRight, lastCharOrigin + rightExtent);
+      } else {
+        maxRight = Math.max(maxRight, lineStartX + advanceWidth);
       }
     }
 
-    return { left: minLeft, right: maxRight, top: minTop, bottom: maxBottom };
+    const top = actualY - scaledFontSize;
+    const bottom = actualY + (lines.length - 1) * lineHeight;
+
+    return { left: minLeft, right: maxRight, top, bottom };
   };
 
   // Get full bounding box of an image overlay in pixel coordinates
