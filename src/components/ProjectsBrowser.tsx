@@ -480,7 +480,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                 className="slds-button slds-button_icon slds-button_icon-border-filled"
                 aria-label="New project"
                 title="New project"
-                onClick={() => { setIsCreatingProject(true); setNewProjectName('New Project'); }}
+                onClick={() => { setIsCreatingProject(true); setNewProjectName(''); }}
               >
                 <Icons.Add size="x-small" />
               </button>
