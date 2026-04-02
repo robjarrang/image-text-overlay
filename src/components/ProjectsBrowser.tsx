@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Icons } from './Icons';
+import { TickerText } from './TickerText';
 
 interface Folder {
   id: string;
@@ -736,7 +737,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
               <Icons.File size="x-small" />
               <div className="projects-browser-item-info">
                 <span className="projects-browser-item-name">
-                  {project.name}
+                  <TickerText text={project.name} />
                   {isCurrent && <span className="projects-browser-current-badge">Current</span>}
                 </span>
                 <span className="projects-browser-item-date">
@@ -813,7 +814,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
               }}
             >
               <Icons.OpenFolder size="x-small" />
-              <span className="projects-browser-item-name">{folder.name}</span>
+              <span className="projects-browser-item-name"><TickerText text={folder.name} /></span>
               <span className="projects-browser-item-badge">{itemCount}</span>
               <Icons.ChevronRight size="x-small" />
             </button>

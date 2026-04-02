@@ -3,6 +3,7 @@ import dynamic from 'next/dynamic';
 import LZString from 'lz-string';
 import { Icons } from './Icons';
 import { ProjectsBrowser } from './ProjectsBrowser';
+import { TickerText } from './TickerText';
 
 const CanvasGenerator = dynamic(() => import('./CanvasGenerator').then(mod => ({ default: mod.CanvasGenerator })), {
   ssr: false
@@ -2578,8 +2579,8 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                 Image Settings
               </h1>
               {currentProjectId && (
-                <span className="slds-badge" style={{ whiteSpace: 'nowrap', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={currentProjectName}>
-                  {currentProjectName}
+                <span className="slds-badge" style={{ maxWidth: '200px', overflow: 'hidden' }}>
+                  <TickerText text={currentProjectName} />
                 </span>
               )}
             </div>
