@@ -1149,29 +1149,53 @@ export function CanvasGenerator({
 
     let minLeft = Infinity;
     let maxRight = -Infinity;
+    let minTop = Infinity;
+    let maxBottom = -Infinity;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      let totalWidth = 0;
+      const currentY = actualY + i * lineHeight;
+
+      // First pass: measure advance widths to determine line start X per alignment
+      let advanceWidth = 0;
       line.parts.forEach(part => {
         const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
         ctx.font = `${partSize}px HelveticaNeue-Condensed`;
         const text = overlay.allCaps ? part.text.toUpperCase() : part.text;
-        totalWidth += ctx.measureText(text).width;
+        advanceWidth += ctx.measureText(text).width;
       });
 
       let lineStartX = actualX;
-      if (line.align === 'center') lineStartX = actualX - totalWidth / 2;
-      else if (line.align === 'right') lineStartX = actualX - totalWidth;
+      if (line.align === 'center') lineStartX = actualX - advanceWidth / 2;
+      else if (line.align === 'right') lineStartX = actualX - advanceWidth;
 
-      minLeft = Math.min(minLeft, lineStartX);
-      maxRight = Math.max(maxRight, lineStartX + totalWidth);
+      // Second pass: compute true visual bounds using actualBoundingBox metrics
+      let cursorX = lineStartX;
+      for (let p = 0; p < line.parts.length; p++) {
+        const part = line.parts[p];
+        const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+        const textY = currentY - (part.isSuper ? scaledFontSize * 0.3 : 0);
+        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+        const text = overlay.allCaps ? part.text.toUpperCase() : part.text;
+        const metrics = ctx.measureText(text);
+
+        // actualBoundingBoxLeft: distance left of the origin to the visual edge (positive = left)
+        // actualBoundingBoxRight: distance right of the origin to the visual edge
+        const visualLeft = cursorX - (metrics.actualBoundingBoxLeft ?? 0);
+        const visualRight = cursorX + (metrics.actualBoundingBoxRight ?? metrics.width);
+        const visualTop = textY - (metrics.actualBoundingBoxAscent ?? partSize);
+        const visualBottom = textY + (metrics.actualBoundingBoxDescent ?? 0);
+
+        minLeft = Math.min(minLeft, visualLeft);
+        maxRight = Math.max(maxRight, visualRight);
+        minTop = Math.min(minTop, visualTop);
+        maxBottom = Math.max(maxBottom, visualBottom);
+
+        cursorX += metrics.width;
+      }
     }
 
-    const top = actualY - scaledFontSize;
-    const bottom = actualY + (lines.length - 1) * lineHeight;
-
-    return { left: minLeft, right: maxRight, top, bottom };
+    return { left: minLeft, right: maxRight, top: minTop, bottom: maxBottom };
   };
 
   // Get full bounding box of an image overlay in pixel coordinates
