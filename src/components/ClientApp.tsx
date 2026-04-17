@@ -401,7 +401,8 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
       fontColor: '#FFFFFF', // Default color (white)
       x: 10, // Default position (10% from left)
       y: 10 + (formState.textOverlays.length * 10) % 80, // Staggered positioning
-      alignment: 'left'
+      alignment: 'left',
+      allCaps: true
     };
     
     setFormState(prev => ({
