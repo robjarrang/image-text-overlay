@@ -176,6 +176,15 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
   const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
   const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload' | 'transparent' | 'desktop-mobile'>('desktop-mobile');
 
+  // Scroll-to-top FAB visibility (mobile). Tracks page scroll position.
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 320);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   // Ref for programmatic open/close of secondary image source modes disclosure
   const secondaryModesRef = useRef<HTMLDetailsElement>(null);
 
@@ -4278,6 +4287,20 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
           </div>
         </div>
       )}
+
+      {/* Scroll-to-top FAB — mobile only, appears after scrolling down */}
+      <button
+        type="button"
+        className={`scroll-top-fab${showScrollTop ? ' scroll-top-fab--visible' : ''}`}
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        aria-label="Scroll to top"
+        aria-hidden={!showScrollTop}
+        tabIndex={showScrollTop ? 0 : -1}
+      >
+        <svg className="scroll-top-fab__icon" aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M12 5l-7 7h4v7h6v-7h4z" fill="currentColor" />
+        </svg>
+      </button>
 
     </div>
   );
