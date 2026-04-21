@@ -420,7 +420,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1 }}>
             {view !== 'root' && view !== 'all' && (
               <button
-                className="slds-button slds-button_icon slds-button_icon-border-filled"
+                className="projects-browser-icon-btn"
                 aria-label="Back"
                 onClick={navigateUp}
                 style={{ flexShrink: 0 }}
@@ -430,7 +430,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
             )}
             {view === 'all' && (
               <button
-                className="slds-button slds-button_icon slds-button_icon-border-filled"
+                className="projects-browser-icon-btn"
                 aria-label="Back"
                 onClick={() => { setView('root'); setCurrentFolder(null); setBreadcrumbs([{ id: null, name: 'Projects' }]); fetchRoot(); }}
                 style={{ flexShrink: 0 }}
@@ -467,7 +467,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
           <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
             {view === 'root' && (
               <button
-                className="slds-button slds-button_icon slds-button_icon-border-filled"
+                className="projects-browser-icon-btn"
                 aria-label="View all projects"
                 title="View all projects"
                 onClick={fetchAll}
@@ -477,7 +477,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
             )}
             {(view === 'root' || view === 'folder') && (
               <button
-                className="slds-button slds-button_icon slds-button_icon-border-filled"
+                className="projects-browser-icon-btn"
                 aria-label="New project"
                 title="New project"
                 onClick={() => { setIsCreatingProject(true); setNewProjectName(''); }}
@@ -487,7 +487,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
             )}
             {(view === 'root' || view === 'folder') && (
               <button
-                className="slds-button slds-button_icon slds-button_icon-border-filled"
+                className="projects-browser-icon-btn"
                 aria-label="New folder"
                 title="New folder"
                 onClick={() => { setIsCreatingFolder(true); setNewFolderName('New Folder'); }}
@@ -496,7 +496,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
               </button>
             )}
             <button
-              className="slds-button slds-button_icon slds-button_icon-border-filled"
+              className="projects-browser-icon-btn"
               aria-label="Close projects browser"
               onClick={onClose}
             >
@@ -747,7 +747,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
             </button>
             <div className="projects-browser-item-actions">
                 <button
-                  className="slds-button slds-button_icon slds-button_icon-x-small"
+                  className="projects-browser-icon-btn projects-browser-icon-btn--small"
                   aria-label="Rename project"
                   title="Rename"
                   onClick={(e) => { e.stopPropagation(); setEditingProjectId(project.id); setEditingProjectName(project.name); }}
@@ -755,7 +755,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                   <Icons.Edit size="x-small" />
                 </button>
                 <button
-                  className="slds-button slds-button_icon slds-button_icon-x-small"
+                  className="projects-browser-icon-btn projects-browser-icon-btn--small"
                   aria-label="Duplicate project"
                   title="Duplicate"
                   onClick={(e) => { e.stopPropagation(); handleDuplicateProject(project); }}
@@ -763,7 +763,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                   <Icons.Copy size="x-small" />
                 </button>
                 <button
-                  className="slds-button slds-button_icon slds-button_icon-x-small"
+                  className="projects-browser-icon-btn projects-browser-icon-btn--small"
                   aria-label="Move to folder"
                   title="Move to folder"
                   onClick={(e) => { e.stopPropagation(); openMovePicker(project); }}
@@ -771,7 +771,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                   <Icons.OpenFolder size="x-small" />
                 </button>
                 <button
-                  className="slds-button slds-button_icon slds-button_icon-x-small"
+                  className="projects-browser-icon-btn projects-browser-icon-btn--small"
                   aria-label="Delete project"
                   title="Delete"
                   onClick={(e) => { e.stopPropagation(); setConfirmDelete({ type: 'project', id: project.id, name: project.name }); }}
@@ -820,7 +820,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
             </button>
             <div className="projects-browser-item-actions">
               <button
-                className="slds-button slds-button_icon slds-button_icon-x-small"
+                className="projects-browser-icon-btn projects-browser-icon-btn--small"
                 aria-label="Rename folder"
                 title="Rename"
                 onClick={(e) => { e.stopPropagation(); setEditingFolderId(folder.id); setEditingFolderName(folder.name); }}
@@ -828,7 +828,7 @@ export function ProjectsBrowser({ isOpen, onClose, onOpenProject, currentProject
                 <Icons.Edit size="x-small" />
               </button>
               <button
-                className="slds-button slds-button_icon slds-button_icon-x-small"
+                className="projects-browser-icon-btn projects-browser-icon-btn--small"
                 aria-label="Delete folder"
                 title="Delete"
                 onClick={(e) => { e.stopPropagation(); setConfirmDelete({ type: 'folder', id: folder.id, name: folder.name }); }}

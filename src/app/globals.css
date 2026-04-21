@@ -3597,6 +3597,63 @@ input.font-size-percentage-input {
   border-bottom-color: var(--slds-g-color-border-base-4, #444);
 }
 
+/*
+ * Header icon button — intentionally does NOT use `.slds-button_icon*`
+ * classes. Inside the SFMC Content Builder iframe those SLDS classes
+ * were collapsing the inline <svg> and producing blank buttons, even
+ * though identical <Icons.*> usages inside plain buttons elsewhere in
+ * the same panel (e.g. `.projects-browser-move-item`) rendered fine.
+ * This custom class mirrors the SLDS `icon-border-filled` look without
+ * relying on any of the `.slds-button_icon` sub-rules.
+ */
+.projects-browser-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--slds-g-color-border-base-4, #c9c9c9);
+  background-color: var(--slds-g-color-neutral-base-100, #fff);
+  color: var(--slds-g-color-neutral-base-50, #747474);
+  border-radius: 0.25rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: border-color 0.15s linear, background-color 0.15s linear;
+}
+.projects-browser-icon-btn:hover {
+  border-color: var(--slds-g-color-border-base-2, #939393);
+  background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
+}
+.projects-browser-icon-btn:focus {
+  outline: 2px solid var(--slds-g-color-brand-base-50, #0176d3);
+  outline-offset: 2px;
+}
+.projects-browser-icon-btn:disabled {
+  color: var(--slds-g-color-neutral-base-80, #c9c9c9);
+  border-color: var(--slds-g-color-border-base-1, #c9c9c9);
+  cursor: not-allowed;
+}
+/* Borderless x-small variant for row action buttons. */
+.projects-browser-icon-btn--small {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-color: transparent;
+  background-color: transparent;
+}
+.projects-browser-icon-btn--small:hover {
+  border-color: transparent;
+  background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
+}
+.slds-theme_dark .projects-browser-icon-btn {
+  border-color: #444;
+  background-color: #2b2826;
+  color: #e5e5e5;
+}
+.slds-theme_dark .projects-browser-icon-btn:hover {
+  background-color: #3a3735;
+}
+
 /* Breadcrumb navigation */
 .projects-browser-breadcrumbs {
   display: flex;
