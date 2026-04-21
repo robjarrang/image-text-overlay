@@ -3947,6 +3947,11 @@ input.font-size-percentage-input {
     background: var(--slds-g-color-neutral-base-10, #181818) !important;
   }
 
+  /* ── Prevent inputs inside grid columns from overflowing their flex cell ── */
+  .slds-grid .slds-col {
+    min-width: 0;
+  }
+
   /* ── Prevent iOS auto-zoom when focusing inputs ── */
   input[type="text"],
   input[type="url"],
