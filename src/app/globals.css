@@ -3947,14 +3947,6 @@ input.font-size-percentage-input {
     background: var(--slds-g-color-neutral-base-10, #181818) !important;
   }
 
-  /* ── Prevent number inputs from overflowing their flex cell ── */
-  .slds-col input[type="number"],
-  .slds-col input[type="text"],
-  .slds-col input[type="url"] {
-    max-width: 100%;
-    min-width: 0;
-  }
-
   /* ── Prevent iOS auto-zoom when focusing inputs ── */
   input[type="text"],
   input[type="url"],
@@ -4135,6 +4127,27 @@ input.font-size-percentage-input {
     min-height: 44px;
   }
 
+  /* ── Canvas Dimensions — stack vertically on mobile ──
+     The default 2-column grid pushes the Height field offscreen on narrow
+     viewports because number inputs have an intrinsic min-width. Stacking
+     them avoids all flex-overflow issues and is easier to read. */
+  #desktop-mobile-tab-content .slds-grid.slds-gutters_small,
+  #transparent-canvas-tab-content .slds-grid.slds-gutters_small {
+    display: block !important;
+  }
+  #desktop-mobile-tab-content .slds-grid.slds-gutters_small > .slds-col,
+  #transparent-canvas-tab-content .slds-grid.slds-gutters_small > .slds-col {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-bottom: 0.75rem;
+  }
+  #desktop-mobile-tab-content .slds-grid.slds-gutters_small > .slds-col:last-child,
+  #transparent-canvas-tab-content .slds-grid.slds-gutters_small > .slds-col:last-child {
+    margin-bottom: 0;
+  }
+
   /* ── Preview panel: let the canvas breathe ── */
   .sticky-preview-column .slds-card__body {
     padding: 0.5rem !important;
@@ -4144,10 +4157,59 @@ input.font-size-percentage-input {
     background: transparent;
   }
 
-  /* ── Footer action buttons — stack on very small screens ── */
-  .slds-card__footer .slds-grid_align-spread {
+  /* ── Hide redundant 'Preview' heading on mobile; tab bar indicates context ── */
+  .sticky-preview-column > .slds-card > .slds-card__header {
+    display: none;
+  }
+
+  /* ── Desktop/Mobile version tabs — large segmented control on mobile ── */
+  .preview-version-tabs {
+    padding: 0.25rem;
+    margin-bottom: 0.75rem !important;
+  }
+  .preview-version-tabs .slds-tabs_scoped__nav {
+    background: var(--slds-g-color-neutral-base-95, #f3f3f3);
+    border-radius: 8px;
+    padding: 4px;
+    gap: 4px;
+    border: none;
+  }
+  .slds-theme_dark .preview-version-tabs .slds-tabs_scoped__nav {
+    background: var(--slds-g-color-neutral-base-20, #2e2e2e);
+  }
+  .preview-version-tabs .slds-tabs_scoped__item {
+    flex: 1;
+    margin: 0;
+  }
+  .preview-version-tabs .slds-tabs_scoped__link {
+    min-height: 40px;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    border: none;
+    font-weight: 500;
+    color: var(--slds-g-color-neutral-base-30, #444);
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .preview-version-tabs .slds-tabs_scoped__item.slds-is-active .slds-tabs_scoped__link {
+    background: #fff;
+    color: var(--ui-accent-color, #0176d3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+  .slds-theme_dark .preview-version-tabs .slds-tabs_scoped__item.slds-is-active .slds-tabs_scoped__link {
+    background: var(--slds-g-color-neutral-base-10, #181818);
+  }
+
+  /* ── Preview footer — emphasise Download as primary action ── */
+  .sticky-preview-column .slds-card__footer .slds-grid_align-spread {
     gap: 0.5rem;
     flex-wrap: wrap;
+    align-items: stretch !important;
+  }
+  /* Download row gets more prominence */
+  .sticky-preview-column .slds-card__footer .download-button {
+    flex: 1 1 auto;
+    min-height: 44px;
+    font-weight: 600;
   }
 
   /* ── Better touch feedback on all interactive elements ── */

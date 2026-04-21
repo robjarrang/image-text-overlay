@@ -2781,7 +2781,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                               </div>
                             </div>
                             <div className="slds-grid slds-gutters_small">
-                              <div className="slds-col" style={{ minWidth: 0 }}>
+                              <div className="slds-col">
                                 <div className="slds-form-element">
                                   <label className="slds-form-element__label" htmlFor="canvasWidth">
                                     <abbr className="slds-required" title="required">*</abbr>
@@ -2803,7 +2803,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                   </div>
                                 </div>
                               </div>
-                              <div className="slds-col" style={{ minWidth: 0 }}>
+                              <div className="slds-col">
                                 <div className="slds-form-element">
                                   <label className="slds-form-element__label" htmlFor="canvasHeight">
                                     <abbr className="slds-required" title="required">*</abbr>
@@ -2843,7 +2843,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                 </legend>
                                 <div className="slds-form-element__control">
                                   <div className="slds-grid slds-gutters_small">
-                                    <div className="slds-col slds-size_1-of-2" style={{ minWidth: 0 }}>
+                                    <div className="slds-col slds-size_1-of-2">
                                       <div className="slds-form-element">
                                         <label className="slds-form-element__label" htmlFor={`${desktopMobileVersion}Width`}>
                                           Width (px)
@@ -2864,7 +2864,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                         </div>
                                       </div>
                                     </div>
-                                    <div className="slds-col slds-size_1-of-2" style={{ minWidth: 0 }}>
+                                    <div className="slds-col slds-size_1-of-2">
                                       <div className="slds-form-element">
                                         <label className="slds-form-element__label" htmlFor={`${desktopMobileVersion}Height`}>
                                           Height (px)
