@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import fs from "node:fs";
+import path from "node:path";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { SpriteLoader } from "@/components/SpriteLoader";
 import "@salesforce-ux/design-system/assets/styles/salesforce-lightning-design-system.css";
 import "./globals.css";
 
@@ -15,6 +16,31 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: "cover",
 };
+
+// Read the SLDS utility sprite from disk at module-load time and inline it
+// into the initial HTML. External-file `<use xlinkHref=".../symbols.svg#id">`
+// references don't inherit host-document CSS in Safari/Firefox, and a
+// client-side fetch has a race window before paint. Inlining the sprite
+// into the document body once means every `<use href="#id">` resolves
+// against a same-document `<symbol>`, so CSS — including our
+// `--slds-c-icon-color-foreground: currentColor` override — cascades
+// reliably into the icon paths.
+const spriteMarkup = (() => {
+  try {
+    const file = path.join(
+      process.cwd(),
+      "public",
+      "assets",
+      "icons",
+      "utility-sprite",
+      "svg",
+      "symbols.svg",
+    );
+    return fs.readFileSync(file, "utf8");
+  } catch {
+    return "";
+  }
+})();
 
 export default function RootLayout({
   children,
@@ -36,8 +62,14 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: embedDetect }} />
       </head>
       <body>
+        {/* Inlined SLDS utility sprite — see comment on spriteMarkup above. */}
+        <div
+          id="slds-utility-sprite"
+          aria-hidden="true"
+          style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}
+          dangerouslySetInnerHTML={{ __html: spriteMarkup }}
+        />
         <ThemeProvider />
-        <SpriteLoader />
         {children}
       </body>
     </html>
