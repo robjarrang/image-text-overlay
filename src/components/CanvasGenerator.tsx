@@ -2,6 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { Icons } from './Icons';
 import { TextOverlay, ImageOverlay } from './ClientApp';
 
+// Safe-margin used to warn the user when an overlay is getting too close to
+// the canvas edge. Expressed as a percentage of canvas width/height so the
+// margin scales consistently across desktop and mobile aspect ratios.
+// 3% matches common print safe-area conventions (~37px on a 1240px canvas).
+const SAFE_MARGIN_PERCENT = 3;
+
+// Warning colour palette. Amber chosen so it reads as "caution" without
+// conflicting with the blue selection UI or the red delete/destructive UI.
+const WARN_COLOR_SOLID = 'rgba(245, 158, 11, 1)';      // amber-500
+const WARN_COLOR_FILL = 'rgba(245, 158, 11, 0.12)';
+const WARN_COLOR_DASH = 'rgba(245, 158, 11, 0.6)';
+
 interface CanvasGeneratorProps {
   textOverlays: TextOverlay[];
   imageOverlays: ImageOverlay[];
@@ -260,6 +272,219 @@ export function CanvasGenerator({
       // Put the modified image data back on the full canvas
       ctx.putImageData(imageData, 0, 0);
     }
+  };
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Near-edge detection helpers
+  //
+  // These compute the rendered bounding box of an overlay in canvas pixels
+  // so we can warn the user when content gets too close to the image edge
+  // (where it tends to look unprofessional or get cropped by frames).
+  // ────────────────────────────────────────────────────────────────────────
+
+  interface OverlayBounds {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  }
+
+  // Resolve effective X/Y/fontSize for a text overlay based on the current
+  // desktop-or-mobile view. Mirrors the logic in drawTextOverlay.
+  const resolveTextEffective = (overlay: TextOverlay) => {
+    let effectiveX = overlay.x;
+    let effectiveY = overlay.y;
+    let effectiveFontSize = overlay.fontSize;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop') {
+        effectiveX = overlay.desktopX ?? overlay.x;
+        effectiveY = overlay.desktopY ?? overlay.y;
+        if (overlay.desktopFontSize !== undefined) effectiveFontSize = overlay.desktopFontSize;
+      } else {
+        effectiveX = overlay.mobileX ?? overlay.x;
+        effectiveY = overlay.mobileY ?? overlay.y;
+        if (overlay.mobileFontSize !== undefined) effectiveFontSize = overlay.mobileFontSize;
+      }
+    }
+    return { effectiveX, effectiveY, effectiveFontSize };
+  };
+
+  // Compute the overall bounding box for a text overlay in canvas pixels.
+  // Accounts for multi-line wrapping, per-line alignment (left/center/right),
+  // all-caps transform, and super-script size reduction.
+  const computeTextBoundsPx = (
+    overlay: TextOverlay,
+    ctx: CanvasRenderingContext2D,
+    canvasWidth: number,
+    canvasHeight: number
+  ): OverlayBounds => {
+    const { effectiveX, effectiveY, effectiveFontSize } = resolveTextEffective(overlay);
+    const actualX = (effectiveX / 100) * canvasWidth;
+    const actualY = (effectiveY / 100) * canvasHeight;
+    const scaledFontSize = (effectiveFontSize / 100) * canvasWidth;
+    const lineHeight = scaledFontSize * 1.2;
+    const lines = processText(overlay.text, overlay.alignment);
+
+    let minLeft = Infinity;
+    let maxRight = -Infinity;
+    lines.forEach((line) => {
+      let totalLineWidth = 0;
+      line.parts.forEach((part) => {
+        const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
+        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+        const displayText = overlay.allCaps ? part.text.toUpperCase() : part.text;
+        totalLineWidth += ctx.measureText(displayText).width;
+      });
+      let lineStartX = actualX;
+      if (line.align === 'center') lineStartX = actualX - totalLineWidth / 2;
+      else if (line.align === 'right') lineStartX = actualX - totalLineWidth;
+      if (totalLineWidth > 0) {
+        minLeft = Math.min(minLeft, lineStartX);
+        maxRight = Math.max(maxRight, lineStartX + totalLineWidth);
+      }
+    });
+
+    // Empty text: collapse to a 1×1 zone at the anchor so isBoundsNearEdge
+    // still reports a sensible result.
+    if (!isFinite(minLeft)) {
+      minLeft = actualX;
+      maxRight = actualX;
+    }
+
+    const numLines = Math.max(1, lines.length);
+    // drawTextOverlay renders the first line's baseline at actualY; the
+    // glyph top sits roughly one font-size above the baseline.
+    const top = actualY - scaledFontSize;
+    const bottom = actualY + (numLines - 1) * lineHeight;
+    return { left: minLeft, top, right: maxRight, bottom };
+  };
+
+  // Compute bounding box for an image overlay in canvas pixels.
+  // Position (left/top) follows the anchor convention (% of canvas width/
+  // height). Width AND height are scaled off canvas width — this matches
+  // drawImageOverlay so the warning box lines up exactly with the rendered
+  // image regardless of canvas aspect ratio.
+  const computeImageBoundsPx = (
+    overlay: ImageOverlay,
+    canvasWidth: number,
+    canvasHeight: number
+  ): OverlayBounds => {
+    let effectiveX = overlay.x;
+    let effectiveY = overlay.y;
+    let effectiveWidth = overlay.width;
+    let effectiveHeight = overlay.height;
+    if (isDesktopMobileMode && desktopMobileVersion) {
+      if (desktopMobileVersion === 'desktop') {
+        effectiveX = overlay.desktopX ?? overlay.x;
+        effectiveY = overlay.desktopY ?? overlay.y;
+        effectiveWidth = overlay.desktopWidth ?? overlay.width;
+        effectiveHeight = overlay.desktopHeight ?? overlay.height;
+      } else {
+        effectiveX = overlay.mobileX ?? overlay.x;
+        effectiveY = overlay.mobileY ?? overlay.y;
+        effectiveWidth = overlay.mobileWidth ?? overlay.width;
+        effectiveHeight = overlay.mobileHeight ?? overlay.height;
+      }
+    }
+    const left = (effectiveX / 100) * canvasWidth;
+    const top = (effectiveY / 100) * canvasHeight;
+    const right = left + (effectiveWidth / 100) * canvasWidth;
+    const bottom = top + (effectiveHeight / 100) * canvasWidth; // matches draw-loop
+    return { left, top, right, bottom };
+  };
+
+  const isBoundsNearEdge = (
+    b: OverlayBounds,
+    canvasWidth: number,
+    canvasHeight: number
+  ): boolean => {
+    const marginX = (SAFE_MARGIN_PERCENT / 100) * canvasWidth;
+    const marginY = (SAFE_MARGIN_PERCENT / 100) * canvasHeight;
+    return (
+      b.left < marginX ||
+      b.right > canvasWidth - marginX ||
+      b.top < marginY ||
+      b.bottom > canvasHeight - marginY
+    );
+  };
+
+  // Draw the dashed "safe zone" rectangle inset from the canvas edges.
+  // Used during drag to show the user where the risk-free area sits.
+  const drawSafeZoneGuides = (
+    ctx: CanvasRenderingContext2D,
+    canvasWidth: number,
+    canvasHeight: number
+  ) => {
+    const marginX = (SAFE_MARGIN_PERCENT / 100) * canvasWidth;
+    const marginY = (SAFE_MARGIN_PERCENT / 100) * canvasHeight;
+    ctx.save();
+    ctx.strokeStyle = WARN_COLOR_DASH;
+    ctx.lineWidth = Math.max(1, canvasWidth * 0.002);
+    ctx.setLineDash([canvasWidth * 0.015, canvasWidth * 0.01]);
+    ctx.strokeRect(
+      marginX,
+      marginY,
+      canvasWidth - marginX * 2,
+      canvasHeight - marginY * 2
+    );
+    ctx.restore();
+  };
+
+  // Draw an amber bounding rectangle + a "Near edge" warning pill above the
+  // top-left corner of the overlay. Layered on top of the existing blue
+  // selection UI so the user sees both the selection and the warning.
+  const drawNearEdgeWarning = (
+    ctx: CanvasRenderingContext2D,
+    bounds: OverlayBounds,
+    canvasWidth: number
+  ) => {
+    ctx.save();
+    // Amber outline around the overlay bounds.
+    const pad = Math.max(2, canvasWidth * 0.004);
+    const boxX = bounds.left - pad;
+    const boxY = bounds.top - pad;
+    const boxW = bounds.right - bounds.left + pad * 2;
+    const boxH = bounds.bottom - bounds.top + pad * 2;
+    ctx.fillStyle = WARN_COLOR_FILL;
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.strokeStyle = WARN_COLOR_SOLID;
+    ctx.lineWidth = Math.max(2, canvasWidth * 0.003);
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+    // Warning pill sitting above the top-left corner of the box. Font size
+    // scales with canvas width so it reads well on both desktop and mobile
+    // render dimensions.
+    const fontPx = Math.max(11, canvasWidth * 0.018);
+    ctx.font = `600 ${fontPx}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    const label = '\u26A0 Near edge';
+    const metrics = ctx.measureText(label);
+    const pillPadX = fontPx * 0.6;
+    const pillPadY = fontPx * 0.35;
+    const pillW = metrics.width + pillPadX * 2;
+    const pillH = fontPx + pillPadY * 2;
+    // Keep the pill inside the canvas even when the overlay is hugging the
+    // top or left edge.
+    let pillX = boxX;
+    let pillY = boxY - pillH - 4;
+    if (pillY < 4) pillY = boxY + 4; // fall back to "inside" when no space above
+    if (pillX + pillW > canvasWidth - 4) pillX = canvasWidth - pillW - 4;
+    if (pillX < 4) pillX = 4;
+
+    // Pill background + rounded-ish corners via roundRect when available.
+    ctx.fillStyle = WARN_COLOR_SOLID;
+    const radius = pillH / 2;
+    if (typeof (ctx as any).roundRect === 'function') {
+      ctx.beginPath();
+      (ctx as any).roundRect(pillX, pillY, pillW, pillH, radius);
+      ctx.fill();
+    } else {
+      ctx.fillRect(pillX, pillY, pillW, pillH);
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, pillX + pillPadX, pillY + pillH / 2);
+    ctx.restore();
   };
 
   // Draw a single text overlay
@@ -609,6 +834,31 @@ export function CanvasGenerator({
     }
   }, [textOverlays, imageOverlays, imageUrl, width, height, brightness, tintColor, tintOpacity, imageZoom, imageX, imageY, fontLoaded, isDesktopMobileMode, desktopMobileVersion, showMilwaukeeLogo, milwaukeeLogoLoaded]);
 
+  // Keep the drag-time interaction layer in sync with overlay state.
+  // Fires whenever overlays change while the user is dragging — which
+  // happens on every mousemove because onPositionChange updates parent
+  // state. Using an effect (rather than calling draw inline in mousemove)
+  // ensures we read post-update state, so the amber warning tracks the
+  // cursor without lag.
+  useEffect(() => {
+    if (isDragging && draggedOverlayId) {
+      drawDragHighlight(draggedOverlayId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDragging, draggedOverlayId, textOverlays, imageOverlays, isDesktopMobileMode, desktopMobileVersion]);
+
+  // When a drag ends, clear the overlay canvas so the safe-zone guides
+  // and amber warning pill don't linger. Hover effects resume on next
+  // mousemove via the existing handler.
+  useEffect(() => {
+    if (!isDragging) {
+      const overlayCanvas = overlayCanvasRef.current;
+      if (!overlayCanvas) return;
+      const ctx = overlayCanvas.getContext('2d');
+      ctx?.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    }
+  }, [isDragging]);
+
   // Draw hover effects on the overlay canvas (separate from main canvas to prevent flicker)
   const drawHoverEffects = (hoveredId: string | null) => {
     const overlayCanvas = overlayCanvasRef.current;
@@ -658,9 +908,15 @@ export function CanvasGenerator({
       const actualX = (effectiveX / 100) * canvasWidth;
       const actualY = (effectiveY / 100) * canvasHeight;
       const actualWidth = (effectiveWidth / 100) * canvasWidth;
-      const actualHeight = (effectiveHeight / 100) * canvasWidth;
+      const actualHeight = (effectiveHeight / 100) * canvasWidth; // matches draw-loop height scaling
 
       drawImageHoverEffect(ctx, actualX, actualY, actualWidth, actualHeight);
+
+      // Layer near-edge warning on top if this image is hugging the edges.
+      const imgBounds = computeImageBoundsPx(imageOverlay, canvasWidth, canvasHeight);
+      if (isBoundsNearEdge(imgBounds, canvasWidth, canvasHeight)) {
+        drawNearEdgeWarning(ctx, imgBounds, canvasWidth);
+      }
       return;
     }
     
@@ -775,6 +1031,57 @@ export function CanvasGenerator({
         
         currentLineIndex++;
       });
+
+      // After drawing the per-part hover boxes, check the overall bounds
+      // and layer an amber warning if the text strays into the edge margin.
+      const textBounds = computeTextBoundsPx(textOverlay, ctx, canvasWidth, canvasHeight);
+      if (isBoundsNearEdge(textBounds, canvasWidth, canvasHeight)) {
+        drawNearEdgeWarning(ctx, textBounds, canvasWidth);
+      }
+    }
+  };
+
+  // Draw the drag-time interaction layer:
+  //   1. Dashed safe-zone rectangle inset from the canvas edges so the
+  //      user sees exactly where the risk-free area lies.
+  //   2. A near-edge amber warning (+ "Near edge" pill) on the dragged
+  //      overlay if its bounds cross the safe zone.
+  // The hover-layer guard `if (!hoveredId || isDragging || isResizing) return`
+  // skips hover drawing during drags, so this function owns the drag-time
+  // visuals on the overlay canvas.
+  const drawDragHighlight = (draggedId: string) => {
+    const overlayCanvas = overlayCanvasRef.current;
+    const mainCanvas = canvasRef.current;
+    if (!overlayCanvas || !mainCanvas) return;
+    if (overlayCanvas.width !== mainCanvas.width || overlayCanvas.height !== mainCanvas.height) {
+      overlayCanvas.width = mainCanvas.width;
+      overlayCanvas.height = mainCanvas.height;
+    }
+    const ctx = overlayCanvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+    const cw = overlayCanvas.width;
+    const ch = overlayCanvas.height;
+
+    // Always show safe-zone guides during drag — they help the user aim.
+    drawSafeZoneGuides(ctx, cw, ch);
+
+    // Resolve the dragged overlay and compute its bounds.
+    const img = imageOverlays.find((o) => o.id === draggedId);
+    if (img) {
+      const b = computeImageBoundsPx(img, cw, ch);
+      if (isBoundsNearEdge(b, cw, ch)) {
+        drawNearEdgeWarning(ctx, b, cw);
+      }
+      return;
+    }
+    const text = textOverlays.find((o) => o.id === draggedId);
+    if (text) {
+      const b = computeTextBoundsPx(text, ctx, cw, ch);
+      if (isBoundsNearEdge(b, cw, ch)) {
+        drawNearEdgeWarning(ctx, b, cw);
+      }
     }
   };
 
