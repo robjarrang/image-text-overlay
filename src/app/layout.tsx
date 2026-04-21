@@ -25,6 +25,13 @@ export const viewport: Viewport = {
 // against a same-document `<symbol>`, so CSS — including our
 // `--slds-c-icon-color-foreground: currentColor` override — cascades
 // reliably into the icon paths.
+//
+// NOTE: the sprite file ships with `display="none"` on its root <svg>.
+// In some browser/iframe combinations (notably certain Safari and
+// WebKit-embedded surfaces like SFMC Content Builder) a <symbol> nested
+// inside a display:none SVG is not discoverable by <use href="#id">
+// lookups. We strip that attribute and hide the sprite via the wrapper
+// div's inline style instead, which every engine honours correctly.
 const spriteMarkup = (() => {
   try {
     const file = path.join(
@@ -36,7 +43,8 @@ const spriteMarkup = (() => {
       "svg",
       "symbols.svg",
     );
-    return fs.readFileSync(file, "utf8");
+    const raw = fs.readFileSync(file, "utf8");
+    return raw.replace(/<svg([^>]*?)\s+display="none"/i, "<svg$1");
   } catch {
     return "";
   }
