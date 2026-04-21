@@ -35,6 +35,53 @@ export interface StoredProjectRef {
 let sdkInstance: BlockSdkInstance | null = null;
 let initialized = false;
 
+const HTML_ESCAPES: Record<string, string> = {
+  '<': '&lt;',
+  '>': '&gt;',
+  '&': '&amp;',
+  '"': '&quot;',
+};
+function escapeHtml(s: string): string {
+  return s.replace(/[<>&"]/g, (c) => HTML_ESCAPES[c] || c);
+}
+
+/**
+ * Build the HTML that SFMC renders into the email preview for this
+ * block. The banner is deliberately eye-catching (high-contrast red /
+ * yellow, "DELETE BEFORE SENDING" copy) so it cannot be confused with
+ * real email content and cannot be missed during QA. It is NOT the
+ * exported image — that is downloaded separately from the editor and
+ * placed in the email as an ordinary image block.
+ */
+function buildPlaceholderHtml(safeName: string, safeUrl: string, projectId: string): string {
+  // All styles inlined: SFMC strips <style> blocks and many email
+  // clients ignore them anyway. Table-based for broader email-client
+  // compatibility in the SFMC preview pane.
+  return (
+    `<!-- image-text-overlay project: ${projectId} — delete this block before sending. -->`
+    + `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" `
+    +   `style="border-collapse:collapse;background-color:#fef3c7;border:2px dashed #dc2626;">`
+    +   `<tr><td align="center" style="padding:16px 20px;font-family:Arial,Helvetica,sans-serif;">`
+    +     `<div style="font-size:11px;font-weight:bold;letter-spacing:0.1em;color:#dc2626;`
+    +       `text-transform:uppercase;margin-bottom:6px;">`
+    +       `⚠ Delete this block before sending`
+    +     `</div>`
+    +     `<a href="${safeUrl}" target="_blank" rel="noopener" `
+    +       `style="font-size:16px;font-weight:bold;color:#111827;text-decoration:underline;">`
+    +       `Click to open Image Overlay Tool`
+    +     `</a>`
+    +     `<div style="font-size:12px;color:#374151;margin-top:6px;">`
+    +       `Project: ${safeName}`
+    +     `</div>`
+    +     `<div style="font-size:11px;color:#6b7280;margin-top:8px;">`
+    +       `This is an editor placeholder — the final image must be exported and added as an image block.`
+    +     `</div>`
+    +   `</td></tr>`
+    + `</table>`
+  );
+}
+
+
 /**
  * True when the app is running inside an iframe — the only situation
  * in which the Block SDK can connect to a parent frame.
@@ -118,19 +165,13 @@ export async function storeProjectRef(
   if (!sdk) return;
   try {
     sdk.setData({ projectId, projectName, shareUrl });
-    // Minimal in-email placeholder. Users still export the final image
-    // separately; this just ensures the block isn't empty.
-    const safeName = projectName.replace(/[<>&"]/g, (c) => ({
-      '<': '&lt;',
-      '>': '&gt;',
-      '&': '&amp;',
-      '"': '&quot;',
-    }[c] || c));
+    // In-email placeholder. This is the HTML SFMC renders into the
+    // email preview for this block. It is intentionally loud so nobody
+    // can accidentally send it — the block is an editing aid, not
+    // real email content, and must be removed before sending.
+    const safeName = escapeHtml(projectName);
     const safeUrl = shareUrl.replace(/"/g, '&quot;');
-    sdk.setContent(
-      `<!-- image-text-overlay project: ${projectId} -->`
-      + `<a href="${safeUrl}" style="text-decoration:none;color:inherit;">${safeName}</a>`,
-    );
+    sdk.setContent(buildPlaceholderHtml(safeName, safeUrl, projectId));
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn('[sfmcBlock] Failed to persist project ref:', err);
