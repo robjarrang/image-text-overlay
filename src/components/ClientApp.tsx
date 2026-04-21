@@ -4,6 +4,7 @@ import LZString from 'lz-string';
 import { Icons, SldsIcon } from './Icons';
 import { ProjectsBrowser } from './ProjectsBrowser';
 import { TickerText } from './TickerText';
+import { getStoredProjectRef, storeProjectRef } from '@/utils/sfmcBlock';
 
 const CanvasGenerator = dynamic(() => import('./CanvasGenerator').then(mod => ({ default: mod.CanvasGenerator })), {
   ssr: false
@@ -205,6 +206,40 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
   const [currentProjectId, setCurrentProjectId] = useState<string | undefined>(initialProjectId);
   const [currentProjectName, setCurrentProjectName] = useState<string>(initialProjectName || 'Untitled Project');
   const [isSaving, setIsSaving] = useState(false);
+
+  // When embedded as an SFMC Content Builder Custom Block, auto-load the
+  // project that this block instance was last saved against. We only do
+  // this when the app wasn't already bootstrapped with project data (i.e.
+  // the user didn't open a specific /p/[id] URL) and when there's no
+  // LZ-string `c=` payload in the URL (which also takes precedence).
+  //
+  // Redirecting to /p/[id] is intentional: it reuses the existing
+  // server-side project loader and hydration code path so there is
+  // exactly one place that knows how to reconstitute state.
+  useEffect(() => {
+    if (projectData || initialProjectId) return;
+    if (typeof window === 'undefined') return;
+    if (window.location.search.includes('c=')) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const ref = await getStoredProjectRef();
+        if (cancelled || !ref.projectId) return;
+        // Verify the project still exists before redirecting — it may
+        // have been deleted from the Projects browser since the block
+        // was last edited.
+        const res = await fetch(`/api/projects/${ref.projectId}`);
+        if (cancelled) return;
+        if (res.ok) {
+          window.location.replace(`/p/${ref.projectId}`);
+        }
+      } catch {
+        /* non-fatal — fall back to blank editor */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Projects browser state
   const [showProjectsBrowser, setShowProjectsBrowser] = useState(false);
@@ -1981,6 +2016,8 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
             shareUrl = `${origin}/p/${currentProjectId}`;
             setCurrentProjectName(name);
             console.log('Project updated:', currentProjectId);
+            // Persist to the SFMC block instance so reopening the block auto-loads this project.
+            void storeProjectRef(currentProjectId, name, shareUrl);
           } else {
             console.warn('Failed to update project, creating new one. Status:', res.status);
           }
@@ -2001,6 +2038,8 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
             shareUrl = `${origin}/p/${result.id}`;
             console.log('Project created:', result.id);
             window.history.replaceState({}, '', `/p/${result.id}`);
+            // Persist to the SFMC block instance so reopening the block auto-loads this project.
+            void storeProjectRef(result.id, name, shareUrl);
           }
         }
       } catch (dbError) {
