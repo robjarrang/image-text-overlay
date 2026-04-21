@@ -37,7 +37,7 @@ const UtilityIcon: React.FC<IconProps & { iconName: string }> = ({
       className={`slds-icon slds-icon_${size} ${className || ''}`}
       aria-hidden="true"
       viewBox={def.viewBox}
-      fill="currentColor"
+      style={{ fill: 'currentColor' }}
       dangerouslySetInnerHTML={{ __html: def.content }}
     />
   );
@@ -98,10 +98,9 @@ export const SldsIcon: React.FC<{
   return (
     <svg
       className={className}
-      style={style}
+      style={{ fill: 'currentColor', ...style }}
       aria-hidden="true"
       viewBox={def.viewBox}
-      fill="currentColor"
       dangerouslySetInnerHTML={{ __html: def.content }}
     />
   );
