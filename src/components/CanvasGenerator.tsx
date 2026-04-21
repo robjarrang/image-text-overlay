@@ -1009,10 +1009,20 @@ export function CanvasGenerator({
     
     const scaledFontSize = (effectiveFontSize / 100) * canvasWidth;
     const handleSize = Math.max(8, scaledFontSize * 0.15);
+    /* Expand the clickable hit zone so the user doesn't have to land exactly
+       on the small visible handle. The hit zone extends 1.5× the handle
+       size inward and outward from the corner, with a sensible minimum
+       relative to the canvas (~3% of canvas width). */
+    const hitPad = Math.max(handleSize * 1.5, canvasWidth * 0.03);
     const handleX = bounds.x + bounds.width - handleSize;
     const handleY = bounds.y + bounds.height - handleSize;
-    
-    return x >= handleX && x <= handleX + handleSize && y >= handleY && y <= handleY + handleSize;
+
+    return (
+      x >= handleX - hitPad &&
+      x <= handleX + handleSize + hitPad &&
+      y >= handleY - hitPad &&
+      y <= handleY + handleSize + hitPad
+    );
   };
 
   // Get image overlay bounding box for resize handle detection
@@ -1074,10 +1084,18 @@ export function CanvasGenerator({
     if (!bounds) return false;
 
     const handleSize = Math.max(8, bounds.width * 0.05);
+    /* Expand the clickable hit zone (see isPointInResizeHandle for the
+       same rationale). */
+    const hitPad = Math.max(handleSize * 1.5, canvasWidth * 0.03);
     const handleX = bounds.x + bounds.width - handleSize;
     const handleY = bounds.y + bounds.height - handleSize;
 
-    return x >= handleX && x <= handleX + handleSize && y >= handleY && y <= handleY + handleSize;
+    return (
+      x >= handleX - hitPad &&
+      x <= handleX + handleSize + hitPad &&
+      y >= handleY - hitPad &&
+      y <= handleY + handleSize + hitPad
+    );
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {

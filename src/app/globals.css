@@ -4078,17 +4078,13 @@ input.font-size-percentage-input {
     padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0)) !important;
   }
 
-  /* ── Hide redundant panel headings on mobile (tab bar indicates state) ── */
-  .controls-column .slds-card__header h1.slds-text-heading_medium,
-  .sticky-preview-column .slds-card__header h2.slds-text-heading_medium {
-    font-size: 0.9375rem;
-    font-weight: 600;
-  }
-
-  /* Projects button → icon only on mobile */
-  /* Projects button is rendered inside the mobile header bar on mobile
-     (see `.mobile-header-bar`); hide the duplicate inside the card header. */
-  .controls-column .slds-card__header .projects-btn {
+  /* ── Hide redundant panel headings on mobile ──
+     The Image Settings card header now only contains the page heading and
+     a Projects button that's been moved to the mobile header bar. The
+     resulting bare line + heading just adds visual noise above the first
+     accordion, so hide the whole header. */
+  .controls-column > .slds-card > .slds-card__header,
+  .sticky-preview-column > .slds-card > .slds-card__header {
     display: none !important;
   }
 
