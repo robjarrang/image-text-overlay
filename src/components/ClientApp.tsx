@@ -2571,14 +2571,28 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
           </svg>
           {isSaving ? 'Saving...' : currentProjectId ? 'Save Changes' : 'Save Project'}
         </button>
-        <button
-          className="slds-button slds-button_neutral mobile-header-btn projects-btn"
-          onClick={() => setShowProjectsBrowser(true)}
-          aria-label="Open projects browser"
-        >
-          <SldsIcon name="open_folder" className="slds-button__icon slds-button__icon_left" style={{ fill: 'currentColor' }} />
-          <span className="projects-btn__label">Projects</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {currentProjectId && (
+            <button
+              className="slds-button slds-button_neutral mobile-header-btn copy-link-icon-btn"
+              onClick={handleCopyLink}
+              aria-label="Copy project link to clipboard"
+              title="Copy project link"
+            >
+              <svg className="slds-button__icon" aria-hidden="true">
+                {showCopySuccess ? <Icons.Success /> : <Icons.Copy />}
+              </svg>
+            </button>
+          )}
+          <button
+            className="slds-button slds-button_neutral mobile-header-btn projects-btn"
+            onClick={() => setShowProjectsBrowser(true)}
+            aria-label="Open projects browser"
+          >
+            <SldsIcon name="open_folder" className="slds-button__icon slds-button__icon_left" style={{ fill: 'currentColor' }} />
+            <span className="projects-btn__label">Projects</span>
+          </button>
+        </div>
       </div>
       {/* Left column - Controls */}
       <div className="slds-col slds-size_1-of-1 slds-large-size_1-of-2 controls-column">
@@ -2595,6 +2609,18 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
               )}
             </div>
             <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
+              {currentProjectId && (
+                <button
+                  className="slds-button slds-button_neutral copy-link-icon-btn"
+                  onClick={handleCopyLink}
+                  aria-label="Copy project link to clipboard"
+                  title="Copy project link"
+                >
+                  <svg className="slds-button__icon" aria-hidden="true">
+                    {showCopySuccess ? <Icons.Success /> : <Icons.Copy />}
+                  </svg>
+                </button>
+              )}
               <button
                 className="slds-button slds-button_neutral projects-btn"
                 onClick={() => setShowProjectsBrowser(true)}
@@ -3913,20 +3939,6 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                   </svg>
                   {isSaving ? 'Saving...' : currentProjectId ? 'Save Changes' : 'Save Project'}
                 </button>
-                {currentProjectId && (
-                  <button
-                    className="slds-button slds-button_neutral copy-link-button"
-                    onClick={handleCopyLink}
-                    aria-label="Copy project link to clipboard"
-                    title="Copy project link"
-                  >
-                    <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                      {showCopySuccess ? <Icons.Success /> : <Icons.Copy />}
-                    </svg>
-                    <span className="copy-link-button__label">Copy Link</span>
-                  </button>
-                )}
-              </div>
 
               {/* Download actions — primary, right */}
               {activeImageSourceTab === 'desktop-mobile' ? (
