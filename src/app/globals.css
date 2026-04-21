@@ -4454,37 +4454,61 @@ input.font-size-percentage-input {
 
 /* ============================================================
    Embedded mode (SFMC Content Builder Custom Block, etc.)
-   Applied when ThemeProvider detects window.self !== window.top
-   and adds .is-embedded to <html>.
+   Applied when the inline script in layout.tsx detects
+   window.self !== window.top and adds .is-embedded to <html>.
 
    SFMC iframes are narrow (triggers our mobile breakpoint) AND
-   short. The mobile layout's sticky preview + 100vh containers
-   combine to trap the user at the top — the controls below the
-   preview can't be reached by scrolling. These overrides neutralise
-   that specific combination without regressing the standalone
-   mobile browser experience.
+   short. Two things combine to break scrolling inside them:
+
+   1. The mobile layout pins the preview with `position: sticky`,
+      so if the preview card's natural height >= iframe height,
+      the user can never scroll down to the controls beneath it.
+
+   2. `overflow-x: hidden` on html/body forces overflow-y to `auto`
+      (per CSS spec), turning both elements into nested scroll
+      containers. Inside an iframe some browsers hand the scroll
+      gesture to html but the overflow lives on body — scroll just
+      silently fails.
+
+   These overrides neutralise both traps without regressing the
+   standalone mobile browser experience.
    ============================================================ */
 
-/* Unpin the mobile sticky preview so the full page scrolls normally. */
+/* (1) Unpin the mobile sticky preview so full page scrolls normally. */
 html.is-embedded .preview-container-parent > .sticky-preview-column {
   position: static !important;
   top: auto !important;
   z-index: auto !important;
 }
 
-/* 100vh is unreliable inside a short iframe — content ends up taller
-   than needed or exactly viewport-height with nothing to scroll. Let
-   these containers size to their content instead. */
-html.is-embedded .preview-container-parent {
+/* (2) Collapse 100vh-sized containers that don't play nicely in short
+   iframes — let them size to their content. */
+html.is-embedded .preview-container-parent,
+html.is-embedded main.min-h-screen {
   min-height: 0 !important;
 }
 
-/* overscroll-behavior: contain is useful for blocking iOS pull-to-
-   refresh into the SFMC parent, keep it. But ensure the body itself
-   is scrollable — no accidental overflow traps. */
+/* (3) Make the document a single, well-behaved scroll container.
+   Drop `overflow-x: hidden` (which implicitly turns on overflow-y: auto
+   and creates nested scrollers) in favour of a clean visible-overflow
+   on html, with body owning the one-and-only scroll axis. */
 html.is-embedded,
 html.is-embedded body {
   height: auto !important;
   min-height: 0 !important;
+  max-width: none !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
 }
+
+/* (4) Kill translucent backdrop-blur on the preview card in embedded
+   mode — it relied on scrollable content showing through a pinned
+   preview, which no longer exists here. Opaque card reads cleaner
+   next to SFMC's light chrome anyway. */
+html.is-embedded .sticky-preview-column > .slds-card {
+  background: var(--slds-g-color-neutral-base-100, #ffffff) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 
