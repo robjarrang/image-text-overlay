@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { SpriteLoader } from "@/components/SpriteLoader";
 import "@salesforce-ux/design-system/assets/styles/salesforce-lightning-design-system.css";
 import "./globals.css";
 
@@ -36,6 +37,7 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeProvider />
+        <SpriteLoader />
         {children}
       </body>
     </html>

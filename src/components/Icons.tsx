@@ -5,18 +5,19 @@ interface IconProps {
   size?: 'x-small' | 'small' | 'medium' | 'large';
 }
 
-// SLDS's `.slds-icon` rule sets `fill: var(--slds-c-icon-color-foreground, ..., white)`.
-// A CSS rule beats a presentation attribute, so setting the `fill` attr on the
-// <svg> isn't enough — the white default wins inside white border-filled buttons
-// and the icon disappears. We set the CSS custom property instead so SLDS's own
-// rule resolves to `currentColor`, which inherits the button's text colour.
+// SpriteLoader injects the SLDS utility sprite into the current document
+// at app start, so `<use href="#id">` resolves to a same-document symbol
+// and CSS (including the `--slds-c-icon-color-foreground: currentColor`
+// override below) cascades into the icon paths reliably. External-file
+// `<use xlinkHref=".../symbols.svg#id">` references don't inherit host
+// CSS in Safari/Firefox, which left icons invisible on white buttons.
 const UtilityIcon: React.FC<IconProps & { iconName: string }> = ({ className, size = 'x-small', iconName }) => (
   <svg
     className={`slds-icon slds-icon_${size} ${className || ''}`}
     aria-hidden="true"
     style={{ ['--slds-c-icon-color-foreground' as string]: 'currentColor' }}
   >
-    <use xlinkHref={`/assets/icons/utility-sprite/svg/symbols.svg#${iconName}`} />
+    <use href={`#${iconName}`} />
   </svg>
 );
 
