@@ -26,6 +26,11 @@ export function ThemeProvider() {
       isEmbedded = true;
     }
     if (isEmbedded) {
+      // Tag the root element so embed-specific CSS rules can key off it.
+      // Used to disable mobile sticky-preview (which traps scroll inside
+      // the narrow SFMC Content Builder iframe) and to neutralise
+      // 100vh-sized containers that don't play nicely in short iframes.
+      document.documentElement.classList.add('is-embedded');
       // Force light theme when embedded so the editor matches SFMC's chrome.
       document.documentElement.classList.remove('slds-theme_dark');
       return;

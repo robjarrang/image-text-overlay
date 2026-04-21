@@ -4451,3 +4451,40 @@ input.font-size-percentage-input {
     transition: none;
   }
 }
+
+/* ============================================================
+   Embedded mode (SFMC Content Builder Custom Block, etc.)
+   Applied when ThemeProvider detects window.self !== window.top
+   and adds .is-embedded to <html>.
+
+   SFMC iframes are narrow (triggers our mobile breakpoint) AND
+   short. The mobile layout's sticky preview + 100vh containers
+   combine to trap the user at the top — the controls below the
+   preview can't be reached by scrolling. These overrides neutralise
+   that specific combination without regressing the standalone
+   mobile browser experience.
+   ============================================================ */
+
+/* Unpin the mobile sticky preview so the full page scrolls normally. */
+html.is-embedded .preview-container-parent > .sticky-preview-column {
+  position: static !important;
+  top: auto !important;
+  z-index: auto !important;
+}
+
+/* 100vh is unreliable inside a short iframe — content ends up taller
+   than needed or exactly viewport-height with nothing to scroll. Let
+   these containers size to their content instead. */
+html.is-embedded .preview-container-parent {
+  min-height: 0 !important;
+}
+
+/* overscroll-behavior: contain is useful for blocking iOS pull-to-
+   refresh into the SFMC parent, keep it. But ensure the body itself
+   is scrollable — no accidental overflow traps. */
+html.is-embedded,
+html.is-embedded body {
+  height: auto !important;
+  min-height: 0 !important;
+}
+

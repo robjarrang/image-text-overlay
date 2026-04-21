@@ -5,9 +5,19 @@ interface IconProps {
   size?: 'x-small' | 'small' | 'medium' | 'large';
 }
 
+// Note: `fill="currentColor"` is set as an SVG **attribute** (not via CSS or
+// inline style) on purpose. When a <use> element references an external
+// sprite, CSS-based fills don't cascade into the sprite's shadow-DOM paths
+// in all browsers — but `fill` as a presentation attribute does. Without
+// this, SLDS's default `.slds-icon { fill: white }` leaves icons invisible
+// inside white-background buttons like `.slds-button_icon-border-filled`.
 const UtilityIcon: React.FC<IconProps & { iconName: string }> = ({ className, size = 'x-small', iconName }) => (
-  <svg className={`slds-icon slds-icon_${size} ${className || ''}`} aria-hidden="true" style={{ fill: 'currentColor' }}>
-    <use xlinkHref={`/assets/icons/utility-sprite/svg/symbols.svg#${iconName}`} />
+  <svg
+    className={`slds-icon slds-icon_${size} ${className || ''}`}
+    aria-hidden="true"
+    fill="currentColor"
+  >
+    <use xlinkHref={`/assets/icons/utility-sprite/svg/symbols.svg#${iconName}`} fill="currentColor" />
   </svg>
 );
 
