@@ -3927,3 +3927,143 @@ input.font-size-percentage-input {
   90% { transform: translateX(0); }
   100% { transform: translateX(0); }
 }
+
+/* ============================================================
+   Mobile UX — Tab switcher & panel visibility
+   Hidden on desktop (≥1024px), active below that breakpoint.
+   ============================================================ */
+
+/* Tab bar — hidden by default, shown on mobile */
+.mobile-tab-bar {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  /* ── Tab bar strip ── */
+  .mobile-tab-bar {
+    display: flex;
+    width: 100%;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    background: var(--background, #f0f0f0);
+    border-bottom: 2px solid var(--ui-border-color, #e5e5e5);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
+    /* Compensate for the gutters padding applied by .slds-col */
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+    width: calc(100% + 1.5rem);
+  }
+
+  .slds-theme_dark .mobile-tab-bar {
+    background: var(--slds-g-color-neutral-base-10, #181818);
+    border-bottom-color: var(--slds-g-color-neutral-base-20, #2e2e2e);
+  }
+
+  .mobile-tab-bar__btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.9rem 1rem;
+    min-height: 52px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: var(--slds-g-color-neutral-base-50, #747474);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    /* Ensure tap area is large enough */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-tab-bar__btn:active {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .slds-theme_dark .mobile-tab-bar__btn:active {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .mobile-tab-bar__btn--active {
+    color: var(--ui-accent-color, #0176d3);
+    border-bottom-color: var(--ui-accent-color, #0176d3);
+    background: rgba(1, 118, 211, 0.04);
+  }
+
+  .slds-theme_dark .mobile-tab-bar__btn--active {
+    background: rgba(1, 118, 211, 0.08);
+  }
+
+  /* ── Panel visibility based on active tab ── */
+  .preview-container-parent[data-mobile-tab="edit"] .sticky-preview-column {
+    display: none !important;
+  }
+
+  .preview-container-parent[data-mobile-tab="preview"] .controls-column {
+    display: none !important;
+  }
+
+  /* Ensure the active panel takes full width when alone */
+  .preview-container-parent[data-mobile-tab="edit"] .controls-column,
+  .preview-container-parent[data-mobile-tab="preview"] .sticky-preview-column {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* ── Reduce outer page/grid padding on mobile ── */
+  .preview-container-parent {
+    padding: 0.5rem !important;
+  }
+
+  /* ── Tighter card padding on mobile ── */
+  .slds-card__body {
+    padding: 0.875rem 1rem !important;
+  }
+
+  .slds-card__header {
+    padding: 0.75rem 1rem !important;
+  }
+
+  .slds-card__footer {
+    padding: 0.75rem 1rem !important;
+  }
+
+  /* ── Enlarge accordion tap targets ── */
+  .slds-accordion__summary-action {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ── Bigger tap targets for overlay list items ── */
+  .overlay-list-item {
+    min-height: 44px;
+  }
+
+  /* ── Footer action buttons — stack on very small screens ── */
+  @media (max-width: 480px) {
+    .slds-card__footer .slds-grid {
+      flex-direction: column;
+      gap: 0.625rem;
+    }
+
+    .slds-card__footer .slds-grid > div {
+      width: 100%;
+    }
+
+    .slds-card__footer .slds-button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  /* ── Hide the h1 page heading on mobile to save vertical space ── */
+  .controls-column .slds-text-heading_medium:first-of-type {
+    font-size: 1rem;
+  }
+}

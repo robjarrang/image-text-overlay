@@ -176,6 +176,9 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
   const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
   const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload' | 'transparent' | 'desktop-mobile'>('desktop-mobile');
 
+  // Mobile tab switcher — 'edit' shows the controls panel, 'preview' shows the canvas panel
+  const [activeMobileTab, setActiveMobileTab] = useState<'edit' | 'preview'>('edit');
+
   // Ref for programmatic open/close of secondary image source modes disclosure
   const secondaryModesRef = useRef<HTMLDetailsElement>(null);
 
@@ -2257,6 +2260,10 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
 
   // Handle double-click on a text overlay in the canvas — focus the text editor
   const handleTextOverlayDoubleClick = (overlayId: string) => {
+    // On mobile, switch to the edit tab so the controls are visible
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setActiveMobileTab('edit');
+    }
     // Ensure the overlay is active
     setActiveOverlay(overlayId, 'text');
     // Open the Text Content accordion so the editor is visible
@@ -2573,7 +2580,28 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
   };
 
   return (
-    <div className="slds-grid slds-wrap slds-gutters_large slds-p-around_medium preview-container-parent">
+    <div className="slds-grid slds-wrap slds-gutters_large slds-p-around_medium preview-container-parent" data-mobile-tab={activeMobileTab}>
+      {/* Mobile tab bar — hidden on desktop, shown as sticky strip on mobile */}
+      <div className="mobile-tab-bar slds-col slds-size_1-of-1" role="tablist" aria-label="Switch between edit and preview panels">
+        <button
+          role="tab"
+          aria-selected={activeMobileTab === 'edit'}
+          className={`mobile-tab-bar__btn${activeMobileTab === 'edit' ? ' mobile-tab-bar__btn--active' : ''}`}
+          onClick={() => setActiveMobileTab('edit')}
+        >
+          <Icons.Edit size="x-small" />
+          <span>Edit</span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeMobileTab === 'preview'}
+          className={`mobile-tab-bar__btn${activeMobileTab === 'preview' ? ' mobile-tab-bar__btn--active' : ''}`}
+          onClick={() => setActiveMobileTab('preview')}
+        >
+          <Icons.Image size="x-small" />
+          <span>Preview</span>
+        </button>
+      </div>
       {/* Left column - Controls */}
       <div className="slds-col slds-size_1-of-1 slds-large-size_1-of-2 controls-column">
         <article className="slds-card slds-card_boundary shadow-md">
