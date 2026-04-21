@@ -4103,9 +4103,8 @@ input.font-size-percentage-input {
     margin: 0 !important;
   }
   .mobile-header-bar .projects-btn {
-    min-height: 40px;
+    min-height: 36px;
     padding: 0 0.875rem !important;
-    border-radius: 999px;
   }
   .mobile-header-bar .projects-btn .projects-btn__label {
     display: inline;
@@ -4160,17 +4159,24 @@ input.font-size-percentage-input {
     display: none;
   }
 
-  /* ── Desktop/Mobile version tabs — large segmented control on mobile ── */
+  /* ── Desktop/Mobile version tabs — large segmented control on mobile ──
+     Override the global mobile tab rule (line ~1894) which stacks every
+     .slds-tabs_scoped__nav vertically on small screens. The preview
+     version selector must stay horizontal so Desktop and Mobile sit on
+     the same line as a segmented control. */
   .preview-version-tabs {
     padding: 0.25rem;
     margin-bottom: 0.75rem !important;
   }
   .preview-version-tabs .slds-tabs_scoped__nav {
+    display: flex !important;
+    flex-direction: row !important;
     background: var(--slds-g-color-neutral-base-95, #f3f3f3);
     border-radius: 8px;
     padding: 4px;
     gap: 4px;
     border: none;
+    margin-bottom: 0;
   }
   .slds-theme_dark .preview-version-tabs .slds-tabs_scoped__nav {
     background: var(--slds-g-color-neutral-base-20, #2e2e2e);
