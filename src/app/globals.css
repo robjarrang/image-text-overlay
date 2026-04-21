@@ -4345,50 +4345,41 @@ input.font-size-percentage-input {
 }
 
 /* ── Link desktop & mobile toggle ──
-   Compact inline checkbox that appears below the Desktop/Mobile preview
-   tabs. Deliberately understated — it's on by default and users rarely
-   need to toggle it. */
+   Sleek pill switch that sits under the Desktop/Mobile segmented tabs.
+   Visually consistent with the segmented control above: same neutral
+   surface, same radius, brand accent when ON. */
 .link-dm-toggle {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  border-radius: 6px;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
   background: var(--slds-g-color-neutral-base-95, #f3f3f3);
-  border: 1px solid var(--slds-g-color-border-base-1, #e5e5e5);
+  border: 1px solid transparent;
   user-select: none;
-  font-size: 0.8125rem;
-  line-height: 1.25;
-  color: var(--slds-g-color-neutral-base-30, #444444);
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.15s ease;
 }
-.link-dm-toggle:hover {
-  background: var(--slds-g-color-neutral-base-90, #ececec);
-  border-color: var(--slds-g-color-border-base-2, #c9c9c9);
-}
-.link-dm-toggle input[type="checkbox"] {
-  margin: 0;
-  width: 16px;
-  height: 16px;
-  accent-color: var(--slds-g-color-brand-base-50, #0176d3);
-  flex-shrink: 0;
+.link-dm-toggle__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 .link-dm-toggle__label {
+  font-size: 0.8125rem;
   font-weight: 600;
+  line-height: 1.25;
   color: var(--slds-g-color-neutral-base-10, #181818);
 }
 .link-dm-toggle__help {
-  color: var(--slds-g-color-neutral-base-50, #747474);
   font-size: 0.75rem;
-  margin-left: auto;
+  line-height: 1.2;
+  color: var(--slds-g-color-neutral-base-50, #747474);
 }
 .slds-theme_dark .link-dm-toggle {
   background: var(--slds-g-color-neutral-base-20, #2e2e2e);
-  border-color: var(--slds-g-color-neutral-base-30, #444444);
-  color: var(--slds-g-color-neutral-base-80, #c9c9c9);
-}
-.slds-theme_dark .link-dm-toggle:hover {
-  background: var(--slds-g-color-neutral-base-30, #444444);
 }
 .slds-theme_dark .link-dm-toggle__label {
   color: var(--slds-g-color-neutral-base-95, #f3f3f3);
@@ -4397,14 +4388,60 @@ input.font-size-percentage-input {
   color: var(--slds-g-color-neutral-base-65, #939393);
 }
 
-/* On very narrow screens the help text drops to a second line. */
-@media (max-width: 420px) {
+/* The switch itself — classic iOS-style pill toggle. */
+.link-dm-switch {
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+}
+.link-dm-switch:focus-visible {
+  outline: 2px solid var(--slds-g-color-brand-base-50, #0176d3);
+  outline-offset: 2px;
+}
+.link-dm-switch__track {
+  display: inline-block;
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: var(--slds-g-color-neutral-base-80, #c9c9c9);
+  border-radius: 999px;
+  transition: background-color 0.2s ease;
+  vertical-align: middle;
+}
+.link-dm-switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+.link-dm-switch--on .link-dm-switch__track {
+  background: var(--slds-g-color-brand-base-50, #0176d3);
+}
+.link-dm-switch--on .link-dm-switch__thumb {
+  transform: translateX(18px);
+}
+.slds-theme_dark .link-dm-switch__track {
+  background: var(--slds-g-color-neutral-base-40, #5c5c5c);
+}
+.slds-theme_dark .link-dm-switch--on .link-dm-switch__track {
+  background: var(--slds-g-color-brand-base-50, #0176d3);
+}
+
+/* Honour reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+  .link-dm-switch__track,
+  .link-dm-switch__thumb,
   .link-dm-toggle {
-    flex-wrap: wrap;
-  }
-  .link-dm-toggle__help {
-    flex-basis: 100%;
-    margin-left: 24px;
-    margin-top: 2px;
+    transition: none;
   }
 }

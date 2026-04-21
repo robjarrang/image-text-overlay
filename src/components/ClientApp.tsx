@@ -3801,29 +3801,33 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                 </div>
                 {/* Link desktop & mobile toggle.
                     When enabled, edits to overlay position & size apply to
-                    both versions so the user only lays things out once. */}
-                <label className="link-dm-toggle slds-m-top_x-small slds-p-horizontal_x-small slds-p-vertical_xx-small">
-                  <input
-                    type="checkbox"
-                    checked={formState.linkDesktopMobile}
-                    onChange={(e) => handleLinkDesktopMobileChange(e.target.checked)}
-                    aria-describedby="link-dm-help"
-                  />
-                  <span className="link-dm-toggle__label">
-                    Link desktop &amp; mobile
-                  </span>
-                  <span
-                    id="link-dm-help"
-                    className="link-dm-toggle__help slds-text-body_small"
-                    title={formState.linkDesktopMobile
-                      ? 'Position & size changes apply to both versions.'
-                      : 'Desktop and mobile are edited independently.'}
+                    both versions so the user only lays things out once.
+                    Styled as a modern pill switch to match the segmented
+                    tabs above. */}
+                <div className="link-dm-toggle">
+                  <div className="link-dm-toggle__text">
+                    <span className="link-dm-toggle__label">
+                      Link desktop &amp; mobile
+                    </span>
+                    <span className="link-dm-toggle__help">
+                      {formState.linkDesktopMobile
+                        ? 'Edits apply to both versions'
+                        : 'Editing versions independently'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={formState.linkDesktopMobile}
+                    aria-label="Link desktop and mobile overlays"
+                    className={`link-dm-switch${formState.linkDesktopMobile ? ' link-dm-switch--on' : ''}`}
+                    onClick={() => handleLinkDesktopMobileChange(!formState.linkDesktopMobile)}
                   >
-                    {formState.linkDesktopMobile
-                      ? 'Edits apply to both'
-                      : 'Editing independently'}
-                  </span>
-                </label>
+                    <span className="link-dm-switch__track" aria-hidden="true">
+                      <span className="link-dm-switch__thumb" />
+                    </span>
+                  </button>
+                </div>
               </div>
             )}
             {isLoading ? (
