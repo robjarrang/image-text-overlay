@@ -4183,7 +4183,13 @@ input.font-size-percentage-input {
   }
   .preview-version-tabs .slds-tabs_scoped__item {
     flex: 1;
-    margin: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+  .preview-version-tabs .slds-tabs_scoped__item::before,
+  .preview-version-tabs .slds-tabs_scoped__item::after {
+    display: none !important;
   }
   .preview-version-tabs .slds-tabs_scoped__link {
     min-height: 40px;

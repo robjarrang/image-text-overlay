@@ -1840,6 +1840,12 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
     }
   };
 
+  // Download both desktop and mobile versions sequentially in one click.
+  const handleDesktopMobileDownloadBoth = async () => {
+    await handleDesktopMobileDownload('desktop');
+    await handleDesktopMobileDownload('mobile');
+  };
+
   const handleDownloadAllLanguages = async () => {
     // Find trade logo overlays that have multiple language variants
     const tradeOverlays = formState.imageOverlays.filter(
@@ -3999,6 +4005,18 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                       <Icons.Download />
                     </svg>
                     Mobile
+                  </button>
+                  <button
+                    className="slds-button slds-button_brand download-button"
+                    onClick={handleDesktopMobileDownloadBoth}
+                    disabled={isLoading}
+                    aria-label="Download both desktop and mobile versions"
+                    title="Download both desktop and mobile"
+                  >
+                    <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                      <Icons.Download />
+                    </svg>
+                    Both
                   </button>
 
                   {/* Languages ZIP — only shown when a trade badge is present */}
