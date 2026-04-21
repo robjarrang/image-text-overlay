@@ -15,10 +15,16 @@ const nextConfig = {
   async headers() {
     return [
       {
-        // Allow the app to be framed by SFMC and same-origin
+        // Allow the app to be framed by SFMC Content Builder and
+        // related Salesforce properties. Modern browsers honour CSP
+        // `frame-ancestors`; the legacy X-Frame-Options header was
+        // removed because its only legal values are DENY/SAMEORIGIN
+        // (ALLOWALL is non-standard and Chromium ignores it).
+        //
+        // If you need to add another embedding host, append it here
+        // — wildcards work for sub-domains.
         source: "/(.*)",
         headers: [
-          { key: "X-Frame-Options", value: "ALLOWALL" },
           { key: "Content-Security-Policy", value: "frame-ancestors 'self' https://*.exacttarget.com https://*.marketingcloudapps.com https://*.salesforce.com https://*.force.com" },
         ]
       },
