@@ -4128,25 +4128,72 @@ input.font-size-percentage-input {
     min-height: 44px;
   }
 
-  /* ── Canvas Dimensions — stack vertically on mobile ──
-     The default 2-column grid pushes the Height field offscreen on narrow
-     viewports because number inputs have an intrinsic min-width. Stacking
-     them avoids all flex-overflow issues and is easier to read. */
+  /* ── Compact overlay list items ──
+     Each overlay row gets tighter padding so longer lists stay scannable
+     without needing aggressive scrolling. */
+  .overlay-item-content {
+    padding: 0.5rem !important;
+  }
+  .overlay-item-content img {
+    /* Keep thumbnails small on mobile */
+    max-width: 32px !important;
+    max-height: 32px !important;
+  }
+
+  /* ── Tighter form-element spacing inside accordions ──
+     Cumulative savings of ~25% vertical space across long forms. */
+  .slds-accordion__content .slds-form-element {
+    margin-bottom: 0.375rem;
+  }
+  .slds-accordion__content .slds-form-element__label {
+    margin-bottom: 0.125rem;
+  }
+  .slds-accordion__content {
+    padding: 0.625rem 0.5rem !important;
+  }
+  .slds-accordion__content .form-section {
+    margin-bottom: 0.625rem;
+  }
+  .slds-accordion__section {
+    margin-bottom: 0.5rem;
+  }
+
+  /* ── Two-up grid for paired form fields (Width/Height, X/Y, etc.) ──
+     Previously these grids were forced to display:block because number
+     inputs have an intrinsic min-width that was pushing the second column
+     off-screen. The proper fix is min-width:0 on the columns and inputs
+     themselves so flex shrinking actually works. */
   #desktop-mobile-tab-content .slds-grid.slds-gutters_small,
-  #transparent-canvas-tab-content .slds-grid.slds-gutters_small {
-    display: block !important;
+  #transparent-canvas-tab-content .slds-grid.slds-gutters_small,
+  .slds-accordion__content .slds-grid.slds-gutters_small {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 0.5rem;
   }
   #desktop-mobile-tab-content .slds-grid.slds-gutters_small > .slds-col,
-  #transparent-canvas-tab-content .slds-grid.slds-gutters_small > .slds-col {
-    width: 100% !important;
+  #transparent-canvas-tab-content .slds-grid.slds-gutters_small > .slds-col,
+  .slds-accordion__content .slds-grid.slds-gutters_small > .slds-col {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
     max-width: 100% !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0 !important;
   }
-  #desktop-mobile-tab-content .slds-grid.slds-gutters_small > .slds-col:last-child,
-  #transparent-canvas-tab-content .slds-grid.slds-gutters_small > .slds-col:last-child {
-    margin-bottom: 0;
+  /* Ensure the inputs themselves can shrink below their intrinsic width. */
+  .slds-accordion__content .slds-grid.slds-gutters_small .slds-input,
+  #desktop-mobile-tab-content .slds-grid.slds-gutters_small .slds-input,
+  #transparent-canvas-tab-content .slds-grid.slds-gutters_small .slds-input {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Tighten the form-element label inside paired-field grids. */
+  .slds-accordion__content .slds-grid.slds-gutters_small .slds-form-element__label {
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* ── Preview panel: let the canvas breathe ── */
