@@ -6,14 +6,58 @@ interface IconProps {
   size?: 'x-small' | 'small' | 'medium' | 'large';
 }
 
+// Pixel sizes for each SLDS icon size keyword.
+const SIZE_PX: Record<NonNullable<IconProps['size']>, number> = {
+  'x-small': 14,
+  'small': 20,
+  'medium': 32,
+  'large': 48,
+};
+
 /**
- * Renders an SLDS utility icon by embedding the symbol's raw path data
- * directly inside a fresh <svg>. This deliberately avoids `<use href>`
- * (same-document or external) because that element has a long list of
- * cross-browser / iframe / CSP failure modes that left icons invisible
- * inside the SFMC Content Builder iframe. Inlining the paths renders
- * identically everywhere — standalone browser, SFMC iframe, CSP-locked
- * surfaces, headless screenshot contexts, etc.
+ * Parse a string of path markup (e.g. `<path d="M1 2"/><path d="M3 4"/>`)
+ * into an array of React elements. Using real React children rather than
+ * `dangerouslySetInnerHTML` guarantees that attributes like `fill` propagate
+ * correctly through React's renderer and that SSR/CSR render identically.
+ */
+function parsePaths(markup: string): React.ReactElement[] {
+  const out: React.ReactElement[] = [];
+  // Match every <path ... /> or <path ...>...</path>. SLDS sprite only uses
+  // <path> and optionally <g> — we flatten <g> wrappers and keep their paths.
+  const flat = markup.replace(/<\/?g\b[^>]*>/g, '');
+  const pathRegex = /<path\b([^/>]*?)(?:\/>|>[^<]*<\/path>)/g;
+  let m: RegExpExecArray | null;
+  let i = 0;
+  while ((m = pathRegex.exec(flat)) !== null) {
+    const attrs = m[1];
+    const dMatch = attrs.match(/\bd="([^"]*)"/);
+    if (!dMatch) continue;
+    const fillMatch = attrs.match(/\bfill="([^"]*)"/);
+    const fill = fillMatch && fillMatch[1] !== 'none' ? fillMatch[1] : 'currentColor';
+    out.push(
+      <path key={i++} d={dMatch[1]} fill={fill} />
+    );
+  }
+  return out;
+}
+
+// Memoise parsed paths — icon data is static so parse once per name.
+const parseCache = new Map<string, React.ReactElement[]>();
+function getPaths(name: string, content: string): React.ReactElement[] {
+  let cached = parseCache.get(name);
+  if (!cached) {
+    cached = parsePaths(content);
+    parseCache.set(name, cached);
+  }
+  return cached;
+}
+
+/**
+ * Renders an SLDS utility icon from pre-extracted path data. Deliberately
+ * avoids `<use href>` (which has cross-browser / iframe / CSP failure
+ * modes) and `dangerouslySetInnerHTML` (which can lose attributes on
+ * hydration in some edge cases). Uses real React `<path>` children with
+ * explicit width, height, and fill so no stylesheet can hide them.
  *
  * Icon data is pre-extracted from the SLDS sprite by
  * `scripts/generateIconData.js` at build time.
@@ -25,21 +69,24 @@ const UtilityIcon: React.FC<IconProps & { iconName: string }> = ({
 }) => {
   const def = ICON_DATA[iconName];
   if (!def) {
-    // Surface missing icons in dev but don't crash the UI in production.
     if (process.env.NODE_ENV !== 'production') {
       // eslint-disable-next-line no-console
       console.warn(`[Icons] Unknown icon "${iconName}"`);
     }
     return null;
   }
+  const px = SIZE_PX[size];
   return (
     <svg
       className={`slds-icon slds-icon_${size} ${className || ''}`}
       aria-hidden="true"
       viewBox={def.viewBox}
-      style={{ fill: 'currentColor' }}
-      dangerouslySetInnerHTML={{ __html: def.content }}
-    />
+      width={px}
+      height={px}
+      style={{ fill: 'currentColor', width: px, height: px, display: 'inline-block', verticalAlign: 'middle' }}
+    >
+      {getPaths(iconName, def.content)}
+    </svg>
   );
 };
 
@@ -101,7 +148,8 @@ export const SldsIcon: React.FC<{
       style={{ fill: 'currentColor', ...style }}
       aria-hidden="true"
       viewBox={def.viewBox}
-      dangerouslySetInnerHTML={{ __html: def.content }}
-    />
+    >
+      {getPaths(name, def.content)}
+    </svg>
   );
 };
