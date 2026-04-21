@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "@salesforce-ux/design-system/assets/styles/salesforce-lightning-design-system.css";
 import "./globals.css";
@@ -6,6 +6,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Image Text Overlay Editor",
   description: "Add text overlays to images with precise control",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

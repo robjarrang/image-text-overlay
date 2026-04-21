@@ -2591,6 +2591,11 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
         >
           <Icons.Edit size="x-small" />
           <span>Edit</span>
+          {(formState.textOverlays.length + formState.imageOverlays.length) > 0 && (
+            <span className="mobile-tab-bar__count" aria-label={`${formState.textOverlays.length + formState.imageOverlays.length} overlays`}>
+              {formState.textOverlays.length + formState.imageOverlays.length}
+            </span>
+          )}
         </button>
         <button
           role="tab"
@@ -2618,7 +2623,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
             </div>
             <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
               <button
-                className="slds-button slds-button_neutral"
+                className="slds-button slds-button_neutral projects-btn"
                 onClick={() => setShowProjectsBrowser(true)}
                 aria-label="Open projects browser"
                 style={{ whiteSpace: 'nowrap' }}
@@ -2626,7 +2631,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                 <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true" style={{ fill: 'currentColor' }}>
                   <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#open_folder" />
                 </svg>
-                Projects
+                <span className="projects-btn__label">Projects</span>
               </button>
             </div>
           </div>
