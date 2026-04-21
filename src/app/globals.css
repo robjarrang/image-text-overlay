@@ -43,19 +43,6 @@
   margin: 0;
 }
 
-/* Force icons inside buttons to pick up the button's text colour.
-   SLDS's default `.slds-icon { fill: var(..., white) }` renders white
-   inside `.slds-button_icon-border-filled` (white background), making
-   icons invisible. Targeting both `.slds-icon` and `.slds-button__icon`
-   covers every icon pattern in the app. `fill` on the <use> element
-   itself is a belt-and-braces measure for same-document sprite refs. */
-.slds-button .slds-icon,
-.slds-button .slds-button__icon,
-.slds-button .slds-icon use,
-.slds-button .slds-button__icon use {
-  fill: currentColor !important;
-}
-
 html,
 body {
   max-width: 100vw;

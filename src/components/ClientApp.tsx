@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import LZString from 'lz-string';
-import { Icons } from './Icons';
+import { Icons, SldsIcon } from './Icons';
 import { ProjectsBrowser } from './ProjectsBrowser';
 import { TickerText } from './TickerText';
 
@@ -2537,9 +2537,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
           onClick={() => setShowProjectsBrowser(true)}
           aria-label="Open projects browser"
         >
-          <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true" style={{ fill: 'currentColor' }}>
-            <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#open_folder" />
-          </svg>
+          <SldsIcon name="open_folder" className="slds-button__icon slds-button__icon_left" style={{ fill: 'currentColor' }} />
           <span className="projects-btn__label">Projects</span>
         </button>
       </div>
@@ -2564,9 +2562,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                 aria-label="Open projects browser"
                 style={{ whiteSpace: 'nowrap' }}
               >
-                <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true" style={{ fill: 'currentColor' }}>
-                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#open_folder" />
-                </svg>
+                <SldsIcon name="open_folder" className="slds-button__icon slds-button__icon_left" style={{ fill: 'currentColor' }} />
                 <span className="projects-btn__label">Projects</span>
               </button>
             </div>
@@ -2585,13 +2581,9 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('imageSource')}
                       >
-                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#upload"></use>
-                        </svg>
+                        <SldsIcon name="upload" className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" />
                         <span className="slds-accordion__summary-content">Image Source</span>
-                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
-                        </svg>
+                        <SldsIcon name="chevrondown" className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" />
                       </button>
                     </h3>
                   </div>
@@ -2606,9 +2598,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                           {/* Other image source modes - collapsible disclosure */}
                           <details className="other-source-modes-details" ref={secondaryModesRef}>
                             <summary className="other-source-summary">
-                              <svg style={{ width: '0.75rem', height: '0.75rem', fill: 'currentColor', transition: 'transform 150ms' }} className="other-source-chevron" aria-hidden="true">
-                                <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevronright"></use>
-                              </svg>
+                              <SldsIcon name="chevronright" className="other-source-chevron" style={{ width: '0.75rem', height: '0.75rem', fill: 'currentColor', transition: 'transform 150ms' }} />
                               Other image source modes
                             </summary>
                             <div className="other-source-modes-content slds-m-top_small">
@@ -2636,9 +2626,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                               </label>
                               <div className="slds-form-element__control slds-input-has-icon slds-input-has-icon_left">
                                 <div className="slds-icon_container">
-                                  <svg className="slds-icon slds-input__icon slds-icon-text-default" aria-hidden="true">
-                                    <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#link"></use>
-                                  </svg>
+                                  <SldsIcon name="link" className="slds-icon slds-input__icon slds-icon-text-default" />
                                 </div>
                                 <input
                                   type="url"
@@ -2664,9 +2652,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                               <div className="slds-notify__content">
                                 <div className="slds-media slds-media_center">
                                   <div className="slds-media__figure">
-                                    <svg className="slds-icon slds-icon_small" aria-hidden="true">
-                                      <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#warning"></use>
-                                    </svg>
+                                    <SldsIcon name="warning" className="slds-icon slds-icon_small" />
                                   </div>
                                   <div className="slds-media__body">
                                     <p>Note: Uploaded images will not be included in shareable URLs. Only text overlays and settings will be shared.</p>
@@ -2688,9 +2674,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                               />
                               <label className="slds-file-selector__body" htmlFor="imageUpload">
                                 <span className="slds-file-selector__button slds-button slds-button_neutral">
-                                  <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                                    <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#upload"></use>
-                                  </svg>
+                                  <SldsIcon name="upload" className="slds-button__icon slds-button__icon_left" />
                                   Upload Image
                                 </span>
                               </label>
@@ -2706,9 +2690,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                               <div className="slds-notify__content">
                                 <div className="slds-media slds-media_center">
                                   <div className="slds-media__figure">
-                                    <svg className="slds-icon slds-icon_small" aria-hidden="true">
-                                      <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#info"></use>
-                                    </svg>
+                                    <SldsIcon name="info" className="slds-icon slds-icon_small" />
                                   </div>
                                   <div className="slds-media__body">
                                     <p>Create a transparent background canvas with custom dimensions. Perfect for creating text-only images or overlays.</p>
@@ -2836,9 +2818,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                               </label>
                               <div className="slds-form-element__control slds-input-has-icon slds-input-has-icon_left">
                                 <div className="slds-icon_container">
-                                  <svg className="slds-icon slds-input__icon slds-icon-text-default" aria-hidden="true">
-                                    <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#link"></use>
-                                  </svg>
+                                  <SldsIcon name="link" className="slds-icon slds-input__icon slds-icon-text-default" />
                                 </div>
                                 <input
                                   type="url"
@@ -2859,9 +2839,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                             {desktopMobileImageUrl && (
                             <details className="slds-m-top_medium slds-m-bottom_medium bg-framing-details">
                               <summary className="slds-text-title_caps slds-m-bottom_small" style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', letterSpacing: '0.05em', color: '#706e6b' }}>
-                                <svg style={{ width: '0.75rem', height: '0.75rem', fill: 'currentColor', transition: 'transform 150ms' }} className="bg-framing-chevron" aria-hidden="true">
-                                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevronright"></use>
-                                </svg>
+                                <SldsIcon name="chevronright" className="bg-framing-chevron" style={{ width: '0.75rem', height: '0.75rem', fill: 'currentColor', transition: 'transform 150ms' }} />
                                 Background Framing ({desktopMobileVersion === 'desktop' ? 'Desktop' : 'Mobile'})
                               </summary>
                               <div className="slds-box slds-box_x-small slds-theme_shade" style={{ borderRadius: '0.25rem' }}>
@@ -2992,13 +2970,9 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('imageAdjustments')}
                       >
-                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#slider"></use>
-                        </svg>
+                        <SldsIcon name="slider" className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" />
                         <span className="slds-accordion__summary-content">Image Adjustments</span>
-                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
-                        </svg>
+                        <SldsIcon name="chevrondown" className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" />
                       </button>
                     </h3>
                   </div>
@@ -3136,16 +3110,12 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('imageTint')}
                       >
-                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#palette"></use>
-                        </svg>
+                        <SldsIcon name="palette" className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" />
                         <span className="slds-accordion__summary-content">Image Tint</span>
                         {formState.tintOpacity > 0 && (
                           <span className="slds-badge slds-m-left_xx-small">{formState.tintOpacity}%</span>
                         )}
-                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
-                        </svg>
+                        <SldsIcon name="chevrondown" className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" />
                       </button>
                     </h3>
                   </div>
@@ -3221,14 +3191,10 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('textOverlays')}
                       >
-                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#layers"></use>
-                        </svg>
+                        <SldsIcon name="layers" className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" />
                         <span className="slds-accordion__summary-content">Text Overlays</span>
                         <span className="slds-badge slds-m-left_xx-small">{formState.textOverlays.length}</span>
-                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
-                        </svg>
+                        <SldsIcon name="chevrondown" className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" />
                       </button>
                     </h3>
                   </div>
@@ -3245,9 +3211,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                           onClick={() => addTextOverlay()}
                           title="Add a new text overlay layer"
                         >
-                          <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                            <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#add"></use>
-                          </svg>
+                          <SldsIcon name="add" className="slds-button__icon slds-button__icon_left" />
                           Add Text Overlay
                         </button>
                       </div>
@@ -3321,9 +3285,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                           onClick={(e) => { e.stopPropagation(); handleDeleteConfirmed(); }}
                                           title="Confirm delete"
                                         >
-                                          <svg className="slds-button__icon" aria-hidden="true">
-                                            <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#check"></use>
-                                          </svg>
+                                          <SldsIcon name="check" className="slds-button__icon" />
                                           <span className="slds-assistive-text">Confirm delete</span>
                                         </button>
                                         <button 
@@ -3331,9 +3293,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                           onClick={(e) => { e.stopPropagation(); cancelDelete(); }}
                                           title="Cancel delete"
                                         >
-                                          <svg className="slds-button__icon" aria-hidden="true">
-                                            <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#close"></use>
-                                          </svg>
+                                          <SldsIcon name="close" className="slds-button__icon" />
                                           <span className="slds-assistive-text">Cancel delete</span>
                                         </button>
                                       </>
@@ -3343,9 +3303,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                         onClick={(e) => { e.stopPropagation(); confirmDelete(overlay.id); }}
                                         title="Delete this overlay"
                                       >
-                                        <svg className="slds-button__icon" aria-hidden="true">
-                                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#delete"></use>
-                                        </svg>
+                                        <SldsIcon name="delete" className="slds-button__icon" />
                                         <span className="slds-assistive-text">Delete this overlay</span>
                                       </button>
                                     )}
@@ -3370,13 +3328,9 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('textContent')}
                       >
-                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#text"></use>
-                        </svg>
+                        <SldsIcon name="text" className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" />
                         <span className="slds-accordion__summary-content">Text Content</span>
-                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
-                        </svg>
+                        <SldsIcon name="chevrondown" className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" />
                       </button>
                     </h3>
                   </div>
@@ -3448,13 +3402,9 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                         className="slds-button slds-button_reset slds-accordion__summary-action"
                         onClick={() => toggleAccordion('imageOverlays')}
                       >
-                        <svg className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#layers"></use>
-                        </svg>
+                        <SldsIcon name="layers" className="slds-icon slds-icon_small slds-icon-text-default slds-button__icon slds-button__icon_left" />
                         <span className="slds-accordion__summary-content">Image Overlays</span>
-                        <svg className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" aria-hidden="true">
-                          <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
-                        </svg>
+                        <SldsIcon name="chevrondown" className="slds-accordion__summary-action-icon slds-icon slds-icon_small slds-button__icon slds-button__icon_right" />
                       </button>
                     </h3>
                   </div>
@@ -3493,9 +3443,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                               disabled={!newImageOverlayUrl.trim() || isLoading}
                               title="Add image overlay"
                             >
-                              <svg className="slds-button__icon" aria-hidden="true">
-                                <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#add"></use>
-                              </svg>
+                              <SldsIcon name="add" className="slds-button__icon" />
                               <span className="slds-assistive-text">Add image overlay</span>
                             </button>
                           </div>
@@ -3504,9 +3452,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                         {/* Secondary Option: Preset Logos - collapsible */}
                         <details className="preset-logos-details">
                           <summary className="preset-logos-summary">
-                            <svg style={{ width: '0.75rem', height: '0.75rem', fill: 'currentColor', transition: 'transform 150ms' }} className="preset-logos-chevron" aria-hidden="true">
-                              <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevronright"></use>
-                            </svg>
+                            <SldsIcon name="chevronright" className="preset-logos-chevron" style={{ width: '0.75rem', height: '0.75rem', fill: 'currentColor', transition: 'transform 150ms' }} />
                             Preset Logos
                             {loadingPresetLogos && (
                               <span className="slds-text-body_small slds-text-color_weak" style={{ marginLeft: '0.5rem' }}>
@@ -3548,18 +3494,14 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                     style={{ borderRadius: '12px' }}
                                     title={`Add ${logo.name} logo with multiple language options`}
                                   >
-                                    <svg className="slds-button__icon slds-button__icon_left slds-button__icon_xx-small" aria-hidden="true">
-                                      <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#world"></use>
-                                    </svg>
+                                    <SldsIcon name="world" className="slds-button__icon slds-button__icon_left slds-button__icon_xx-small" />
                                     {logo.name}
                                   </button>
                                 ))}
                               </div>
                               
                               <div className="slds-text-body_small slds-text-color_weak">
-                                <svg className="slds-icon slds-icon_xx-small slds-m-right_xx-small" aria-hidden="true">
-                                  <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#world"></use>
-                                </svg>
+                                <SldsIcon name="world" className="slds-icon slds-icon_xx-small slds-m-right_xx-small" />
                                 Multi-language logos can be changed using the dropdown in each overlay below
                               </div>
                             </div>
@@ -3651,9 +3593,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                                 justifyContent: 'center'
                                               }}
                                             >
-                                              <svg style={{ width: '8px', height: '8px', fill: 'white' }}>
-                                                <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#world"></use>
-                                              </svg>
+                                              <SldsIcon name="world" style={{ width: '8px', height: '8px', fill: 'white' }} />
                                             </div>
                                           )}
                                         </div>
@@ -3726,9 +3666,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                           onClick={() => deleteImageOverlay(overlay.id)}
                                           title="Delete this overlay"
                                         >
-                                          <svg className="slds-button__icon" aria-hidden="true">
-                                            <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#delete"></use>
-                                          </svg>
+                                          <SldsIcon name="delete" className="slds-button__icon" />
                                           <span className="slds-assistive-text">Delete overlay</span>
                                         </button>
                                       </div>

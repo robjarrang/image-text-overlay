@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Icons } from './Icons';
+import { Icons, SldsIcon } from './Icons';
 
 // Common font sizes in pixels
 const FONT_SIZE_OPTIONS = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 112, 128, 160, 192, 248];
@@ -390,9 +390,7 @@ export function RichTextEditor({
               }}
             >
               <span>{fontSize}px</span>
-              <svg className="slds-button__icon slds-button__icon_x-small" aria-hidden="true" style={{ marginLeft: '2px' }}>
-                <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#chevrondown"></use>
-              </svg>
+              <SldsIcon name="chevrondown" className="slds-button__icon slds-button__icon_x-small" style={{ marginLeft: '2px' }} />
             </button>
             {showFontSizeDropdown && (
               <div 
