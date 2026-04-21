@@ -3939,6 +3939,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                   </svg>
                   {isSaving ? 'Saving...' : currentProjectId ? 'Save Changes' : 'Save Project'}
                 </button>
+              </div>
 
               {/* Download actions — primary, right */}
               {activeImageSourceTab === 'desktop-mobile' ? (
