@@ -4092,24 +4092,31 @@ input.font-size-percentage-input {
   }
 
   /* Mobile header bar — appears at the very top of the page, above the
-     sticky preview. Holds the Projects button so it's always reachable
-     without scrolling past the preview. */
+     sticky preview. Holds the Save Project button (left) and Projects
+     button (right), aligned to share visual weight. */
   .mobile-header-bar {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
+    gap: 0.5rem;
     order: -2 !important;
     padding: 0.5rem 0.75rem !important;
     margin: 0 !important;
   }
-  .mobile-header-bar .projects-btn {
+  .mobile-header-bar .mobile-header-btn {
     min-height: 36px;
     padding: 0 0.875rem !important;
+    font-weight: 500;
   }
   .mobile-header-bar .projects-btn .projects-btn__label {
     display: inline;
     margin-left: 0.375rem;
-    font-weight: 600;
+  }
+
+  /* Hide the duplicate Save Project button in the preview card footer on
+     mobile — it now lives in the mobile header bar at the top. */
+  .sticky-preview-column .slds-card__footer .share-button {
+    display: none !important;
   }
 
   /* ── Enlarge accordion tap targets ── */

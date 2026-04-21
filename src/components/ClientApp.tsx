@@ -2592,7 +2592,18 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
       {/* Mobile header bar — sits above the sticky preview on mobile, hidden on desktop */}
       <div className="mobile-header-bar slds-col slds-size_1-of-1">
         <button
-          className="slds-button slds-button_neutral projects-btn"
+          className="slds-button slds-button_neutral mobile-header-btn share-button"
+          onClick={handleShare}
+          disabled={isSaving}
+          aria-label={currentProjectId ? "Save changes" : "Save as project"}
+        >
+          <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+            {showShareSuccess ? <Icons.Success /> : <Icons.Save />}
+          </svg>
+          {isSaving ? 'Saving...' : currentProjectId ? 'Save Changes' : 'Save Project'}
+        </button>
+        <button
+          className="slds-button slds-button_neutral mobile-header-btn projects-btn"
           onClick={() => setShowProjectsBrowser(true)}
           aria-label="Open projects browser"
         >
@@ -3985,7 +3996,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
               {activeImageSourceTab === 'desktop-mobile' ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative' }}>
                   <button
-                    className="slds-button slds-button_brand download-button"
+                    className="slds-button slds-button_neutral download-button"
                     onClick={() => handleDesktopMobileDownload('desktop')}
                     disabled={isLoading}
                     aria-label="Download desktop version (1240x968)"
@@ -3996,7 +4007,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                     Desktop
                   </button>
                   <button
-                    className="slds-button slds-button_brand download-button"
+                    className="slds-button slds-button_neutral download-button"
                     onClick={() => handleDesktopMobileDownload('mobile')}
                     disabled={isLoading}
                     aria-label="Download mobile version (1240x1400)"
