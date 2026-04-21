@@ -3209,7 +3209,13 @@ input.font-size-percentage-input {
     flex-direction: column;
     gap: 0.75rem;
   }
-  
+
+  /* …except the preview card footer, where the Desktop/Mobile download
+     buttons must stay on a single horizontal row (override below). */
+  .sticky-preview-column .slds-card__footer .slds-grid {
+    flex-direction: row !important;
+  }
+
   .slds-card__footer .slds-col {
     width: 100%;
   }
@@ -4079,32 +4085,32 @@ input.font-size-percentage-input {
   }
 
   /* Projects button → icon only on mobile */
-  /* Projects button → floating pill, top-right of viewport on mobile.
-     Frees it from the Image Settings card header so it's always accessible
-     without having to scroll up past the preview. */
-  .projects-btn {
-    position: fixed !important;
-    top: calc(env(safe-area-inset-top, 0) + 0.5rem) !important;
-    right: 0.5rem !important;
-    z-index: 120 !important;
-    min-height: 40px !important;
-    padding: 0 0.75rem !important;
-    border-radius: 999px !important;
-    background: rgba(255, 255, 255, 0.95) !important;
-    -webkit-backdrop-filter: saturate(180%) blur(14px);
-    backdrop-filter: saturate(180%) blur(14px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-    border: 1px solid var(--ui-border-color, #e5e5e5) !important;
+  /* Projects button is rendered inside the mobile header bar on mobile
+     (see `.mobile-header-bar`); hide the duplicate inside the card header. */
+  .controls-column .slds-card__header .projects-btn {
+    display: none !important;
   }
-  .slds-theme_dark .projects-btn {
-    background: rgba(24, 24, 24, 0.95) !important;
-    border-color: var(--slds-g-color-neutral-base-20, #2e2e2e) !important;
+
+  /* Mobile header bar — appears at the very top of the page, above the
+     sticky preview. Holds the Projects button so it's always reachable
+     without scrolling past the preview. */
+  .mobile-header-bar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    order: -2 !important;
+    padding: 0.5rem 0.75rem !important;
+    margin: 0 !important;
   }
-  .projects-btn .projects-btn__label {
-    display: none;
+  .mobile-header-bar .projects-btn {
+    min-height: 40px;
+    padding: 0 0.875rem !important;
+    border-radius: 999px;
   }
-  .projects-btn .slds-button__icon_left {
-    margin-right: 0 !important;
+  .mobile-header-bar .projects-btn .projects-btn__label {
+    display: inline;
+    margin-left: 0.375rem;
+    font-weight: 600;
   }
 
   /* ── Enlarge accordion tap targets ── */
@@ -4272,4 +4278,5 @@ input.font-size-percentage-input {
 /* Hide scroll-to-top FAB on desktop — it's a mobile-only affordance. */
 @media (min-width: 1024px) {
   .scroll-top-fab { display: none !important; }
+  .mobile-header-bar { display: none !important; }
 }

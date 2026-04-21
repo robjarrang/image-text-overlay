@@ -2583,6 +2583,19 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
 
   return (
     <div className="slds-grid slds-wrap slds-gutters_large slds-p-around_medium preview-container-parent">
+      {/* Mobile header bar — sits above the sticky preview on mobile, hidden on desktop */}
+      <div className="mobile-header-bar slds-col slds-size_1-of-1">
+        <button
+          className="slds-button slds-button_neutral projects-btn"
+          onClick={() => setShowProjectsBrowser(true)}
+          aria-label="Open projects browser"
+        >
+          <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true" style={{ fill: 'currentColor' }}>
+            <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#open_folder" />
+          </svg>
+          <span className="projects-btn__label">Projects</span>
+        </button>
+      </div>
       {/* Left column - Controls */}
       <div className="slds-col slds-size_1-of-1 slds-large-size_1-of-2 controls-column">
         <article className="slds-card slds-card_boundary shadow-md">
