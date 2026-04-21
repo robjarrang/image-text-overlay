@@ -3156,24 +3156,25 @@ input.font-size-percentage-input {
     padding-bottom: 1rem !important;
   }
   
-  /* Stack button groups vertically */
-  .slds-button-group,
-  .slds-button-group-row {
+  /* Stack button groups vertically — but NOT toolbars (role="toolbar"),
+     which contain icon-only formatting buttons that must stay horizontal. */
+  .slds-button-group:not([role="toolbar"]),
+  .slds-button-group-row:not([role="toolbar"]) {
     flex-direction: column;
     width: 100%;
   }
-  
-  .slds-button-group .slds-button,
-  .slds-button-group-row .slds-button {
+
+  .slds-button-group:not([role="toolbar"]) .slds-button,
+  .slds-button-group-row:not([role="toolbar"]) .slds-button {
     width: 100%;
     margin-left: 0 !important;
     margin-right: 0 !important;
     margin-bottom: 0.5rem;
     border-radius: 0.25rem !important;
   }
-  
-  .slds-button-group .slds-button:last-child,
-  .slds-button-group-row .slds-button:last-child {
+
+  .slds-button-group:not([role="toolbar"]) .slds-button:last-child,
+  .slds-button-group-row:not([role="toolbar"]) .slds-button:last-child {
     margin-bottom: 0;
   }
   
