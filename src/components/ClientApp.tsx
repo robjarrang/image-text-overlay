@@ -93,6 +93,11 @@ interface FormState {
   mobileBgZoom: number;
   mobileBgX: number;
   mobileBgY: number;
+  // When true, edits to text/image overlay position & size apply to BOTH
+  // desktop and mobile variants, so the user sets things up once.
+  // Background framing (zoom/bg position) stays per-version because
+  // different aspect ratios usually need different crops.
+  linkDesktopMobile: boolean;
 }
 
 type FormStateKey = keyof Omit<FormState, 'textOverlays' | 'activeOverlayId'>;
@@ -171,7 +176,8 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
     desktopBgY: 50,
     mobileBgZoom: 1,
     mobileBgX: 50,
-    mobileBgY: 50
+    mobileBgY: 50,
+    linkDesktopMobile: true
   });
   const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
   const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload' | 'transparent' | 'desktop-mobile'>('desktop-mobile');
@@ -881,7 +887,9 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
           desktopBgY: shareData.dby !== undefined ? shareData.dby : 50,
           mobileBgZoom: shareData.mbz !== undefined ? shareData.mbz : 1,
           mobileBgX: shareData.mbx !== undefined ? shareData.mbx : 50,
-          mobileBgY: shareData.mby !== undefined ? shareData.mby : 50
+          mobileBgY: shareData.mby !== undefined ? shareData.mby : 50,
+          // Default to linked ON; `l: 0` means user explicitly unlinked.
+          linkDesktopMobile: shareData.l !== 0
         };
 
         if (mode === 'transparent') {
@@ -1159,7 +1167,8 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
           desktopBgY: shareData.dby !== undefined ? shareData.dby : 50,
           mobileBgZoom: shareData.mbz !== undefined ? shareData.mbz : 1,
           mobileBgX: shareData.mbx !== undefined ? shareData.mbx : 50,
-          mobileBgY: shareData.mby !== undefined ? shareData.mby : 50
+          mobileBgY: shareData.mby !== undefined ? shareData.mby : 50,
+          linkDesktopMobile: shareData.l !== 0
         };
         console.log('🔍 URL state to apply:', urlState);
 
@@ -1872,7 +1881,10 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
         ...(formState.desktopBgY !== 50 && { dby: formState.desktopBgY }),
         ...(formState.mobileBgZoom !== 1 && { mbz: formState.mobileBgZoom }),
         ...(formState.mobileBgX !== 50 && { mbx: formState.mobileBgX }),
-        ...(formState.mobileBgY !== 50 && { mby: formState.mobileBgY })
+        ...(formState.mobileBgY !== 50 && { mby: formState.mobileBgY }),
+        // `l: 0` marks the link as OFF. Default (link ON) is absent to keep
+        // compressed URLs small for the common case.
+        ...(formState.linkDesktopMobile === false && { l: 0 })
       }),
       w: formState.width,
       h: formState.height,
@@ -2140,48 +2152,57 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
       // Check if it's a text overlay
       const isTextOverlay = prev.textOverlays.some(overlay => overlay.id === overlayId);
       
+      const roundedX = Math.round(newX);
+      const roundedY = Math.round(newY);
+      const isDM = activeImageSourceTab === 'desktop-mobile';
+      const isLinked = isDM && prev.linkDesktopMobile;
+
       if (isTextOverlay) {
         return {
           ...prev,
           textOverlays: prev.textOverlays.map(overlay => {
-            if (overlay.id === overlayId) {
-              // In desktop-mobile mode, update the appropriate version-specific position
-              if (activeImageSourceTab === 'desktop-mobile') {
-                if (desktopMobileVersion === 'desktop') {
-                  return { ...overlay, desktopX: Math.round(newX), desktopY: Math.round(newY) };
-                } else if (desktopMobileVersion === 'mobile') {
-                  return { ...overlay, mobileX: Math.round(newX), mobileY: Math.round(newY) };
-                }
-              }
-              // Default behavior: update generic x, y
-              return { ...overlay, x: Math.round(newX), y: Math.round(newY) };
+            if (overlay.id !== overlayId) return overlay;
+            if (isLinked) {
+              // Write to both desktop & mobile variants so they stay in sync.
+              // Positions are canvas-percentages; same percentage renders at
+              // the same relative spot on both aspect ratios.
+              return {
+                ...overlay,
+                desktopX: roundedX, desktopY: roundedY,
+                mobileX: roundedX, mobileY: roundedY
+              };
             }
-            return overlay;
+            if (isDM) {
+              if (desktopMobileVersion === 'desktop') {
+                return { ...overlay, desktopX: roundedX, desktopY: roundedY };
+              }
+              return { ...overlay, mobileX: roundedX, mobileY: roundedY };
+            }
+            return { ...overlay, x: roundedX, y: roundedY };
           }),
-          // Also make this the active overlay when dragging it
           activeOverlayId: overlayId,
           activeOverlayType: 'text'
         };
       } else {
-        // It's an image overlay
         return {
           ...prev,
           imageOverlays: prev.imageOverlays.map(overlay => {
-            if (overlay.id === overlayId) {
-              // In desktop-mobile mode, update the appropriate version-specific position
-              if (activeImageSourceTab === 'desktop-mobile') {
-                if (desktopMobileVersion === 'desktop') {
-                  return { ...overlay, desktopX: Math.round(newX), desktopY: Math.round(newY) };
-                } else if (desktopMobileVersion === 'mobile') {
-                  return { ...overlay, mobileX: Math.round(newX), mobileY: Math.round(newY) };
-                }
-              }
-              // Default behavior: update generic x, y
-              return { ...overlay, x: Math.round(newX), y: Math.round(newY) };
+            if (overlay.id !== overlayId) return overlay;
+            if (isLinked) {
+              return {
+                ...overlay,
+                desktopX: roundedX, desktopY: roundedY,
+                mobileX: roundedX, mobileY: roundedY
+              };
             }
-            return overlay;
+            if (isDM) {
+              if (desktopMobileVersion === 'desktop') {
+                return { ...overlay, desktopX: roundedX, desktopY: roundedY };
+              }
+              return { ...overlay, mobileX: roundedX, mobileY: roundedY };
+            }
+            return { ...overlay, x: roundedX, y: roundedY };
           }),
-          // Also make this the active overlay when dragging it
           activeOverlayId: overlayId,
           activeOverlayType: 'image'
         };
@@ -2191,49 +2212,111 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
 
   // Handle font size change for a text overlay
   const handleFontSizeChange = (overlayId: string, newFontSize: number) => {
-    setFormState(prev => ({
-      ...prev,
-      textOverlays: prev.textOverlays.map(overlay => {
-        if (overlay.id === overlayId) {
-          // In desktop-mobile mode, update the appropriate version-specific font size
-          if (activeImageSourceTab === 'desktop-mobile') {
-            if (desktopMobileVersion === 'desktop') {
-              return { ...overlay, desktopFontSize: Math.round(newFontSize * 10) / 10 };
-            } else if (desktopMobileVersion === 'mobile') {
-              return { ...overlay, mobileFontSize: Math.round(newFontSize * 10) / 10 };
-            }
+    const rounded = Math.round(newFontSize * 10) / 10;
+    setFormState(prev => {
+      const isDM = activeImageSourceTab === 'desktop-mobile';
+      const isLinked = isDM && prev.linkDesktopMobile;
+      return {
+        ...prev,
+        textOverlays: prev.textOverlays.map(overlay => {
+          if (overlay.id !== overlayId) return overlay;
+          if (isLinked) {
+            // Font size is a percentage of canvas width. Desktop and mobile
+            // share the same width (1240px by default) so the same % renders
+            // at exactly the same pixel size on both versions.
+            return { ...overlay, desktopFontSize: rounded, mobileFontSize: rounded };
           }
-          // Default behavior: update generic fontSize
-          return { ...overlay, fontSize: Math.round(newFontSize * 10) / 10 };
-        }
-        return overlay;
-      })
-    }));
+          if (isDM) {
+            if (desktopMobileVersion === 'desktop') {
+              return { ...overlay, desktopFontSize: rounded };
+            }
+            return { ...overlay, mobileFontSize: rounded };
+          }
+          return { ...overlay, fontSize: rounded };
+        })
+      };
+    });
   };
 
   // Handle size change for an image overlay
   const handleImageSizeChange = (overlayId: string, newWidth: number) => {
-    setFormState(prev => ({
-      ...prev,
-      imageOverlays: prev.imageOverlays.map(overlay => {
-        if (overlay.id === overlayId) {
-          // Calculate height based on aspect ratio
+    setFormState(prev => {
+      const isDM = activeImageSourceTab === 'desktop-mobile';
+      const isLinked = isDM && prev.linkDesktopMobile;
+      return {
+        ...prev,
+        imageOverlays: prev.imageOverlays.map(overlay => {
+          if (overlay.id !== overlayId) return overlay;
           const newHeight = newWidth / overlay.aspectRatio;
-          
-          // In desktop-mobile mode, update the appropriate version-specific size
-          if (activeImageSourceTab === 'desktop-mobile') {
-            if (desktopMobileVersion === 'desktop') {
-              return { ...overlay, desktopWidth: Math.round(newWidth * 10) / 10, desktopHeight: Math.round(newHeight * 10) / 10 };
-            } else if (desktopMobileVersion === 'mobile') {
-              return { ...overlay, mobileWidth: Math.round(newWidth * 10) / 10, mobileHeight: Math.round(newHeight * 10) / 10 };
-            }
+          const w = Math.round(newWidth * 10) / 10;
+          const h = Math.round(newHeight * 10) / 10;
+          if (isLinked) {
+            return {
+              ...overlay,
+              desktopWidth: w, desktopHeight: h,
+              mobileWidth: w, mobileHeight: h
+            };
           }
-          // Default behavior: update generic width/height
-          return { ...overlay, width: Math.round(newWidth * 10) / 10, height: Math.round(newHeight * 10) / 10 };
-        }
-        return overlay;
-      })
-    }));
+          if (isDM) {
+            if (desktopMobileVersion === 'desktop') {
+              return { ...overlay, desktopWidth: w, desktopHeight: h };
+            }
+            return { ...overlay, mobileWidth: w, mobileHeight: h };
+          }
+          return { ...overlay, width: w, height: h };
+        })
+      };
+    });
+  };
+
+  // Toggle the link between desktop and mobile overlay positioning/sizing.
+  // When turning it ON, we copy the CURRENTLY-VISIBLE version's values to
+  // the other version so the user's active view becomes the source of truth.
+  // When turning it OFF, we leave both versions as they are; the user can
+  // now edit each independently.
+  const handleLinkDesktopMobileChange = (linked: boolean) => {
+    setFormState(prev => {
+      if (!linked) {
+        return { ...prev, linkDesktopMobile: false };
+      }
+      const fromDesktop = desktopMobileVersion === 'desktop';
+      const syncText = (o: TextOverlay): TextOverlay => {
+        const srcX = fromDesktop ? (o.desktopX ?? o.x) : (o.mobileX ?? o.x);
+        const srcY = fromDesktop ? (o.desktopY ?? o.y) : (o.mobileY ?? o.y);
+        const srcFs = fromDesktop
+          ? (o.desktopFontSize ?? o.fontSize)
+          : (o.mobileFontSize ?? o.fontSize);
+        return {
+          ...o,
+          desktopX: srcX, desktopY: srcY,
+          mobileX: srcX, mobileY: srcY,
+          desktopFontSize: srcFs, mobileFontSize: srcFs
+        };
+      };
+      const syncImage = (o: ImageOverlay): ImageOverlay => {
+        const srcX = fromDesktop ? (o.desktopX ?? o.x) : (o.mobileX ?? o.x);
+        const srcY = fromDesktop ? (o.desktopY ?? o.y) : (o.mobileY ?? o.y);
+        const srcW = fromDesktop
+          ? (o.desktopWidth ?? o.width)
+          : (o.mobileWidth ?? o.width);
+        const srcH = fromDesktop
+          ? (o.desktopHeight ?? o.height)
+          : (o.mobileHeight ?? o.height);
+        return {
+          ...o,
+          desktopX: srcX, desktopY: srcY,
+          mobileX: srcX, mobileY: srcY,
+          desktopWidth: srcW, desktopHeight: srcH,
+          mobileWidth: srcW, mobileHeight: srcH
+        };
+      };
+      return {
+        ...prev,
+        linkDesktopMobile: true,
+        textOverlays: prev.textOverlays.map(syncText),
+        imageOverlays: prev.imageOverlays.map(syncImage)
+      };
+    });
   };
 
   // Handle desktop/mobile version change
@@ -3716,6 +3799,31 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                     </li>
                   </ul>
                 </div>
+                {/* Link desktop & mobile toggle.
+                    When enabled, edits to overlay position & size apply to
+                    both versions so the user only lays things out once. */}
+                <label className="link-dm-toggle slds-m-top_x-small slds-p-horizontal_x-small slds-p-vertical_xx-small">
+                  <input
+                    type="checkbox"
+                    checked={formState.linkDesktopMobile}
+                    onChange={(e) => handleLinkDesktopMobileChange(e.target.checked)}
+                    aria-describedby="link-dm-help"
+                  />
+                  <span className="link-dm-toggle__label">
+                    Link desktop &amp; mobile
+                  </span>
+                  <span
+                    id="link-dm-help"
+                    className="link-dm-toggle__help slds-text-body_small"
+                    title={formState.linkDesktopMobile
+                      ? 'Position & size changes apply to both versions.'
+                      : 'Desktop and mobile are edited independently.'}
+                  >
+                    {formState.linkDesktopMobile
+                      ? 'Edits apply to both'
+                      : 'Editing independently'}
+                  </span>
+                </label>
               </div>
             )}
             {isLoading ? (
