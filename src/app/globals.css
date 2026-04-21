@@ -3221,6 +3221,53 @@ input.font-size-percentage-input {
      buttons must stay on a single horizontal row (override below). */
   .sticky-preview-column .slds-card__footer .slds-grid {
     flex-direction: row !important;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* At narrow widths the preview footer's left action group (Save + Copy
+     Link) and right action group (Desktop / Mobile / Both) can't fit on
+     one row. Let them stack vertically but keep each inner group as a
+     single horizontal row so buttons sit side by side rather than
+     one-per-line. */
+  .sticky-preview-column .slds-card__footer .slds-grid > div {
+    flex: 1 1 100%;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Save Changes keeps its label and takes the available space. */
+  .sticky-preview-column .slds-card__footer .share-button {
+    flex: 1 1 auto;
+    width: auto;
+  }
+
+  /* Copy Link collapses to an icon-only square button so it sits next
+     to Save Changes without wrapping to a new row. The `title`
+     attribute still surfaces the label on hover. */
+  .sticky-preview-column .slds-card__footer .copy-link-button {
+    flex: 0 0 auto;
+    width: 2.5rem;
+    min-width: 2.5rem;
+    padding: 0;
+    justify-content: center;
+  }
+  .sticky-preview-column .slds-card__footer .copy-link-button .copy-link-button__label {
+    display: none;
+  }
+  .sticky-preview-column .slds-card__footer .copy-link-button .slds-button__icon_left {
+    margin-right: 0;
+  }
+
+  /* Desktop / Mobile / Both share the row equally. */
+  .sticky-preview-column .slds-card__footer .download-button {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
 
   .slds-card__footer .slds-col {

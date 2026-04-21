@@ -3915,7 +3915,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                 </button>
                 {currentProjectId && (
                   <button
-                    className="slds-button slds-button_neutral"
+                    className="slds-button slds-button_neutral copy-link-button"
                     onClick={handleCopyLink}
                     aria-label="Copy project link to clipboard"
                     title="Copy project link"
@@ -3923,7 +3923,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                     <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
                       {showCopySuccess ? <Icons.Success /> : <Icons.Copy />}
                     </svg>
-                    Copy Link
+                    <span className="copy-link-button__label">Copy Link</span>
                   </button>
                 )}
               </div>
