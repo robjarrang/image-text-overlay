@@ -3947,8 +3947,11 @@ input.font-size-percentage-input {
     background: var(--slds-g-color-neutral-base-10, #181818) !important;
   }
 
-  /* ── Prevent inputs inside grid columns from overflowing their flex cell ── */
-  .slds-grid .slds-col {
+  /* ── Prevent number inputs from overflowing their flex cell ── */
+  .slds-col input[type="number"],
+  .slds-col input[type="text"],
+  .slds-col input[type="url"] {
+    max-width: 100%;
     min-width: 0;
   }
 

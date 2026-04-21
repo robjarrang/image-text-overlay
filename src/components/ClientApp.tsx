@@ -2780,7 +2780,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                 </div>
                               </div>
                             </div>
-                            <div className="slds-grid slds-gutters_small" style={{ overflow: 'hidden' }}>
+                            <div className="slds-grid slds-gutters_small">
                               <div className="slds-col" style={{ minWidth: 0 }}>
                                 <div className="slds-form-element">
                                   <label className="slds-form-element__label" htmlFor="canvasWidth">
@@ -2842,7 +2842,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                   {desktopMobileVersion === 'desktop' ? 'Desktop' : 'Mobile'} Canvas Dimensions
                                 </legend>
                                 <div className="slds-form-element__control">
-                                  <div className="slds-grid slds-gutters_small" style={{ overflow: 'hidden' }}>
+                                  <div className="slds-grid slds-gutters_small">
                                     <div className="slds-col slds-size_1-of-2" style={{ minWidth: 0 }}>
                                       <div className="slds-form-element">
                                         <label className="slds-form-element__label" htmlFor={`${desktopMobileVersion}Width`}>
