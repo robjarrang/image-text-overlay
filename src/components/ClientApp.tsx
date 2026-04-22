@@ -2622,45 +2622,47 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
           Builder. Explains the round-trip so users don't assume the
           saved project is what gets sent in the email. */}
       {showSfmcGuidance && (
-        <div
-          className="slds-col slds-size_1-of-1 sfmc-guidance"
-          role="note"
-          aria-label="Workflow guidance"
-        >
-          <div className="sfmc-guidance__body">
-            <div className="sfmc-guidance__title">How to use this block in your email</div>
-            <ol className="sfmc-guidance__steps">
-              <li>Design your banner here and save it as a project.</li>
-              <li>
-                Click <strong>Download</strong> (Desktop, Mobile, or Both)
-                to export the final image(s).
-              </li>
-              <li>
-                In Content Builder, upload the image(s) to an
-                <em> assets</em> subfolder next to your email
-                (e.g. <code>My Email / assets</code>).
-              </li>
-              <li>
-                Add a <strong>Lead Banner</strong> block to the email and
-                paste the published image URL(s) into its desktop and
-                mobile fields.
-              </li>
-            </ol>
-            <p className="sfmc-guidance__footnote">
-              This block itself is only an editor — it will not render
-              your image in the sent email, so remember to delete it
-              before sending.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="app-icon-btn sfmc-guidance__dismiss"
-            onClick={dismissSfmcGuidance}
-            aria-label="Dismiss guidance"
-            title="Dismiss"
+        <div className="slds-col slds-size_1-of-1">
+          <div
+            className="sfmc-guidance"
+            role="note"
+            aria-label="Workflow guidance"
           >
-            <Icons.Close />
-          </button>
+            <div className="sfmc-guidance__body">
+              <div className="sfmc-guidance__title">How to use this block in your email</div>
+              <ol className="sfmc-guidance__steps">
+                <li>Design your banner here and save it as a project.</li>
+                <li>
+                  Click <strong>Download</strong> (Desktop, Mobile, or Both)
+                  to export the final image(s).
+                </li>
+                <li>
+                  In Content Builder, upload the image(s) to an
+                  <em> assets</em> subfolder next to your email
+                  (e.g. <code>My Email / assets</code>).
+                </li>
+                <li>
+                  Add a <strong>Lead Banner</strong> block to the email and
+                  paste the published image URL(s) into its desktop and
+                  mobile fields.
+                </li>
+              </ol>
+              <p className="sfmc-guidance__footnote">
+                This block itself is only an editor — it will not render
+                your image in the sent email, so remember to delete it
+                before sending.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="app-icon-btn sfmc-guidance__dismiss"
+              onClick={dismissSfmcGuidance}
+              aria-label="Dismiss guidance"
+              title="Dismiss"
+            >
+              <Icons.Close />
+            </button>
+          </div>
         </div>
       )}
       {/* Left column - Controls */}
