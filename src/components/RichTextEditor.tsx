@@ -528,30 +528,31 @@ export function RichTextEditor({
         
         {/* Help button */}
         <div className="slds-m-left_small">
-          <button 
-            className={`slds-button slds-button_icon slds-button_icon-border-filled ${showHelp ? 'slds-is-selected' : ''}`}
+          <button
+            type="button"
+            className={`app-icon-btn ${showHelp ? 'is-active' : ''}`}
             onClick={() => setShowHelp(!showHelp)}
             aria-label="Formatting help"
+            aria-expanded={showHelp}
             title="Formatting Help"
-            style={{
-              position: 'relative',
-              overflow: 'hidden',
-              transition: 'background-color 0.2s ease'
-            }}
           >
             <Icons.Help />
             <span className="slds-assistive-text">Formatting help</span>
           </button>
         </div>
       </div>
-      
+
       {/* Help panel */}
-      <div 
+      <div
         className={`slds-box slds-theme_shade slds-m-bottom_small formatting-help ${showHelp ? 'help-panel-visible' : 'help-panel-hidden'}`}
         style={{
           borderRadius: '8px',
-          overflow: 'hidden',
-          maxHeight: showHelp ? '500px' : '0',
+          // `overflow: auto` (rather than hidden) lets the panel scroll
+          // if its content is taller than the max-height. The previous
+          // `overflow: hidden` + fixed 500px cap was clipping the top
+          // and bottom of the help content at narrow widths.
+          overflow: showHelp ? 'auto' : 'hidden',
+          maxHeight: showHelp ? 'min(80vh, 640px)' : '0',
           opacity: showHelp ? 1 : 0,
           transition: 'max-height 0.3s ease-in-out, opacity 0.2s ease-in-out, margin 0.2s ease-in-out',
           margin: showHelp ? '0 0 1rem 0' : '0',

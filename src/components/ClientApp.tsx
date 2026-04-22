@@ -244,6 +244,29 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
   // Projects browser state
   const [showProjectsBrowser, setShowProjectsBrowser] = useState(false);
 
+  // SFMC workflow guidance banner — visible by default when embedded in
+  // the Content Builder iframe to remind users that this editor only
+  // produces an image which must be downloaded, uploaded back into
+  // SFMC's Content Builder, and placed via the Lead Banner block.
+  // Dismiss state is persisted in localStorage so it doesn't reappear
+  // on every reopen. Standalone (non-embedded) visits never see it.
+  const SFMC_GUIDANCE_DISMISS_KEY = 'image-text-overlay.sfmcGuidanceDismissed.v1';
+  const [showSfmcGuidance, setShowSfmcGuidance] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let embedded = false;
+    try { embedded = window.parent !== window; } catch { embedded = true; }
+    if (!embedded) return;
+    try {
+      if (window.localStorage.getItem(SFMC_GUIDANCE_DISMISS_KEY) === '1') return;
+    } catch { /* localStorage may be blocked in iframes; still show banner */ }
+    setShowSfmcGuidance(true);
+  }, []);
+  const dismissSfmcGuidance = () => {
+    setShowSfmcGuidance(false);
+    try { window.localStorage.setItem(SFMC_GUIDANCE_DISMISS_KEY, '1'); } catch { /* ignore */ }
+  };
+
   // Save dialog state
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveDialogName, setSaveDialogName] = useState('');
@@ -2594,6 +2617,52 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
           </button>
         </div>
       </div>
+
+      {/* SFMC workflow guidance — only visible when embedded in Content
+          Builder. Explains the round-trip so users don't assume the
+          saved project is what gets sent in the email. */}
+      {showSfmcGuidance && (
+        <div
+          className="slds-col slds-size_1-of-1 sfmc-guidance"
+          role="note"
+          aria-label="Workflow guidance"
+        >
+          <div className="sfmc-guidance__body">
+            <div className="sfmc-guidance__title">How to use this block in your email</div>
+            <ol className="sfmc-guidance__steps">
+              <li>Design your banner here and save it as a project.</li>
+              <li>
+                Click <strong>Download</strong> (Desktop, Mobile, or Both)
+                to export the final image(s).
+              </li>
+              <li>
+                In Content Builder, upload the image(s) to an
+                <em> assets</em> subfolder next to your email
+                (e.g. <code>My Email / assets</code>).
+              </li>
+              <li>
+                Add a <strong>Lead Banner</strong> block to the email and
+                paste the published image URL(s) into its desktop and
+                mobile fields.
+              </li>
+            </ol>
+            <p className="sfmc-guidance__footnote">
+              This block itself is only an editor — it will not render
+              your image in the sent email, so remember to delete it
+              before sending.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="app-icon-btn sfmc-guidance__dismiss"
+            onClick={dismissSfmcGuidance}
+            aria-label="Dismiss guidance"
+            title="Dismiss"
+          >
+            <Icons.Close />
+          </button>
+        </div>
+      )}
       {/* Left column - Controls */}
       <div className="slds-col slds-size_1-of-1 slds-large-size_1-of-2 controls-column">
         <article className="slds-card slds-card_boundary shadow-md">

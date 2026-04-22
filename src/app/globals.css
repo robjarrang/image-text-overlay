@@ -693,6 +693,15 @@ body {
   margin-bottom: 0.5rem;
 }
 
+/* At narrow widths (SFMC iframe, mobile) the two-column layout squeezes
+   code snippets into illegible wraps. Stack the columns instead. */
+@media (max-width: 640px) {
+  .formatting-help .slds-col.slds-size_1-of-2 {
+    width: 100%;
+    padding-right: 0 !important;
+  }
+}
+
 /* Real-time syntax highlighting for the editor */
 @keyframes highlightAlignment {
   0% { background-color: rgba(21, 137, 238, 0.2); }
@@ -3617,8 +3626,13 @@ input.font-size-percentage-input {
  * the same panel (e.g. `.projects-browser-move-item`) rendered fine.
  * This custom class mirrors the SLDS `icon-border-filled` look without
  * relying on any of the `.slds-button_icon` sub-rules.
+ *
+ * Also aliased as `.app-icon-btn` for reuse outside the Projects panel
+ * (e.g. the Rich Text formatting help toggle) where the same SFMC
+ * rendering bug applies.
  */
-.projects-browser-icon-btn {
+.projects-browser-icon-btn,
+.app-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3633,18 +3647,84 @@ input.font-size-percentage-input {
   line-height: 1;
   transition: border-color 0.15s linear, background-color 0.15s linear;
 }
-.projects-browser-icon-btn:hover {
+.projects-browser-icon-btn:hover,
+.app-icon-btn:hover {
   border-color: var(--slds-g-color-border-base-2, #939393);
   background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
 }
-.projects-browser-icon-btn:focus {
+.projects-browser-icon-btn:focus,
+.app-icon-btn:focus {
   outline: 2px solid var(--slds-g-color-brand-base-50, #0176d3);
   outline-offset: 2px;
 }
-.projects-browser-icon-btn:disabled {
+.projects-browser-icon-btn:disabled,
+.app-icon-btn:disabled {
   color: var(--slds-g-color-neutral-base-80, #c9c9c9);
   border-color: var(--slds-g-color-border-base-1, #c9c9c9);
   cursor: not-allowed;
+}
+/* Active/selected state for toggle-style icon buttons. */
+.app-icon-btn.is-active {
+  background-color: var(--ui-accent-color, #0176d3);
+  border-color: var(--ui-accent-color, #0176d3);
+  color: #fff;
+}
+
+/* SFMC workflow guidance banner — shown to embedded users to explain
+   the download → upload → Lead Banner round-trip. Dismissible; state
+   persists in localStorage. Uses a soft blue info-style palette. */
+.sfmc-guidance {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  margin: 0 0 0.75rem 0;
+  border: 1px solid #b9d7ff;
+  background-color: #eaf3ff;
+  border-radius: 0.375rem;
+  color: #14263f;
+  order: -1;
+}
+.slds-theme_dark .sfmc-guidance {
+  border-color: #2c4a73;
+  background-color: #12233a;
+  color: #d6e4f5;
+}
+.sfmc-guidance__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.sfmc-guidance__title {
+  font-weight: 700;
+  font-size: 0.875rem;
+  margin-bottom: 0.375rem;
+}
+.sfmc-guidance__steps {
+  margin: 0 0 0.375rem 1.125rem;
+  padding: 0;
+}
+.sfmc-guidance__steps li {
+  margin-bottom: 0.25rem;
+}
+.sfmc-guidance__steps code {
+  background: rgba(255, 255, 255, 0.6);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+}
+.slds-theme_dark .sfmc-guidance__steps code {
+  background: rgba(0, 0, 0, 0.35);
+}
+.sfmc-guidance__footnote {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+.sfmc-guidance__dismiss {
+  flex: 0 0 auto;
+  margin-top: 0.125rem;
 }
 /* Borderless x-small variant for row action buttons. */
 .projects-browser-icon-btn--small {
