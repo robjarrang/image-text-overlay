@@ -3670,6 +3670,20 @@ input.font-size-percentage-input {
   color: #fff;
 }
 
+/* Same active state when the toggle uses the SLDS neutral button
+   chassis (e.g. the workflow guidance Help toggle next to Copy Link). */
+.slds-button_neutral.is-active,
+.copy-link-icon-btn.is-active {
+  background-color: var(--ui-accent-color, #0176d3);
+  border-color: var(--ui-accent-color, #0176d3);
+  color: #fff;
+}
+.slds-button_neutral.is-active .slds-button__icon,
+.copy-link-icon-btn.is-active .slds-button__icon {
+  fill: #fff;
+  color: #fff;
+}
+
 /* SFMC workflow guidance banner — shown to embedded users to explain
    the download → upload → Lead Banner round-trip. Dismissible; state
    persists in localStorage. Uses a soft blue info-style palette. */

@@ -2611,13 +2611,15 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
           {isEmbedded && (
             <button
               type="button"
-              className={`app-icon-btn mobile-header-btn ${showSfmcGuidance ? 'is-active' : ''}`}
+              className={`slds-button slds-button_neutral mobile-header-btn copy-link-icon-btn ${showSfmcGuidance ? 'is-active' : ''}`}
               onClick={toggleSfmcGuidance}
               aria-label={showSfmcGuidance ? 'Hide workflow guidance' : 'Show workflow guidance'}
               aria-pressed={showSfmcGuidance}
               title="How to use this block"
             >
-              <Icons.Help />
+              <svg className="slds-button__icon" aria-hidden="true">
+                <Icons.Help />
+              </svg>
             </button>
           )}
           {currentProjectId && (
@@ -2708,13 +2710,15 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
               {isEmbedded && (
                 <button
                   type="button"
-                  className={`app-icon-btn ${showSfmcGuidance ? 'is-active' : ''}`}
+                  className={`slds-button slds-button_neutral copy-link-icon-btn ${showSfmcGuidance ? 'is-active' : ''}`}
                   onClick={toggleSfmcGuidance}
                   aria-label={showSfmcGuidance ? 'Hide workflow guidance' : 'Show workflow guidance'}
                   aria-pressed={showSfmcGuidance}
                   title="How to use this block"
                 >
-                  <Icons.Help />
+                  <svg className="slds-button__icon" aria-hidden="true">
+                    <Icons.Help />
+                  </svg>
                 </button>
               )}
               {currentProjectId && (
