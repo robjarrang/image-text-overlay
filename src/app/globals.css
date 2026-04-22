@@ -46,7 +46,13 @@
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
+  /* `overflow-x: clip` (NOT `hidden`) prevents horizontal overflow without
+     turning html/body into a scroll container. `overflow-x: hidden` would,
+     per CSS spec, force `overflow-y: auto` on both elements — creating two
+     nested scrollers. Browsers then misroute vertical scroll gestures, which
+     in Edge breaks body scroll on the standalone page. The SFMC embedded
+     overrides below address the same issue inside a short iframe. */
+  overflow-x: clip;
   /* Prevent iframe scroll bubbling into the parent page (e.g. SFMC
      Content Builder). Without this, iOS Safari lets an overscroll
      gesture pull-to-refresh the hosting Salesforce UI. */
@@ -754,7 +760,7 @@ body {
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 html {
