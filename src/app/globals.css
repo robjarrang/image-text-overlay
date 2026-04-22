@@ -3697,7 +3697,6 @@ input.font-size-percentage-input {
   background-color: #eaf3ff;
   border-radius: 0.375rem;
   color: #14263f;
-  order: -1;
 }
 .slds-theme_dark .sfmc-guidance {
   border-color: #2c4a73;
@@ -4268,6 +4267,13 @@ input.font-size-percentage-input {
     order: -2 !important;
     padding: 0.5rem 0.75rem !important;
     margin: 0 !important;
+  }
+
+  /* Keep the workflow guidance banner directly beneath the header bar
+     and Help button that toggles it, rather than slipping below the
+     preview/controls. Order between the header (-2) and preview (-1). */
+  .preview-container-parent > .sfmc-guidance-col {
+    order: -2 !important;
   }
   .mobile-header-bar .mobile-header-btn {
     min-height: 36px;

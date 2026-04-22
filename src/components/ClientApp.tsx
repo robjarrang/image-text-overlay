@@ -2649,7 +2649,7 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
           Builder. Explains the round-trip so users don't assume the
           saved project is what gets sent in the email. */}
       {showSfmcGuidance && (
-        <div className="slds-col slds-size_1-of-1">
+        <div className="slds-col slds-size_1-of-1 sfmc-guidance-col">
           <div
             className="sfmc-guidance"
             role="note"
