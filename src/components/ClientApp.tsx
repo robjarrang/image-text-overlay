@@ -250,13 +250,16 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
   // SFMC's Content Builder, and placed via the Lead Banner block.
   // Dismiss state is persisted in localStorage so it doesn't reappear
   // on every reopen. Standalone (non-embedded) visits never see it.
+  // A Help button in the header lets the user reopen it on demand.
   const SFMC_GUIDANCE_DISMISS_KEY = 'image-text-overlay.sfmcGuidanceDismissed.v1';
+  const [isEmbedded, setIsEmbedded] = useState(false);
   const [showSfmcGuidance, setShowSfmcGuidance] = useState(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     let embedded = false;
     try { embedded = window.parent !== window; } catch { embedded = true; }
     if (!embedded) return;
+    setIsEmbedded(true);
     try {
       if (window.localStorage.getItem(SFMC_GUIDANCE_DISMISS_KEY) === '1') return;
     } catch { /* localStorage may be blocked in iframes; still show banner */ }
@@ -265,6 +268,16 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
   const dismissSfmcGuidance = () => {
     setShowSfmcGuidance(false);
     try { window.localStorage.setItem(SFMC_GUIDANCE_DISMISS_KEY, '1'); } catch { /* ignore */ }
+  };
+  const toggleSfmcGuidance = () => {
+    setShowSfmcGuidance((prev) => {
+      const next = !prev;
+      try {
+        if (next) window.localStorage.removeItem(SFMC_GUIDANCE_DISMISS_KEY);
+        else window.localStorage.setItem(SFMC_GUIDANCE_DISMISS_KEY, '1');
+      } catch { /* ignore */ }
+      return next;
+    });
   };
 
   // Save dialog state
@@ -2595,6 +2608,18 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
           {isSaving ? 'Saving...' : currentProjectId ? 'Save Changes' : 'Save Project'}
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {isEmbedded && (
+            <button
+              type="button"
+              className={`app-icon-btn mobile-header-btn ${showSfmcGuidance ? 'is-active' : ''}`}
+              onClick={toggleSfmcGuidance}
+              aria-label={showSfmcGuidance ? 'Hide workflow guidance' : 'Show workflow guidance'}
+              aria-pressed={showSfmcGuidance}
+              title="How to use this block"
+            >
+              <Icons.Help />
+            </button>
+          )}
           {currentProjectId && (
             <button
               className="slds-button slds-button_neutral mobile-header-btn copy-link-icon-btn"
@@ -2680,6 +2705,18 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
               )}
             </div>
             <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
+              {isEmbedded && (
+                <button
+                  type="button"
+                  className={`app-icon-btn ${showSfmcGuidance ? 'is-active' : ''}`}
+                  onClick={toggleSfmcGuidance}
+                  aria-label={showSfmcGuidance ? 'Hide workflow guidance' : 'Show workflow guidance'}
+                  aria-pressed={showSfmcGuidance}
+                  title="How to use this block"
+                >
+                  <Icons.Help />
+                </button>
+              )}
               {currentProjectId && (
                 <button
                   className="slds-button slds-button_neutral copy-link-icon-btn"
