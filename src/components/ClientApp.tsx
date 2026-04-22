@@ -4,7 +4,7 @@ import LZString from 'lz-string';
 import { Icons, SldsIcon } from './Icons';
 import { ProjectsBrowser } from './ProjectsBrowser';
 import { TickerText } from './TickerText';
-import { getStoredProjectRef, storeProjectRef } from '@/utils/sfmcBlock';
+import { getStoredProjectRef, storeProjectRef, ensurePlaceholderContent } from '@/utils/sfmcBlock';
 
 const CanvasGenerator = dynamic(() => import('./CanvasGenerator').then(mod => ({ default: mod.CanvasGenerator })), {
   ssr: false
@@ -224,7 +224,16 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
     (async () => {
       try {
         const ref = await getStoredProjectRef();
-        if (cancelled || !ref.projectId) return;
+        if (cancelled) return;
+        if (!ref.projectId) {
+          // No project linked to this block yet — write the default
+          // "unsaved" placeholder so the SFMC email preview shows a
+          // visible DELETE-BEFORE-SENDING banner straight away rather
+          // than an empty block. ensurePlaceholderContent is a no-op
+          // when the block already has non-empty content.
+          void ensurePlaceholderContent();
+          return;
+        }
         // Verify the project still exists before redirecting — it may
         // have been deleted from the Projects browser since the block
         // was last edited.

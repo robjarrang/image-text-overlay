@@ -191,3 +191,67 @@ export async function clearStoredProjectRef(): Promise<void> {
     /* no-op */
   }
 }
+
+/**
+ * Write the default "no project yet" placeholder into the block
+ * instance if — and only if — the block currently has no content.
+ * This ensures a freshly-dragged block shows a visible banner in the
+ * email preview straight away, rather than an empty block the author
+ * might forget about. Safe to call on every mount: if the block
+ * already has non-empty content (e.g. an existing project placeholder
+ * written by a previous save) it is left alone.
+ */
+export async function ensurePlaceholderContent(): Promise<void> {
+  const sdk = await getSdk();
+  if (!sdk) return;
+  try {
+    const existing = await new Promise<string>((resolve) => {
+      const timeout = setTimeout(() => resolve(''), 3000);
+      try {
+        sdk.getContent((html) => {
+          clearTimeout(timeout);
+          resolve(typeof html === 'string' ? html : '');
+        });
+      } catch {
+        clearTimeout(timeout);
+        resolve('');
+      }
+    });
+    if (existing && existing.trim() !== '') return;
+    sdk.setContent(buildUnsavedPlaceholderHtml());
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[sfmcBlock] Failed to write default placeholder:', err);
+  }
+}
+
+/**
+ * Placeholder rendered when the user has dragged the block in but
+ * hasn't saved a project yet. Mirrors the saved-project banner's
+ * "DELETE BEFORE SENDING" styling so authors recognise it as an
+ * editor-only artefact, but with copy that makes it clear no image
+ * has been produced yet.
+ */
+function buildUnsavedPlaceholderHtml(): string {
+  return (
+    `<!-- image-text-overlay: no project saved yet — open this block to edit, then delete before sending. -->`
+    + `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" `
+    +   `style="border-collapse:collapse;background-color:#fef3c7;border:2px dashed #dc2626;">`
+    +   `<tr><td align="center" style="padding:16px 20px;font-family:Arial,Helvetica,sans-serif;">`
+    +     `<div style="font-size:11px;font-weight:bold;letter-spacing:0.1em;color:#dc2626;`
+    +       `text-transform:uppercase;margin-bottom:6px;">`
+    +       `⚠ Delete this block before sending`
+    +     `</div>`
+    +     `<div style="font-size:16px;font-weight:bold;color:#111827;">`
+    +       `Image Overlay Tool`
+    +     `</div>`
+    +     `<div style="font-size:12px;color:#374151;margin-top:6px;">`
+    +       `Double-click this block to design and save your banner.`
+    +     `</div>`
+    +     `<div style="font-size:11px;color:#6b7280;margin-top:8px;">`
+    +       `This is an editor placeholder — the final image must be exported and added as an image block.`
+    +     `</div>`
+    +   `</td></tr>`
+    + `</table>`
+  );
+}
