@@ -298,6 +298,13 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
   const [saveDialogNewFolderName, setSaveDialogNewFolderName] = useState('');
   const [saveDialogNewFolderParentId, setSaveDialogNewFolderParentId] = useState<string | null>(null);
   const saveDialogNameRef = useRef<HTMLInputElement>(null);
+
+  // Save-choice dialog state — shown when the user clicks Save on a project
+  // that has already been saved once. Prevents silently overwriting a shared
+  // project (e.g. a translator editing the central team's English master).
+  // See /memories/session/plan.md for the full rationale.
+  const [showSaveChoiceDialog, setShowSaveChoiceDialog] = useState(false);
+  const saveAsNewButtonRef = useRef<HTMLButtonElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1918,14 +1925,35 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
   const handleShare = async () => {
     if (isSaving) return;
 
-    // If editing an existing project, update it directly (skip dialog)
+    // If editing an existing project, ask whether to update it in place or
+    // fork a new one. This is critical for the shared-link translation
+    // workflow: a translator who hits Save must not silently overwrite the
+    // central team's original. See /memories/session/plan.md.
     if (currentProjectId) {
-      await performShare(currentProjectName, null);
+      setShowSaveChoiceDialog(true);
+      // Default focus on the safer choice (Save as new) after render.
+      setTimeout(() => saveAsNewButtonRef.current?.focus(), 50);
       return;
     }
 
     // For new projects, open the save dialog to get a name and folder
     openSaveDialog();
+  };
+
+  // Confirm updating the existing project in place (PUT). Today's default
+  // behaviour, now gated behind an explicit user choice.
+  const handleSaveChoiceUpdate = async () => {
+    setShowSaveChoiceDialog(false);
+    await performShare(currentProjectName, null, false);
+  };
+
+  // Fork: create a brand new project from the current state, leaving the
+  // original untouched. Matches the Projects browser Duplicate naming
+  // convention ('{name} (Copy)').
+  const handleSaveChoiceFork = async () => {
+    setShowSaveChoiceDialog(false);
+    const forkName = `${currentProjectName || 'Untitled Project'} (Copy)`;
+    await performShare(forkName, null, true);
   };
 
   // Build the compressed shareData object (shared between save paths)
@@ -2037,8 +2065,11 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
     return shareData;
   };
 
-  // Actually save to DB and copy link
-  const performShare = async (name: string, folderId: string | null) => {
+  // Actually save to DB and copy link.
+  // `forceCreate=true` forks to a new project row even when `currentProjectId`
+  // is set — used by the 'Save as new project' branch of the save-choice
+  // dialog so translators don't overwrite a shared master.
+  const performShare = async (name: string, folderId: string | null, forceCreate: boolean = false) => {
     if (isSaving) return;
     setIsSaving(true);
 
@@ -2049,8 +2080,9 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
       try {
         const origin = window.location.origin;
 
-        // If editing an existing project, update it in place
-        if (currentProjectId) {
+        // If editing an existing project, update it in place (unless we're
+        // deliberately forking to a new project via the save-choice dialog).
+        if (currentProjectId && !forceCreate) {
           const res = await fetch(`/api/projects/${currentProjectId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -4231,6 +4263,88 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
               >
                 {isSaving ? 'Saving...' : 'Save & Copy Link'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save Choice Dialog — shown when saving a project that already exists,
+          to prevent accidentally overwriting a shared master (e.g. translators
+          editing the central team's English version). */}
+      {showSaveChoiceDialog && (
+        <div
+          className="save-dialog-overlay"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowSaveChoiceDialog(false); }}
+        >
+          <div
+            className="save-dialog-panel slds-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="save-choice-heading"
+            onKeyDown={(e) => { if (e.key === 'Escape') setShowSaveChoiceDialog(false); }}
+          >
+            <div className="slds-card__header slds-grid slds-grid_align-spread slds-p-around_medium slds-border_bottom">
+              <h2 id="save-choice-heading" className="slds-text-heading_small" style={{ margin: 0 }}>Save changes</h2>
+              <button
+                className="slds-button slds-button_icon"
+                onClick={() => setShowSaveChoiceDialog(false)}
+                aria-label="Close save dialog"
+              >
+                <Icons.Close />
+              </button>
+            </div>
+            <div className="slds-card__body slds-p-around_medium">
+              <p className="slds-m-bottom_small">
+                <strong>Update this project</strong> overwrites the current version.
+                Everyone who has the shared link will see your changes.
+              </p>
+              <p className="slds-m-bottom_small">
+                <strong>Save as a new project</strong> keeps the original untouched
+                and creates a separate link.
+              </p>
+              <p
+                className="slds-m-bottom_none"
+                style={{
+                  padding: '0.75rem',
+                  backgroundColor: '#fef3c7',
+                  borderLeft: '3px solid #f59e0b',
+                  borderRadius: '0.25rem',
+                  fontSize: '0.8125rem',
+                }}
+              >
+                <strong>Translating a shared project?</strong> Choose <em>Save as a
+                new project</em>. Saving over the original would replace it for
+                every other team working from the same link.
+              </p>
+            </div>
+            <div
+              className="slds-card__footer slds-grid slds-grid_align-spread slds-p-around_medium slds-border_top"
+              style={{ gap: '0.5rem', flexWrap: 'wrap' }}
+            >
+              <button
+                className="slds-button slds-button_neutral"
+                onClick={() => setShowSaveChoiceDialog(false)}
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+              <div className="slds-grid" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  ref={saveAsNewButtonRef}
+                  className="slds-button slds-button_neutral"
+                  onClick={handleSaveChoiceFork}
+                  disabled={isSaving}
+                >
+                  {isSaving ? 'Saving…' : 'Save as new project'}
+                </button>
+                <button
+                  className="slds-button slds-button_brand"
+                  onClick={handleSaveChoiceUpdate}
+                  disabled={isSaving}
+                >
+                  {isSaving ? 'Saving…' : 'Update this project'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
