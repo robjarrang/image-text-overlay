@@ -3585,10 +3585,15 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                 const referenceWidth = activeImageSourceTab === 'desktop-mobile' ? FONT_REFERENCE_WIDTH : formState.width;
                                 const percentValue = fontPixelsToPercent(sizePx, referenceWidth);
                                 if (activeImageSourceTab === 'desktop-mobile') {
-                                  updateActiveOverlay(
-                                    desktopMobileVersion === 'desktop' ? 'desktopFontSize' : 'mobileFontSize',
-                                    percentValue
-                                  );
+                                  // Go through handleFontSizeChange so the
+                                  // Link-desktop-and-mobile toggle is honoured
+                                  // (writes both desktopFontSize & mobileFontSize
+                                  // when linked). Previously this wrote only
+                                  // the active version's field, causing the
+                                  // linked versions to drift apart.
+                                  if (formState.activeOverlayId) {
+                                    handleFontSizeChange(formState.activeOverlayId, percentValue);
+                                  }
                                 } else {
                                   updateActiveOverlay('fontSize', percentValue);
                                 }
