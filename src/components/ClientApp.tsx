@@ -3879,12 +3879,13 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                                       
                                       {/* Delete Button */}
                                       <div className="slds-col">
-                                        <button 
-                                          className="slds-button slds-button_icon slds-button_icon-border-filled" 
+                                        <button
+                                          className="projects-browser-icon-btn"
                                           onClick={() => deleteImageOverlay(overlay.id)}
                                           title="Delete this overlay"
+                                          aria-label="Delete overlay"
                                         >
-                                          <SldsIcon name="delete" className="slds-button__icon" />
+                                          <Icons.Delete size="x-small" />
                                           <span className="slds-assistive-text">Delete overlay</span>
                                         </button>
                                       </div>
