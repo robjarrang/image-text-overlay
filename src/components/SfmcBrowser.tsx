@@ -169,7 +169,7 @@ export function SfmcBrowser({
       setError(`"${asset.name}" has no published URL yet — try again in a minute.`);
       return;
     }
-    onPickAsset(asset);
+    onPickAsset?.(asset);
     onClose();
   };
   const handleSelectCurrentFolder = () => {
