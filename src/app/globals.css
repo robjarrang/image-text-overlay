@@ -252,6 +252,57 @@ body {
   background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
 }
 
+/* Copy-SFMC-URL buttons — icon-only on desktop (compact, tooltip shows
+   the full URL) so they don't crowd the footer. On mobile the label is
+   shown (see media query below) and the buttons stretch full-width. */
+.copy-sfmc-url-button {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.5rem !important;
+  min-width: 2.25rem;
+  height: 2rem;
+  line-height: 1;
+}
+.copy-sfmc-url-button .copy-sfmc-url-button__label {
+  display: none;
+}
+.copy-sfmc-url-button .copy-sfmc-url-button__link-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  opacity: 0.75;
+  margin-left: 0.125rem;
+  margin-right: 0 !important;
+}
+
+/* Download split-button group (Download + chevron dropdown).
+   Applies at all viewports. Joins the two buttons visually so they read
+   as one control. Mobile-specific full-width behaviour lives in the
+   mobile media query further down. */
+.download-split-group {
+  display: inline-flex;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  position: relative;
+}
+.download-split-group .download-split-main,
+.download-split-group .download-split-chevron {
+  box-sizing: border-box;
+  min-height: 2rem;
+  align-self: stretch;
+}
+.download-split-group .download-split-main {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+.download-split-group .download-split-chevron {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  margin-left: -1px;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
 /* Enhanced share button */
 .share-button {
   position: relative;
@@ -4458,7 +4509,8 @@ input.font-size-percentage-input {
     align-items: stretch !important;
   }
   /* Keep the Desktop/Mobile download pair on a single row. */
-  .sticky-preview-column .slds-card__footer .slds-grid_align-spread > div:has(.download-button) {
+  .sticky-preview-column .slds-card__footer .slds-grid_align-spread > div:has(.download-button),
+  .sticky-preview-column .slds-card__footer .slds-grid_align-spread > div:has(.download-split-group) {
     display: flex;
     gap: 0.375rem;
     flex: 1 1 100%;
@@ -4471,6 +4523,62 @@ input.font-size-percentage-input {
     font-weight: 600;
     padding-left: 0.5rem !important;
     padding-right: 0.5rem !important;
+  }
+
+  /* The download split-button group (Download + chevron). Keep the
+     chevron inline next to Download instead of stacking underneath.
+     Make the whole group span the row on mobile. */
+  .sticky-preview-column .slds-card__footer .download-split-group {
+    display: inline-flex !important;
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    flex-wrap: nowrap !important;
+    min-width: 0;
+    position: relative;
+  }
+  /* Override the blanket `.slds-card__footer .slds-button { width: 100% }`
+     rule above — children of the split-group must not stretch to 100%. */
+  .sticky-preview-column .slds-card__footer .download-split-group .slds-button {
+    width: auto !important;
+  }
+  .sticky-preview-column .slds-card__footer .download-split-main {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    min-height: 44px;
+    font-weight: 600;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  .sticky-preview-column .slds-card__footer .download-split-chevron {
+    flex: 0 0 auto !important;
+    min-width: 2.5rem !important;
+    min-height: 44px;
+  }
+
+  /* Save to SFMC button — match the Download button's full-width
+     behaviour on mobile so the two stack cleanly. */
+  .sticky-preview-column .slds-card__footer .save-to-sfmc-button {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-height: 44px;
+    font-weight: 600;
+  }
+  /* Copy-SFMC-URL buttons — same full-width stacking on mobile, and
+     reveal the text label (hidden on desktop). The tiny inline link
+     glyph is hidden on mobile since the label is now visible. */
+  .sticky-preview-column .slds-card__footer .copy-sfmc-url-button {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-height: 44px;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  .sticky-preview-column .slds-card__footer .copy-sfmc-url-button .copy-sfmc-url-button__label {
+    display: inline;
+    margin-left: 0.375rem;
+  }
+  .sticky-preview-column .slds-card__footer .copy-sfmc-url-button .copy-sfmc-url-button__link-icon {
+    display: none;
   }
 
   /* ── Better touch feedback on all interactive elements ── */

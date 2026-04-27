@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import LZString from 'lz-string';
 import { Icons, SldsIcon } from './Icons';
 import { ProjectsBrowser } from './ProjectsBrowser';
+import { SfmcBrowser, type SfmcAsset } from './SfmcBrowser';
+import { SaveToSfmcDialog } from './SaveToSfmcDialog';
 import { TickerText } from './TickerText';
 import { getStoredProjectRef, storeProjectRef, ensurePlaceholderContent } from '@/utils/sfmcBlock';
 
@@ -182,6 +185,110 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
   });
   const [originalImageUrl, setOriginalImageUrl] = useState<string>('');
   const [activeImageSourceTab, setActiveImageSourceTab] = useState<'url' | 'upload' | 'transparent' | 'desktop-mobile'>('desktop-mobile');
+
+  // SFMC Content Builder browser modal
+  const [isSfmcBrowserOpen, setIsSfmcBrowserOpen] = useState(false);
+
+  // When a project has been uploaded to SFMC at least once, this link is
+  // persisted so subsequent "Save to SFMC" calls can replace the same
+  // asset in place (same id → same published URL in live emails).
+  //
+  // Two shapes: a single asset (classic Download) or a desktop+mobile
+  // pair. `kind` is the discriminator. Older saves (pre-pair) have no
+  // `kind` field — they are normalised to `kind: 'single'` on load.
+  interface SfmcAssetRef {
+    assetId: number;
+    assetName: string;
+    publishedUrl?: string;
+    customerKey?: string;
+  }
+  interface SfmcLinkSingle {
+    kind: 'single';
+    categoryId: number;
+    categoryName?: string;
+    assetId: number;
+    assetName: string;
+    publishedUrl?: string;
+    customerKey?: string;
+    lastUpdatedAt?: string;
+  }
+  interface SfmcLinkPair {
+    kind: 'pair';
+    categoryId: number;
+    categoryName?: string;
+    baseName: string;
+    desktop?: SfmcAssetRef;
+    mobile?: SfmcAssetRef;
+    lastUpdatedAt?: string;
+  }
+  type SfmcLink = SfmcLinkSingle | SfmcLinkPair;
+  const [sfmcLink, setSfmcLink] = useState<SfmcLink | null>(null);
+  const [isSaveToSfmcOpen, setIsSaveToSfmcOpen] = useState(false);
+  // Download variant menu (desktop-mobile mode only)
+  const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
+  const downloadMenuRef = useRef<HTMLDivElement>(null);
+  const downloadChevronRef = useRef<HTMLButtonElement>(null);
+  const [downloadMenuPos, setDownloadMenuPos] = useState<{
+    top: number;
+    right: number;
+    maxHeight: number;
+    placement: 'below' | 'above';
+  } | null>(null);
+  useEffect(() => {
+    if (!isDownloadMenuOpen) {
+      setDownloadMenuPos(null);
+      return;
+    }
+    // Compute menu position from the chevron's bounding rect so it
+    // renders via portal outside any overflow:hidden ancestor. Flip
+    // upward if there isn't enough space below, and always clamp to
+    // the viewport with internal scrolling as a last resort.
+    const recompute = () => {
+      const el = downloadChevronRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const margin = 8;
+      const preferredHeight = 160; // rough: 3 items @ ~44px + padding
+      const spaceBelow = vh - r.bottom - margin;
+      const spaceAbove = r.top - margin;
+      const placement: 'below' | 'above' =
+        spaceBelow >= preferredHeight || spaceBelow >= spaceAbove ? 'below' : 'above';
+      const maxHeight =
+        placement === 'below'
+          ? Math.max(120, Math.min(preferredHeight, spaceBelow))
+          : Math.max(120, Math.min(preferredHeight, spaceAbove));
+      setDownloadMenuPos({
+        top: placement === 'below' ? r.bottom + 4 : Math.max(margin, r.top - maxHeight - 4),
+        right: Math.max(margin, window.innerWidth - r.right),
+        maxHeight,
+        placement,
+      });
+    };
+    recompute();
+    const onClick = (e: MouseEvent) => {
+      if (!downloadMenuRef.current) return;
+      if (
+        !downloadMenuRef.current.contains(e.target as Node) &&
+        !downloadChevronRef.current?.contains(e.target as Node)
+      ) {
+        setIsDownloadMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsDownloadMenuOpen(false);
+    };
+    window.addEventListener('resize', recompute);
+    window.addEventListener('scroll', recompute, true);
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('resize', recompute);
+      window.removeEventListener('scroll', recompute, true);
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [isDownloadMenuOpen]);
 
   // Scroll-to-top FAB visibility (mobile). Tracks page scroll position.
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -940,6 +1047,26 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
           setActiveImageSourceTab(mode);
         }
 
+        // Restore SFMC asset link (if this project has been uploaded before)
+        if (shareData.sfmc && typeof shareData.sfmc === 'object') {
+          const raw = shareData.sfmc;
+          if (raw.kind === 'pair' && typeof raw.categoryId === 'number') {
+            setSfmcLink(raw as SfmcLink);
+          } else if (typeof raw.assetId === 'number' && typeof raw.categoryId === 'number') {
+            // Legacy (no kind) or explicit single.
+            setSfmcLink({
+              kind: 'single',
+              categoryId: raw.categoryId,
+              categoryName: raw.categoryName,
+              assetId: raw.assetId,
+              assetName: raw.assetName ?? '',
+              publishedUrl: raw.publishedUrl,
+              customerKey: raw.customerKey,
+              lastUpdatedAt: raw.lastUpdatedAt,
+            });
+          }
+        }
+
         // Handle desktop/mobile specific parameters
         if (mode === 'desktop-mobile') {
           const dmVersion = shareData.dmv || (shareData.v !== undefined ? (shareData.v === 0 ? 'desktop' : 'mobile') : shareData.v);
@@ -1675,6 +1802,147 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
     input.style.setProperty('--range-progress', `${value}%`);
   };
 
+  // Load a background image from an arbitrary URL via the CORS-safe
+  // /api/load-images proxy. Used by both the URL input and the SFMC
+  // Content Builder browser.
+  const loadBackgroundFromUrl = async (url: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!url.trim()) throw new Error('Please enter an image URL');
+      try {
+        new URL(url);
+      } catch {
+        throw new Error('Please enter a valid URL');
+      }
+      setOriginalImageUrl(url);
+      const response = await fetch('/api/load-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: [url] }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || `Failed to load image (${response.status})`);
+      }
+      const data = await response.json();
+      const base64ImageString = data.images[0];
+      if (!base64ImageString?.startsWith('data:image/')) {
+        throw new Error('Invalid image format received from server');
+      }
+      setFormState(prev => ({ ...prev, imageUrl: base64ImageString }));
+    } catch (err) {
+      console.error('Error loading image:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load image');
+      setFormState(prev => ({ ...prev, imageUrl: '' }));
+      setOriginalImageUrl('');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSfmcPick = (asset: SfmcAsset) => {
+    if (!asset.publishedUrl) return;
+    // Route the picked URL to the currently active image source.
+    // Default case (and "desktop-mobile" mode) uses the dedicated
+    // Desktop & Mobile background handler. Other tabs reuse the
+    // generic URL loader.
+    if (activeImageSourceTab === 'desktop-mobile') {
+      handleDesktopMobileImageUrlChange(asset.publishedUrl);
+    } else if (activeImageSourceTab === 'url') {
+      loadBackgroundFromUrl(asset.publishedUrl);
+    } else {
+      // User is in upload/transparent mode — switch to URL mode so they
+      // see the picked asset in the URL input.
+      handleImageSourceTabChange('url');
+      loadBackgroundFromUrl(asset.publishedUrl);
+    }
+  };
+
+  // Assemble the same overlay-render payload that handleDownload sends
+  // to /api/overlay. Used by "Save to SFMC" so the rendered image
+  // matches what the user would otherwise download.
+  //
+  // In desktop-mobile mode, `versionOverride` selects which variant to
+  // render: pass 'desktop' or 'mobile' to render that specific version,
+  // or omit to use whichever is currently on screen.
+  const buildOverlayParams = (
+    versionOverride?: 'desktop' | 'mobile'
+  ): Record<string, unknown> => {
+    const version =
+      activeImageSourceTab === 'desktop-mobile'
+        ? versionOverride ?? desktopMobileVersion
+        : undefined;
+    return {
+      ...formState,
+      ...(activeImageSourceTab === 'desktop-mobile' && version && {
+        desktopMobileVersion: version,
+        desktopMobileImageUrl,
+        isDesktopMobileMode: true,
+        showMilwaukeeLogo,
+        imageZoom: version === 'desktop' ? formState.desktopBgZoom : formState.mobileBgZoom,
+        imageX: version === 'desktop' ? formState.desktopBgX : formState.mobileBgX,
+        imageY: version === 'desktop' ? formState.desktopBgY : formState.mobileBgY,
+        width: version === 'desktop' ? formState.desktopWidth : formState.mobileWidth,
+        height: version === 'desktop' ? formState.desktopHeight : formState.mobileHeight,
+      }),
+      // If the user picked an external URL that isn't base64, pass the
+      // original URL (not the cached base64 blob which inflates payloads).
+      ...(activeImageSourceTab !== 'desktop-mobile' &&
+        activeImageSourceTab !== 'upload' &&
+        originalImageUrl &&
+        !originalImageUrl.startsWith('data:') && { imageUrl: originalImageUrl }),
+    };
+  };
+
+  const handleSfmcUploaded = (link: SfmcLink, summary: string) => {
+    setSfmcLink(link);
+    setToastMessage(summary);
+    setShowToast(true);
+    window.setTimeout(() => setShowToast(false), 4000);
+
+    // Persist the updated sfmcLink back to the project row so the
+    // asset ID survives a reload. We rebuild shareData with the fresh
+    // link (state update hasn't flushed yet, so we pass it explicitly).
+    if (currentProjectId) {
+      const freshShareData = { ...buildShareData(), sfmc: link };
+      fetch(`/api/projects/${currentProjectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: freshShareData, name: currentProjectName || 'Untitled' }),
+      }).catch((err) => {
+        // Non-fatal — the asset is live in SFMC, but the link won't
+        // survive a reload until the user hits Save Changes.
+        console.warn('Failed to persist sfmcLink to project:', err);
+      });
+    }
+  };
+
+  // Silently persist the current project state. Called by the SFMC save
+  // dialog *before* uploading so that any in-editor edits are safe even
+  // if the upload itself fails. Throws on error so the dialog can
+  // surface it and abort the upload.
+  const saveProjectBeforeSfmcUpload = async (): Promise<void> => {
+    if (!currentProjectId) {
+      // Defensive — the Save-to-SFMC button is disabled without an
+      // existing project, but guard here too.
+      throw new Error('Please save the project first.');
+    }
+    const shareData = buildShareData();
+    const res = await fetch(`/api/projects/${currentProjectId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: shareData,
+        name: currentProjectName || 'Untitled',
+      }),
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      throw new Error(`Could not save project before upload: ${txt || res.status}`);
+    }
+  };
+
   const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
@@ -2003,7 +2271,10 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
       ...(formState.imageY !== 0 && { y: formState.imageY }),
       ...(activeImageSourceTab !== 'transparent' && activeImageSourceTab !== 'desktop-mobile' && originalImageUrl && {
         i: compressUrl(originalImageUrl)
-      })
+      }),
+      // Persist link to a previously-uploaded SFMC asset so future
+      // "Save to SFMC" calls replace the same asset in place.
+      ...(sfmcLink && { sfmc: sfmcLink })
     };
 
     if (formState.textOverlays.length > 0) {
@@ -2196,6 +2467,44 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
       setShowToast(false);
       setShowCopySuccess(false);
     }, 1500);
+  };
+
+  // Generic "copy an arbitrary URL" helper — used for SFMC published
+  // asset URLs. Shares the same toast mechanism as handleCopyLink.
+  const copyToClipboard = async (url: string, successMsg: string) => {
+    let copied = false;
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      try {
+        await navigator.clipboard.writeText(url);
+        copied = true;
+      } catch {
+        // fall through
+      }
+    }
+    if (!copied) {
+      const textarea = document.createElement('textarea');
+      textarea.value = url;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        copied = true;
+      } catch {
+        // execCommand failed
+      }
+      document.body.removeChild(textarea);
+    }
+    if (copied) {
+      setToastMessage(successMsg);
+    } else {
+      window.prompt('Copy this URL:', url);
+      setToastMessage('URL generated — copy it from the prompt above.');
+    }
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 1500);
   };
 
   const handleTextChange = (value: string) => {
@@ -2701,18 +3010,24 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
               <ol className="sfmc-guidance__steps">
                 <li>Design your banner here and save it as a project.</li>
                 <li>
-                  Click <strong>Download</strong> (Desktop, Mobile, or Both)
-                  to export the final image(s).
+                  Click <strong>Save to SFMC</strong> to upload the
+                  desktop and mobile image(s) straight into Content
+                  Builder. You can also click <strong>Download</strong>
+                  if you&rsquo;d rather export the files locally and
+                  upload them yourself.
                 </li>
                 <li>
-                  In Content Builder, upload the image(s) to an
-                  <em> assets</em> subfolder next to your email
-                  (e.g. <code>My Email / assets</code>).
+                  Once saved, use <strong>Copy desktop URL</strong> /
+                  <strong> Copy mobile URL</strong> to grab the
+                  published image links.
                 </li>
                 <li>
-                  Add a <strong>Lead Banner</strong> block to the email and
-                  paste the published image URL(s) into its desktop and
-                  mobile fields.
+                  Add a <strong>Lead Banner</strong> block to the email
+                  and paste those URLs into its desktop and mobile
+                  fields. Editing your banner later and clicking{' '}
+                  <strong>Update in SFMC</strong> replaces the image in
+                  place — the URLs stay the same, so the email updates
+                  automatically.
                 </li>
               </ol>
               <p className="sfmc-guidance__footnote">
@@ -3050,6 +3365,16 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
                               </div>
                               <div className="slds-form-element__help">
                                 The background image will be resized to fit the selected dimensions (1240x968 for desktop, 1240x1400 for mobile)
+                              </div>
+                              <div className="slds-m-top_small">
+                                <button
+                                  type="button"
+                                  className="slds-button slds-button_neutral"
+                                  onClick={() => setIsSfmcBrowserOpen(true)}
+                                >
+                                  <SldsIcon name="search" className="slds-button__icon slds-button__icon_left" />
+                                  Browse SFMC Content Builder…
+                                </button>
                               </div>
                             </div>
 
@@ -4102,54 +4427,213 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
 
               {/* Download actions — primary, right */}
               {activeImageSourceTab === 'desktop-mobile' ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   <button
-                    className="slds-button slds-button_neutral download-button"
-                    onClick={() => handleDesktopMobileDownload('desktop')}
-                    disabled={isLoading}
-                    aria-label="Download desktop version (1240x968)"
+                    className="slds-button slds-button_brand save-to-sfmc-button"
+                    onClick={() => setIsSaveToSfmcOpen(true)}
+                    disabled={isLoading || !currentProjectId}
+                    aria-label={
+                      !currentProjectId
+                        ? 'Save this project first to enable SFMC upload'
+                        : sfmcLink
+                        ? 'Update asset(s) in SFMC'
+                        : 'Save to SFMC'
+                    }
+                    title={
+                      !currentProjectId
+                        ? 'Save the project first — required so the SFMC asset can be linked back to it.'
+                        : sfmcLink
+                        ? sfmcLink.kind === 'pair'
+                          ? `Update ${sfmcLink.baseName} in SFMC`
+                          : `Update ${sfmcLink.assetName} in SFMC`
+                        : 'Save to SFMC'
+                    }
                   >
-                    <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                      <Icons.Download />
-                    </svg>
-                    Desktop
+                    <SldsIcon name="upload" className="slds-button__icon slds-button__icon_left" />
+                    {sfmcLink ? 'Update in SFMC' : 'Save to SFMC'}
                   </button>
-                  <button
-                    className="slds-button slds-button_neutral download-button"
-                    onClick={() => handleDesktopMobileDownload('mobile')}
-                    disabled={isLoading}
-                    aria-label="Download mobile version (1240x1400)"
+
+                  {/* Copy published SFMC URL(s) — only visible after a
+                      successful save, once publishedUrl is known.
+                      Icon-only on desktop (label in tooltip) to keep
+                      the footer compact; full label on mobile. */}
+                  {sfmcLink && sfmcLink.kind === 'pair' && sfmcLink.desktop?.publishedUrl && (
+                    <button
+                      className="slds-button slds-button_neutral copy-sfmc-url-button"
+                      onClick={() => copyToClipboard(
+                        sfmcLink.desktop!.publishedUrl!,
+                        'Desktop SFMC URL copied!'
+                      )}
+                      aria-label="Copy desktop SFMC image URL"
+                      title={`Copy desktop URL\n${sfmcLink.desktop.publishedUrl}`}
+                    >
+                      <SldsIcon name="desktop" className="slds-button__icon" />
+                      <SldsIcon name="link" className="slds-button__icon copy-sfmc-url-button__link-icon" />
+                      <span className="copy-sfmc-url-button__label">Copy desktop URL</span>
+                    </button>
+                  )}
+                  {sfmcLink && sfmcLink.kind === 'pair' && sfmcLink.mobile?.publishedUrl && (
+                    <button
+                      className="slds-button slds-button_neutral copy-sfmc-url-button"
+                      onClick={() => copyToClipboard(
+                        sfmcLink.mobile!.publishedUrl!,
+                        'Mobile SFMC URL copied!'
+                      )}
+                      aria-label="Copy mobile SFMC image URL"
+                      title={`Copy mobile URL\n${sfmcLink.mobile.publishedUrl}`}
+                    >
+                      <SldsIcon name="phone_portrait" className="slds-button__icon" />
+                      <SldsIcon name="link" className="slds-button__icon copy-sfmc-url-button__link-icon" />
+                      <span className="copy-sfmc-url-button__label">Copy mobile URL</span>
+                    </button>
+                  )}
+
+                  {/* Download split-button: default action downloads both;
+                      chevron opens menu for Desktop / Mobile / Both. */}
+                  <div
+                    className="download-split-group"
+                    role="group"
+                    aria-label="Download options"
                   >
-                    <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                      <Icons.Download />
-                    </svg>
-                    Mobile
-                  </button>
-                  <button
-                    className="slds-button slds-button_brand download-button"
-                    onClick={handleDesktopMobileDownloadBoth}
-                    disabled={isLoading}
-                    aria-label="Download both desktop and mobile versions"
-                    title="Download both desktop and mobile"
-                  >
-                    <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                      <Icons.Download />
-                    </svg>
-                    Both
-                  </button>
+                    <button
+                      className="slds-button slds-button_neutral download-split-main"
+                      onClick={handleDesktopMobileDownloadBoth}
+                      disabled={isLoading}
+                      aria-label="Download both desktop and mobile"
+                      title="Download both desktop and mobile"
+                    >
+                      <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                        <Icons.Download />
+                      </svg>
+                      Download
+                    </button>
+                    <button
+                      ref={downloadChevronRef}
+                      type="button"
+                      className="slds-button slds-button_neutral download-split-chevron"
+                      onClick={() => setIsDownloadMenuOpen((v) => !v)}
+                      disabled={isLoading}
+                      aria-haspopup="menu"
+                      aria-expanded={isDownloadMenuOpen}
+                      aria-label="More download options"
+                      title="Download desktop or mobile individually"
+                    >
+                      <SldsIcon name="chevrondown" className="slds-button__icon" />
+                    </button>
+                    {isDownloadMenuOpen && downloadMenuPos && typeof document !== 'undefined' &&
+                      createPortal(
+                        <div
+                          ref={downloadMenuRef}
+                          role="menu"
+                          aria-label="Download options"
+                          style={{
+                            position: 'fixed',
+                            top: `${downloadMenuPos.top}px`,
+                            right: `${downloadMenuPos.right}px`,
+                            minWidth: '12rem',
+                            maxHeight: `${downloadMenuPos.maxHeight}px`,
+                            overflowY: 'auto',
+                            background: 'var(--slds-g-color-neutral-base-100, #fff)',
+                            border: '1px solid var(--slds-g-color-border-base-1, #c9c9c9)',
+                            borderRadius: '0.25rem',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                            padding: '0.25rem 0',
+                            zIndex: 9050,
+                          }}
+                        >
+                          <button
+                            role="menuitem"
+                            className="slds-button"
+                            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 0.75rem' }}
+                            onClick={() => {
+                              setIsDownloadMenuOpen(false);
+                              handleDesktopMobileDownloadBoth();
+                            }}
+                            disabled={isLoading}
+                          >
+                            Download both
+                          </button>
+                          <button
+                            role="menuitem"
+                            className="slds-button"
+                            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 0.75rem' }}
+                            onClick={() => {
+                              setIsDownloadMenuOpen(false);
+                              handleDesktopMobileDownload('desktop');
+                            }}
+                            disabled={isLoading}
+                          >
+                            Desktop only
+                          </button>
+                          <button
+                            role="menuitem"
+                            className="slds-button"
+                            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 0.75rem' }}
+                            onClick={() => {
+                              setIsDownloadMenuOpen(false);
+                              handleDesktopMobileDownload('mobile');
+                            }}
+                            disabled={isLoading}
+                          >
+                            Mobile only
+                          </button>
+                        </div>,
+                        document.body,
+                      )}
+                  </div>
                 </div>
               ) : (
-                <button
-                  className="slds-button slds-button_brand download-button"
-                  onClick={() => handleDownload()}
-                  disabled={isLoading}
-                  aria-label="Download image with overlay"
-                >
-                  <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
-                    <Icons.Download />
-                  </svg>
-                  Download
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <button
+                    className="slds-button slds-button_brand save-to-sfmc-button"
+                    onClick={() => setIsSaveToSfmcOpen(true)}
+                    disabled={isLoading || !currentProjectId}
+                    aria-label={
+                      !currentProjectId
+                        ? 'Save this project first to enable SFMC upload'
+                        : sfmcLink
+                        ? 'Update asset in SFMC'
+                        : 'Save to SFMC'
+                    }
+                    title={
+                      !currentProjectId
+                        ? 'Save the project first — required so the SFMC asset can be linked back to it.'
+                        : sfmcLink
+                        ? sfmcLink.kind === 'pair'
+                          ? `Update ${sfmcLink.baseName} in SFMC`
+                          : `Update ${sfmcLink.assetName} in SFMC`
+                        : 'Save to SFMC'
+                    }
+                  >
+                    <SldsIcon name="upload" className="slds-button__icon slds-button__icon_left" />
+                    {sfmcLink ? 'Update in SFMC' : 'Save to SFMC'}
+                  </button>
+                  {sfmcLink && sfmcLink.kind === 'single' && sfmcLink.publishedUrl && (
+                    <button
+                      className="slds-button slds-button_neutral copy-sfmc-url-button"
+                      onClick={() => copyToClipboard(
+                        sfmcLink.publishedUrl!,
+                        'SFMC URL copied!'
+                      )}
+                      aria-label="Copy SFMC image URL"
+                      title={`Copy SFMC URL\n${sfmcLink.publishedUrl}`}
+                    >
+                      <SldsIcon name="link" className="slds-button__icon" />
+                      <span className="copy-sfmc-url-button__label">Copy SFMC URL</span>
+                    </button>
+                  )}
+                  <button
+                    className="slds-button slds-button_neutral download-button"
+                    onClick={() => handleDownload()}
+                    disabled={isLoading}
+                    aria-label="Download image with overlay"
+                  >
+                    <svg className="slds-button__icon slds-button__icon_left" aria-hidden="true">
+                      <Icons.Download />
+                    </svg>
+                    Download
+                  </button>
+                </div>
               )}
             </div>
           </footer>
@@ -4362,6 +4846,24 @@ export function ClientApp({ projectId: initialProjectId, projectName: initialPro
         onClose={() => setShowProjectsBrowser(false)}
         onOpenProject={handleOpenProject}
         currentProjectId={currentProjectId}
+      />
+
+      {/* SFMC Content Builder Browser */}
+      <SfmcBrowser
+        isOpen={isSfmcBrowserOpen}
+        onClose={() => setIsSfmcBrowserOpen(false)}
+        onPickAsset={handleSfmcPick}
+      />
+
+      {/* Save to SFMC */}
+      <SaveToSfmcDialog
+        isOpen={isSaveToSfmcOpen}
+        onClose={() => setIsSaveToSfmcOpen(false)}
+        currentMode={activeImageSourceTab === 'desktop-mobile' ? 'desktop-mobile' : 'single'}
+        existingLink={sfmcLink}
+        buildOverlayParams={buildOverlayParams}
+        onBeforeUpload={saveProjectBeforeSfmcUpload}
+        onUploaded={handleSfmcUploaded}
       />
 
       {showToast && (
