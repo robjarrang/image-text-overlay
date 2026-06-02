@@ -1,6 +1,16 @@
-.vercel
-.next
-node_modules
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Azure/Vercel deployment output and local metadata
+.vercel/
+
+# Environment files
+.env*
+
+# OS and logs
 .DS_Store
 *.log
-.env*.local
