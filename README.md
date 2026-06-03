@@ -1,6 +1,6 @@
 # Text Overlay Image Generator
 
-A Next.js application that allows users to overlay formatted text onto images, with support for text alignment, superscript, and styling.
+A Next.js application that allows users to overlay formatted text onto images, with support for text alignment, superscript, & styling.
 
 ## Features
 
