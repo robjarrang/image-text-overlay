@@ -10,6 +10,18 @@
   font-display: swap;
 }
 
+/* Cyrillic/Greek-capable brand font (Helvetica Neue W1G 83 Heavy Extended — the
+   same file used on bg.milwaukeetool.eu). The primary brand font is a Latin-only
+   cut, so canvas rendering falls back to this per-glyph for BG market (Cyrillic)
+   text. Latin text is unaffected. */
+@font-face {
+  font-family: 'HelveticaNeueCyrillic';
+  src: url('/fonts/HelveticaNeueW1G-83-HeavyExtended.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Base variables and theme colors */
 :root {
   --background: #f0f0f0;

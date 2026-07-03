@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import sharp from 'sharp';
 import * as opentype from 'opentype.js';
 import { base64FontData } from '../../utils/fontData';
+import { base64FallbackFontData } from '../../utils/fallbackFontData';
 import { TextOverlay, ImageOverlay } from '../../components/ClientApp';
 
 export const config = {
@@ -20,6 +21,11 @@ const MAX_HEIGHT = 300;
 
 // Cache the font instance
 let cachedFont: opentype.Font | null = null;
+// Cache the Cyrillic fallback font instance (Helvetica Neue W1G 83 Heavy
+// Extended — the same brand font used on bg.milwaukeetool.eu). The primary brand
+// font is a Latin-only cut with no Cyrillic glyphs, so Cyrillic characters (e.g.
+// BG market) are rendered from this font on a per-character basis.
+let cachedFallbackFont: opentype.Font | null = null;
 
 interface OverlayParams {
   textOverlays: TextOverlay[];
@@ -80,6 +86,117 @@ async function loadFont(): Promise<opentype.Font> {
     }
   }
   return cachedFont;
+}
+
+// Loads the Cyrillic fallback font. Returns null (rather than throwing) on
+// failure so that Latin rendering continues to work even if the fallback is
+// somehow unavailable.
+async function loadFallbackFont(): Promise<opentype.Font | null> {
+  if (!cachedFallbackFont) {
+    try {
+      const fontBuffer = Buffer.from(base64FallbackFontData, 'base64');
+      const arrayBuffer = new ArrayBuffer(fontBuffer.length);
+      const uint8Array = new Uint8Array(arrayBuffer);
+      for (let i = 0; i < fontBuffer.length; ++i) {
+        uint8Array[i] = fontBuffer[i];
+      }
+      const parsed = opentype.parse(arrayBuffer);
+      if (!parsed || typeof parsed.getPath !== 'function') {
+        throw new Error('Invalid fallback font instance created');
+      }
+      cachedFallbackFont = parsed;
+    } catch (error) {
+      console.error('Fallback font loading error:', error);
+      return null;
+    }
+  }
+  return cachedFallbackFont;
+}
+
+// Returns true if the font contains a real (non-.notdef) glyph for the char.
+function fontHasGlyph(font: opentype.Font, char: string): boolean {
+  const glyph = font.charToGlyph(char);
+  return !!glyph && glyph.index !== 0;
+}
+
+// Splits text into contiguous runs, each tagged with the font that should
+// render it. Latin (and any glyph present in the primary font) uses the primary
+// font; Cyrillic and other glyphs missing from the primary font use the
+// fallback. Characters present in both fonts stick to the current run's font to
+// avoid unnecessary switching.
+function splitFontRuns(
+  text: string,
+  primary: opentype.Font,
+  fallback: opentype.Font | null
+): Array<{ font: opentype.Font; text: string }> {
+  const runs: Array<{ font: opentype.Font; text: string }> = [];
+  let currentFont: opentype.Font | null = null;
+  let buffer = '';
+
+  for (const char of text) {
+    const inPrimary = fontHasGlyph(primary, char);
+    const inFallback = fallback ? fontHasGlyph(fallback, char) : false;
+
+    let chosen: opentype.Font;
+    if (inPrimary && inFallback && currentFont) {
+      chosen = currentFont; // shared glyph: keep current run's font
+    } else if (inPrimary) {
+      chosen = primary;
+    } else if (inFallback && fallback) {
+      chosen = fallback;
+    } else {
+      chosen = primary; // no font has it; primary renders .notdef
+    }
+
+    if (chosen !== currentFont) {
+      if (buffer && currentFont) {
+        runs.push({ font: currentFont, text: buffer });
+      }
+      currentFont = chosen;
+      buffer = char;
+    } else {
+      buffer += char;
+    }
+  }
+  if (buffer && currentFont) {
+    runs.push({ font: currentFont, text: buffer });
+  }
+  return runs;
+}
+
+// Total advance width of text, measuring each run with its own font.
+function measureTextWidth(
+  text: string,
+  fontSize: number,
+  primary: opentype.Font,
+  fallback: opentype.Font | null
+): number {
+  let width = 0;
+  for (const run of splitFontRuns(text, primary, fallback)) {
+    width += run.font.getAdvanceWidth(run.text, fontSize);
+  }
+  return width;
+}
+
+// Builds SVG <path> markup for text drawn from (x, y) on the baseline,
+// advancing per run so mixed Latin/Cyrillic strings align correctly.
+function textToSvgPaths(
+  text: string,
+  x: number,
+  y: number,
+  fontSize: number,
+  fill: string,
+  primary: opentype.Font,
+  fallback: opentype.Font | null
+): string {
+  let currentX = x;
+  let paths = '';
+  for (const run of splitFontRuns(text, primary, fallback)) {
+    const path = run.font.getPath(run.text, currentX, y, fontSize);
+    paths += `<path d="${path.toPathData()}" fill="${fill}" />`;
+    currentX += run.font.getAdvanceWidth(run.text, fontSize);
+  }
+  return paths;
 }
 
 const wrapText = (
@@ -253,6 +370,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       throw new Error('Font failed to load');
     }
     console.log('Font loaded successfully');
+
+    // Load the Cyrillic fallback font (non-fatal if unavailable).
+    const fallbackFont = await loadFallbackFont();
+    if (!fallbackFont) {
+      console.warn('Cyrillic fallback font unavailable; Cyrillic text may not render correctly');
+    }
 
     let imageWidth: number;
     let imageHeight: number;
@@ -472,7 +595,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           line.parts.forEach(part => {
             const partSize = part.isSuper ? actualFontSize * 0.7 : actualFontSize;
             const displayText = overlay.allCaps ? part.text.toUpperCase() : part.text;
-            totalLineWidth += font.getAdvanceWidth(displayText, partSize);
+            totalLineWidth += measureTextWidth(displayText, partSize, font, fallbackFont);
           });
           
           // Calculate starting X position based on alignment
@@ -495,11 +618,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             
             // Draw the part
             const partY = part.isSuper ? currentY - (actualFontSize * 0.3) : currentY;
-            const path = font.getPath(displayText, currentX, partY, partSize);
-            svgPaths += `<path d="${path.toPathData()}" fill="${fontColor}" />`;
+            svgPaths += textToSvgPaths(displayText, currentX, partY, partSize, fontColor, font, fallbackFont);
             
             // Calculate this part's width and advance X position
-            currentX += font.getAdvanceWidth(displayText, partSize);
+            currentX += measureTextWidth(displayText, partSize, font, fallbackFont);
           });
           
           // Only increment line index once per logical line (not per part)
