@@ -21,19 +21,24 @@ declare module 'opentype.js' {
         };
         toPathData(): string;
         toSVG(): string;
+        extend(path: Path | Glyph): void;
     }
 
     interface Font {
         getPath(text: string, x: number, y: number, fontSize: number): Path;
         getAdvanceWidth(text: string, fontSize: number, options?: any): number;
         stringToGlyphs(text: string): Glyph[];
+        charToGlyph(char: string): Glyph;
         unitsPerEm: number;
     }
 
     interface Glyph {
+        index: number;
         advanceWidth: number;
         getPath(x: number, y: number, fontSize: number): Path;
     }
+
+    export const Path: { new (): Path };
 
     export function parse(buffer: ArrayBuffer): Font;
 }

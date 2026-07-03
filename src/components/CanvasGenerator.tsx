@@ -73,6 +73,7 @@ export function CanvasGenerator({
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const [imageAspectRatio, setImageAspectRatio] = useState<number>(1);
   const [fontLoaded, setFontLoaded] = useState(false);
+  const [fallbackFontLoaded, setFallbackFontLoaded] = useState(false);
   const fontLoadingAttempted = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
   const [draggedOverlayId, setDraggedOverlayId] = useState<string | null>(null);
@@ -175,7 +176,29 @@ export function CanvasGenerator({
       }
     };
 
+    // Load the Cyrillic-capable fallback font (Helvetica Neue W1G 83 Heavy
+    // Extended — the same brand font used on bg.milwaukeetool.eu). Latin text
+    // uses the primary Helvetica Neue brand font; Cyrillic characters (e.g. BG
+    // market) are absent from it, so the canvas falls back to this font per-glyph.
+    const loadFallbackFont = async () => {
+      try {
+        const fallback = new FontFace(
+          'HelveticaNeueCyrillic',
+          'url(/fonts/HelveticaNeueW1G-83-HeavyExtended.ttf)'
+        );
+
+        await fallback.load();
+        document.fonts.add(fallback);
+        setFallbackFontLoaded(true);
+      } catch (fallbackError) {
+        console.warn('Failed to load Cyrillic fallback font:', fallbackError);
+        // Non-fatal: the canvas will use a generic sans-serif for Cyrillic.
+        setFallbackFontLoaded(true);
+      }
+    };
+
     loadFont();
+    loadFallbackFont();
   }, []);
 
   const wrapText = (
@@ -188,7 +211,7 @@ export function CanvasGenerator({
     const lines: string[] = [];
     let currentLine = '';
     
-    ctx.font = `${fontSize}px HelveticaNeue-Condensed`;
+    ctx.font = `${fontSize}px HelveticaNeue-Condensed, 'HelveticaNeueCyrillic', sans-serif`;
     
     for (const word of words) {
       const testLine = currentLine ? `${currentLine} ${word}` : word;
@@ -331,7 +354,7 @@ export function CanvasGenerator({
       let totalLineWidth = 0;
       line.parts.forEach((part) => {
         const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
-        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+        ctx.font = `${partSize}px HelveticaNeue-Condensed, 'HelveticaNeueCyrillic', sans-serif`;
         const displayText = overlay.allCaps ? part.text.toUpperCase() : part.text;
         totalLineWidth += ctx.measureText(displayText).width;
       });
@@ -531,7 +554,7 @@ export function CanvasGenerator({
       let totalLineWidth = 0;
       line.parts.forEach(part => {
         const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
-        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+        ctx.font = `${partSize}px HelveticaNeue-Condensed, 'HelveticaNeueCyrillic', sans-serif`;
         const displayText = overlay.allCaps ? part.text.toUpperCase() : part.text;
         totalLineWidth += ctx.measureText(displayText).width;
       });
@@ -554,7 +577,7 @@ export function CanvasGenerator({
         const textY = currentY - (part.isSuper ? scaledFontSize * 0.3 : 0);
         
         // Set font for this part
-        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+        ctx.font = `${partSize}px HelveticaNeue-Condensed, 'HelveticaNeueCyrillic', sans-serif`;
         const displayText = overlay.allCaps ? part.text.toUpperCase() : part.text;
         const textWidth = ctx.measureText(displayText).width;
         
@@ -828,11 +851,11 @@ export function CanvasGenerator({
       ctx.fillStyle = '#f0f0f0';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#666666';
-      ctx.font = '16px HelveticaNeue-Condensed';
+      ctx.font = "16px HelveticaNeue-Condensed, 'HelveticaNeueCyrillic', sans-serif";
       ctx.textAlign = 'center';
       ctx.fillText('Please enter an image URL', canvas.width / 2, canvas.height / 2);
     }
-  }, [textOverlays, imageOverlays, imageUrl, width, height, brightness, tintColor, tintOpacity, imageZoom, imageX, imageY, fontLoaded, isDesktopMobileMode, desktopMobileVersion, showMilwaukeeLogo, milwaukeeLogoLoaded]);
+  }, [textOverlays, imageOverlays, imageUrl, width, height, brightness, tintColor, tintOpacity, imageZoom, imageX, imageY, fontLoaded, fallbackFontLoaded, isDesktopMobileMode, desktopMobileVersion, showMilwaukeeLogo, milwaukeeLogoLoaded]);
 
   // Keep the drag-time interaction layer in sync with overlay state.
   // Fires whenever overlays change while the user is dragging — which
@@ -957,7 +980,7 @@ export function CanvasGenerator({
         let totalLineWidth = 0;
         line.parts.forEach((part) => {
           const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
-          ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+          ctx.font = `${partSize}px HelveticaNeue-Condensed, 'HelveticaNeueCyrillic', sans-serif`;
           const displayText = textOverlay.allCaps ? part.text.toUpperCase() : part.text;
           totalLineWidth += ctx.measureText(displayText).width;
         });
@@ -978,7 +1001,7 @@ export function CanvasGenerator({
           const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
           const textY = currentY - (part.isSuper ? scaledFontSize * 0.3 : 0);
           
-          ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+          ctx.font = `${partSize}px HelveticaNeue-Condensed, 'HelveticaNeueCyrillic', sans-serif`;
           const displayText = textOverlay.allCaps ? part.text.toUpperCase() : part.text;
           const textWidth = ctx.measureText(displayText).width;
           
@@ -1138,7 +1161,7 @@ export function CanvasGenerator({
         const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx) {
-          ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+          ctx.font = `${partSize}px HelveticaNeue-Condensed, 'HelveticaNeueCyrillic', sans-serif`;
           const measureText = overlay.allCaps ? part.text.toUpperCase() : part.text;
           totalWidth += ctx.measureText(measureText).width;
         } else {
@@ -1266,7 +1289,7 @@ export function CanvasGenerator({
       const partSize = part.isSuper ? scaledFontSize * 0.7 : scaledFontSize;
       const ctx = canvasRef.current?.getContext('2d');
       if (ctx) {
-        ctx.font = `${partSize}px HelveticaNeue-Condensed`;
+        ctx.font = `${partSize}px HelveticaNeue-Condensed, 'HelveticaNeueCyrillic', sans-serif`;
         const textForMeasurement = overlay.allCaps ? part.text.toUpperCase() : part.text;
         totalWidth += ctx.measureText(textForMeasurement).width;
       } else {
